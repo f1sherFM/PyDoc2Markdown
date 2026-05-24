@@ -1,0 +1,41 @@
+# {{ module.name }}
+
+> Auto-generated from `{{ module.path }}`
+
+{% if module.docstring %}
+{{ module.docstring }}
+{% endif %}
+
+{% for class in module.classes %}
+## Class: `{{ class.name }}`
+
+{% if class.docstring %}
+{{ class.docstring }}
+{% endif %}
+
+{% if class.attributes %}
+**Attributes:**
+{% for attr in class.attributes %}
+- `{{ attr.name }}`{% if attr.type_hint %}: `{{ attr.type_hint }}`{% endif %}
+{% endfor %}
+{% endif %}
+
+{% if class.methods %}
+**Methods:**
+{% for method in class.methods %}
+- `{{ method.name }}()`
+{% endfor %}
+{% endif %}
+
+---
+{% endfor %}
+
+{% for func in module.functions %}
+## Function: `{{ func.name }}`
+
+{% if func.docstring %}
+{{ func.docstring }}
+{% endif %}
+
+---
+{% endfor %}
