@@ -18,7 +18,10 @@ def load_config(
     Returns:
         Dictionary with parsed config values.
     """
-    import tomllib
+    try:
+        import tomllib
+    except ModuleNotFoundError:
+        import tomli as tomllib
 
     if cwd is None:
         cwd = Path.cwd()

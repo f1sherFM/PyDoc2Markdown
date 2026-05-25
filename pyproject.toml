@@ -28,6 +28,7 @@ classifiers = [
 dependencies = [
     "Jinja2>=3.1.0",
     "docstring-parser>=0.15",
+    "tomli>=1.2.0; python_version<'3.11'",
 ]
 
 [project.optional-dependencies]
