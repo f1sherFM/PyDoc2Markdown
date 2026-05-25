@@ -101,3 +101,18 @@ def test_generate_package_grouping(tmp_path: Path) -> None:
     content = index.read_text()
     assert "## sub" in content
     assert "[nested](sub/nested.md)" in content
+
+
+def test_generate_minimal_theme(sample_module: Path, tmp_path: Path) -> None:
+    parser = DocstringParser()
+    modules = parser.parse(sample_module)
+
+    generator = MarkdownGenerator(theme="minimal")
+    output_dir = tmp_path / "docs"
+    generator.generate(modules, output_dir)
+
+    module_path = output_dir / "sample_module.md"
+    content = module_path.read_text()
+    assert "# sample_module" in content
+    assert "## Classes" in content
+    assert "## Table of Contents" not in content

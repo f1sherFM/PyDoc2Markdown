@@ -41,6 +41,12 @@ def create_parser() -> argparse.ArgumentParser:
         help="Path to a custom Jinja2 template for Markdown generation.",
     )
     parser.add_argument(
+        "--theme",
+        choices=["default", "minimal"],
+        default="default",
+        help="Built-in theme/template to use (default: default).",
+    )
+    parser.add_argument(
         "-v",
         "--verbose",
         action="count",
@@ -80,7 +86,10 @@ def main(args: list[str] | None = None) -> int:
 
     logger.info("Parsing source: %s (recursive=%s)", parsed_args.source, parsed_args.recursive)
     doc_parser = DocstringParser()
-    md_generator = MarkdownGenerator(template_path=parsed_args.template)
+    md_generator = MarkdownGenerator(
+        template_path=parsed_args.template,
+        theme=parsed_args.theme,
+    )
 
     try:
         modules = doc_parser.parse(

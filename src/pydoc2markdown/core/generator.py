@@ -164,9 +164,14 @@ class MarkdownGenerator:
 {% endif %}
 """
 
-    def __init__(self, template_path: Path | None = None) -> None:
-        """Initialize the generator with an optional custom template."""
+    def __init__(
+        self,
+        template_path: Path | None = None,
+        theme: str = "default",
+    ) -> None:
+        """Initialize the generator with an optional custom template or theme."""
         self._template_path = template_path
+        self._theme = theme
         self._env = self._create_environment()
 
     def _create_environment(self) -> Environment:
@@ -181,6 +186,14 @@ class MarkdownGenerator:
             autoescape=select_autoescape(),
         )
 
+    def _resolve_template_name(self) -> str:
+        """Resolve the template file name based on theme or custom path."""
+        if self._template_path:
+            return self._template_path.name
+        if self._theme == "default":
+            return "module.md"
+        return f"{self._theme}.md"
+
     def generate(
         self,
         modules: list[ModuleDoc],
@@ -190,7 +203,7 @@ class MarkdownGenerator:
         output_dir.mkdir(parents=True, exist_ok=True)
         generated: list[Path] = []
 
-        template_name = self._template_path.name if self._template_path else "module.md"
+        template_name = self._resolve_template_name()
         logger.debug("Using template: %s", template_name)
         template = self._env.get_template(template_name)
 
