@@ -1,8 +1,15 @@
-"""Python docstring parser."""
+"""Python docstring parser with structured docstring support."""
 
 import ast
+import contextlib
+import logging
 from dataclasses import dataclass, field
 from pathlib import Path
+
+import docstring_parser
+from docstring_parser import Docstring as ParsedDocstring
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -16,14 +23,30 @@ class Parameter:
 
 
 @dataclass
+class ReturnsInfo:
+    """Structured return type and description."""
+
+    type_hint: str | None = None
+    description: str | None = None
+
+
+@dataclass
+class RaisesInfo:
+    """Structured exception type and description."""
+
+    type_name: str | None = None
+    description: str | None = None
+
+
+@dataclass
 class FunctionDoc:
     """Represents extracted documentation for a function or method."""
 
     name: str
     docstring: str | None = None
     params: list[Parameter] = field(default_factory=list)
-    returns: str | None = None
-    raises: list[str] = field(default_factory=list)
+    returns: ReturnsInfo | None = None
+    raises: list[RaisesInfo] = field(default_factory=list)
     is_method: bool = False
     is_async: bool = False
 
@@ -51,7 +74,7 @@ class ModuleDoc:
 
 
 class DocstringParser:
-    """Parse Python source files and extract docstrings."""
+    """Parse Python source files and extract structured docstrings."""
 
     def __init__(self) -> None:
         self._modules: list[ModuleDoc] = []
@@ -77,13 +100,20 @@ class DocstringParser:
 
     def _parse_file(self, path: Path) -> None:
         """Parse a single Python file."""
+        logger.debug("Parsing file: %s", path)
         try:
-            source = path.read_text(encoding="utf-8")
+            source_text = path.read_text(encoding="utf-8")
         except UnicodeDecodeError:
-            source = path.read_text(encoding="latin-1")
+            source_text = path.read_text(encoding="latin-1")
 
-        tree = ast.parse(source)
+        tree = ast.parse(source_text)
         module_doc = self._extract_module(path, tree)
+        logger.debug(
+            "Extracted %d classes and %d functions from %s",
+            len(module_doc.classes),
+            len(module_doc.functions),
+            path,
+        )
         self._modules.append(module_doc)
 
     def _extract_module(self, path: Path, tree: ast.AST) -> ModuleDoc:
@@ -126,18 +156,134 @@ class DocstringParser:
         is_method: bool = False,
     ) -> FunctionDoc:
         """Extract documentation from a function definition."""
+        raw_docstring = ast.get_docstring(node)
+        params = self._extract_ast_params(node)
+        returns: ReturnsInfo | None = None
+        raises: list[RaisesInfo] = []
+
+        if raw_docstring:
+            with contextlib.suppress(Exception):
+                parsed = docstring_parser.parse(raw_docstring)
+                self._merge_param_descriptions(params, parsed)
+                returns = self._extract_returns(parsed)
+                raises = self._extract_raises(parsed)
+
+        # Fallback to AST return annotation if docstring did not provide type
+        ast_return_type = ast.unparse(node.returns) if node.returns else None
+        if returns is None:
+            returns = ReturnsInfo(type_hint=ast_return_type)
+        elif ast_return_type and not returns.type_hint:
+            returns.type_hint = ast_return_type
+
         return FunctionDoc(
             name=node.name,
-            docstring=ast.get_docstring(node),
+            docstring=raw_docstring,
+            params=params,
+            returns=returns,
+            raises=raises,
             is_method=is_method,
             is_async=isinstance(node, ast.AsyncFunctionDef),
         )
 
+    def _extract_ast_params(
+        self,
+        node: ast.FunctionDef | ast.AsyncFunctionDef,
+    ) -> list[Parameter]:
+        """Extract parameter names and type hints from AST."""
+        params: list[Parameter] = []
+        args = node.args
+
+        # Determine start index (skip self/cls for methods)
+        start = 0
+        if args.args and args.args[0].arg in ("self", "cls"):
+            start = 1
+
+        # Positional args
+        for _idx, arg in enumerate(args.args[start:], start=start):
+            param = Parameter(
+                name=arg.arg,
+                type_hint=ast.unparse(arg.annotation) if arg.annotation else None,
+            )
+            params.append(param)
+
+        # *args
+        if args.vararg:
+            params.append(
+                Parameter(
+                    name=f"*{args.vararg.arg}",
+                    type_hint=ast.unparse(args.vararg.annotation)
+                    if args.vararg.annotation
+                    else None,
+                ),
+            )
+
+        # Keyword-only args
+        for arg in args.kwonlyargs:
+            params.append(
+                Parameter(
+                    name=arg.arg,
+                    type_hint=ast.unparse(arg.annotation) if arg.annotation else None,
+                ),
+            )
+
+        # **kwargs
+        if args.kwarg:
+            params.append(
+                Parameter(
+                    name=f"**{args.kwarg.arg}",
+                    type_hint=ast.unparse(args.kwarg.annotation) if args.kwarg.annotation else None,
+                ),
+            )
+
+        return params
+
+    def _merge_param_descriptions(
+        self,
+        params: list[Parameter],
+        parsed: ParsedDocstring,
+    ) -> None:
+        """Merge docstring parameter descriptions into AST-extracted parameters."""
+        for param in params:
+            doc_param = next(
+                (p for p in parsed.params if p.arg_name == param.name.lstrip("*")),
+                None,
+            )
+            if doc_param and doc_param.description:
+                param.description = doc_param.description
+
+    def _extract_returns(self, parsed: ParsedDocstring) -> ReturnsInfo | None:
+        """Extract structured return info from parsed docstring."""
+        if parsed.returns:
+            return ReturnsInfo(
+                type_hint=parsed.returns.type_name,
+                description=parsed.returns.description,
+            )
+        return None
+
+    def _extract_raises(self, parsed: ParsedDocstring) -> list[RaisesInfo]:
+        """Extract structured raises info from parsed docstring."""
+        return [
+            RaisesInfo(
+                type_name=r.type_name,
+                description=r.description,
+            )
+            for r in parsed.raises
+        ]
+
     def _extract_attributes(
-        self, init_node: ast.FunctionDef | ast.AsyncFunctionDef
+        self,
+        init_node: ast.FunctionDef | ast.AsyncFunctionDef,
     ) -> list[Parameter]:
         """Extract instance attributes from __init__ method."""
         attributes: list[Parameter] = []
+
+        # Try to enrich with __init__ docstring parameter descriptions
+        init_docstring = ast.get_docstring(init_node)
+        parsed_init: ParsedDocstring | None = None
+        if init_docstring:
+            with contextlib.suppress(Exception):
+                parsed_init = docstring_parser.parse(init_docstring)
+
         for node in ast.walk(init_node):
             if (
                 isinstance(node, ast.AnnAssign)
@@ -145,11 +291,20 @@ class DocstringParser:
                 and isinstance(node.target.value, ast.Name)
                 and node.target.value.id == "self"
             ):
+                attr_name = node.target.attr
                 attr = Parameter(
-                    name=node.target.attr,
+                    name=attr_name,
                     type_hint=ast.unparse(node.annotation) if node.annotation else None,
                 )
+                if parsed_init:
+                    doc_attr = next(
+                        (p for p in parsed_init.params if p.arg_name == attr_name),
+                        None,
+                    )
+                    if doc_attr and doc_attr.description:
+                        attr.description = doc_attr.description
                 attributes.append(attr)
+
         return attributes
 
     def _format_base(self, base: ast.expr) -> str:

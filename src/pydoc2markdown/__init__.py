@@ -4,6 +4,23 @@ __version__ = "0.1.0"
 __author__ = "f1sherFM"
 
 from pydoc2markdown.core.generator import MarkdownGenerator
-from pydoc2markdown.core.parser import DocstringParser
+from pydoc2markdown.core.parser import (
+    ClassDoc,
+    DocstringParser,
+    FunctionDoc,
+    ModuleDoc,
+    Parameter,
+    RaisesInfo,
+    ReturnsInfo,
+)
 
-__all__ = ["DocstringParser", "MarkdownGenerator"]
+__all__ = [
+    "ClassDoc",
+    "DocstringParser",
+    "FunctionDoc",
+    "MarkdownGenerator",
+    "ModuleDoc",
+    "Parameter",
+    "RaisesInfo",
+    "ReturnsInfo",
+]

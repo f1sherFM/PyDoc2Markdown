@@ -2,9 +2,9 @@
 
 ## Overview
 
-**Project name:** `PyDoc2Markdown`  
-**Project type:** CLI tool / Python library  
-**Core features:** docstring parsing, Markdown generation, customizable templates  
+**Project name:** `PyDoc2Markdown`
+**Project type:** CLI tool / Python library
+**Core features:** docstring parsing, Markdown generation, customizable templates
 
 ---
 

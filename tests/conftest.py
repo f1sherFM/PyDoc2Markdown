@@ -24,7 +24,12 @@ class Calculator:
 
         Returns:
             Sum of a and b.
+
+        Raises:
+            ValueError: If a or b is negative.
         """
+        if a < 0 or b < 0:
+            raise ValueError("Negative numbers not allowed")
         return a + b
 
     def subtract(self, a: int, b: int) -> int:

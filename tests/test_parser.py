@@ -4,7 +4,14 @@ from pathlib import Path
 
 import pytest
 
-from pydoc2markdown.core.parser import ClassDoc, DocstringParser, FunctionDoc, ModuleDoc
+from pydoc2markdown.core.parser import (
+    ClassDoc,
+    DocstringParser,
+    FunctionDoc,
+    ModuleDoc,
+    RaisesInfo,
+    ReturnsInfo,
+)
 
 
 def test_parse_single_module(sample_module: Path) -> None:
@@ -64,3 +71,42 @@ def test_parse_invalid_source() -> None:
     parser = DocstringParser()
     with pytest.raises(ValueError, match="Invalid source"):
         parser.parse(Path("nonexistent.py"))
+
+
+def test_parse_function_params(sample_module: Path) -> None:
+    parser = DocstringParser()
+    modules = parser.parse(sample_module)
+    func = modules[0].functions[0]
+
+    assert len(func.params) == 1
+    assert func.params[0].name == "name"
+    assert func.params[0].type_hint == "str"
+    assert func.params[0].description == "Name of the person."
+
+
+def test_parse_function_returns(sample_module: Path) -> None:
+    parser = DocstringParser()
+    modules = parser.parse(sample_module)
+    func = modules[0].functions[0]
+
+    assert isinstance(func.returns, ReturnsInfo)
+    assert func.returns.type_hint == "str"
+    assert func.returns.description == "Greeting message."
+
+
+def test_parse_method_params_and_raises(sample_module: Path) -> None:
+    parser = DocstringParser()
+    modules = parser.parse(sample_module)
+    add_method = next(m for m in modules[0].classes[0].methods if m.name == "add")
+
+    assert len(add_method.params) == 2
+    param_names = {p.name for p in add_method.params}
+    assert param_names == {"a", "b"}
+
+    assert isinstance(add_method.returns, ReturnsInfo)
+    assert add_method.returns.description == "Sum of a and b."
+
+    assert len(add_method.raises) == 1
+    assert isinstance(add_method.raises[0], RaisesInfo)
+    assert add_method.raises[0].type_name == "ValueError"
+    assert add_method.raises[0].description == "If a or b is negative."

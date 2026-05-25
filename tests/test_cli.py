@@ -31,3 +31,10 @@ def test_cli_recursive(sample_package: Path, tmp_path: Path) -> None:
     result = main([str(sample_package), "--recursive", "-o", str(output)])
     assert result == 0
     assert (output / "math_utils.md").exists()
+
+
+def test_cli_verbose(sample_module: Path, tmp_path: Path) -> None:
+    output = tmp_path / "docs"
+    result = main([str(sample_module), "-o", str(output), "-v"])
+    assert result == 0
+    assert (output / "sample_module.md").exists()

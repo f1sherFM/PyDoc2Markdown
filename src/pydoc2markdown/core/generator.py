@@ -1,10 +1,13 @@
 """Markdown documentation generator."""
 
+import logging
 from pathlib import Path
 
 from jinja2 import Environment, FileSystemLoader, PackageLoader, select_autoescape
 
 from pydoc2markdown.core.parser import ModuleDoc
+
+logger = logging.getLogger(__name__)
 
 
 class MarkdownGenerator:
@@ -52,6 +55,32 @@ class MarkdownGenerator:
 {{ method.docstring }}
 {% endif %}
 
+{% if method.params %}
+**Parameters:**
+
+| Name | Type | Description |
+|------|------|-------------|
+{% for param in method.params %}
+| `{{ param.name }}` |
+{% if param.type_hint %}`{{ param.type_hint }}`{% else %}-{% endif %} |
+{% if param.description %}{{ param.description }}{% else %}-{% endif %} |
+{% endfor %}
+{% endif %}
+
+{% if method.returns %}
+**Returns:**{% if method.returns.type_hint %} `{{ method.returns.type_hint }}`{% endif %}
+
+{% if method.returns.description %}{{ method.returns.description }}{% endif %}
+{% endif %}
+
+{% if method.raises %}
+**Raises:**
+{% for raise in method.raises %}
+- {% if raise.type_name %}`{{ raise.type_name }}`{% endif %}
+{% if raise.description %}: {{ raise.description }}{% endif %}
+{% endfor %}
+{% endif %}
+
 {% endfor %}
 {% endif %}
 
@@ -67,6 +96,32 @@ class MarkdownGenerator:
 
 {% if func.docstring %}
 {{ func.docstring }}
+{% endif %}
+
+{% if func.params %}
+**Parameters:**
+
+| Name | Type | Description |
+|------|------|-------------|
+{% for param in func.params %}
+| `{{ param.name }}` |
+{% if param.type_hint %}`{{ param.type_hint }}`{% else %}-{% endif %} |
+{% if param.description %}{{ param.description }}{% else %}-{% endif %} |
+{% endfor %}
+{% endif %}
+
+{% if func.returns %}
+**Returns:**{% if func.returns.type_hint %} `{{ func.returns.type_hint }}`{% endif %}
+
+{% if func.returns.description %}{{ func.returns.description }}{% endif %}
+{% endif %}
+
+{% if func.raises %}
+**Raises:**
+{% for raise in func.raises %}
+- {% if raise.type_name %}`{{ raise.type_name }}`{% endif %}
+{% if raise.description %}: {{ raise.description }}{% endif %}
+{% endfor %}
 {% endif %}
 
 {% endfor %}
@@ -99,12 +154,13 @@ class MarkdownGenerator:
         output_dir.mkdir(parents=True, exist_ok=True)
         generated: list[Path] = []
 
-        template = self._env.get_template(
-            self._template_path.name if self._template_path else "module.md"
-        )
+        template_name = self._template_path.name if self._template_path else "module.md"
+        logger.debug("Using template: %s", template_name)
+        template = self._env.get_template(template_name)
 
         for module in modules:
             output_path = output_dir / f"{module.name}.md"
+            logger.debug("Generating %s", output_path)
             content = template.render(module=module)
             output_path.write_text(content, encoding="utf-8")
             generated.append(output_path)
