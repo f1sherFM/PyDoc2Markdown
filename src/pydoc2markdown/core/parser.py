@@ -49,6 +49,9 @@ class FunctionDoc:
     raises: list[RaisesInfo] = field(default_factory=list)
     is_method: bool = False
     is_async: bool = False
+    is_property: bool = False
+    is_classmethod: bool = False
+    is_staticmethod: bool = False
 
 
 @dataclass
@@ -60,6 +63,7 @@ class ClassDoc:
     methods: list[FunctionDoc] = field(default_factory=list)
     attributes: list[Parameter] = field(default_factory=list)
     bases: list[str] = field(default_factory=list)
+    class_type: str = "class"
 
 
 @dataclass
@@ -71,6 +75,7 @@ class ModuleDoc:
     docstring: str | None = None
     classes: list[ClassDoc] = field(default_factory=list)
     functions: list[FunctionDoc] = field(default_factory=list)
+    public_api: list[str] = field(default_factory=list)
 
 
 class DocstringParser:
@@ -130,15 +135,19 @@ class DocstringParser:
                 module.classes.append(self._extract_class(node))
             elif isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef):
                 module.functions.append(self._extract_function(node))
+            elif isinstance(node, ast.Assign | ast.AnnAssign):
+                module.public_api.extend(self._extract_public_api(node))
 
         return module
 
     def _extract_class(self, node: ast.ClassDef) -> ClassDoc:
         """Extract documentation from a class definition."""
+        bases = [self._format_base(base) for base in node.bases]
         class_doc = ClassDoc(
             name=node.name,
             docstring=ast.get_docstring(node),
-            bases=[self._format_base(base) for base in node.bases],
+            bases=bases,
+            class_type=self._resolve_class_type(node, bases),
         )
 
         for item in node.body:
@@ -175,6 +184,11 @@ class DocstringParser:
         elif ast_return_type and not returns.type_hint:
             returns.type_hint = ast_return_type
 
+        decorators = self._extract_decorator_names(node)
+        is_property = any(d in ("property", "cached_property") for d in decorators)
+        is_classmethod = "classmethod" in decorators
+        is_staticmethod = "staticmethod" in decorators
+
         return FunctionDoc(
             name=node.name,
             docstring=raw_docstring,
@@ -183,6 +197,9 @@ class DocstringParser:
             raises=raises,
             is_method=is_method,
             is_async=isinstance(node, ast.AsyncFunctionDef),
+            is_property=is_property,
+            is_classmethod=is_classmethod,
+            is_staticmethod=is_staticmethod,
         )
 
     def _extract_ast_params(
@@ -310,3 +327,58 @@ class DocstringParser:
     def _format_base(self, base: ast.expr) -> str:
         """Format a base class expression as a string."""
         return ast.unparse(base)
+
+    def _extract_decorator_names(
+        self,
+        node: ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef,
+    ) -> list[str]:
+        """Extract decorator names from a function or class definition."""
+        names: list[str] = []
+        for dec in node.decorator_list:
+            if isinstance(dec, ast.Name):
+                names.append(dec.id)
+            elif isinstance(dec, ast.Attribute):
+                names.append(f"{ast.unparse(dec.value)}.{dec.attr}")
+            elif isinstance(dec, ast.Call):
+                if isinstance(dec.func, ast.Name):
+                    names.append(dec.func.id)
+                elif isinstance(dec.func, ast.Attribute):
+                    names.append(f"{ast.unparse(dec.func.value)}.{dec.func.attr}")
+        return names
+
+    def _resolve_class_type(
+        self,
+        node: ast.ClassDef,
+        bases: list[str],
+    ) -> str:
+        """Determine if a class is a dataclass, enum, typeddict, or plain class."""
+        decorators = self._extract_decorator_names(node)
+        if any(d in ("dataclass", "dataclasses.dataclass") for d in decorators):
+            return "dataclass"
+        if any(base.rsplit(".", 1)[-1] in ("Enum", "IntEnum", "Flag", "IntFlag") for base in bases):
+            return "enum"
+        if any(base.rsplit(".", 1)[-1] in ("TypedDict", "typing.TypedDict") for base in bases):
+            return "typeddict"
+        return "class"
+
+    def _extract_public_api(
+        self,
+        node: ast.Assign | ast.AnnAssign,
+    ) -> list[str]:
+        """Extract names from __all__ assignment."""
+        target = node.targets[0] if isinstance(node, ast.Assign) else node.target
+        if not (isinstance(target, ast.Name) and target.id == "__all__"):
+            return []
+
+        value = node.value
+        if value is None:
+            return []
+
+        names: list[str] = []
+        if isinstance(value, (ast.List, ast.Tuple)):
+            for elt in value.elts:
+                if isinstance(elt, ast.Constant) and isinstance(elt.value, str):
+                    names.append(elt.value)
+                elif hasattr(ast, "Str") and isinstance(elt, ast.Str):  # noqa: UP023
+                    names.append(str(elt.s))
+        return names

@@ -110,3 +110,65 @@ def test_parse_method_params_and_raises(sample_module: Path) -> None:
     assert isinstance(add_method.raises[0], RaisesInfo)
     assert add_method.raises[0].type_name == "ValueError"
     assert add_method.raises[0].description == "If a or b is negative."
+
+
+def test_parse_property(advanced_module: Path) -> None:
+    parser = DocstringParser()
+    modules = parser.parse(advanced_module)
+    greeter = next(c for c in modules[0].classes if c.name == "Greeter")
+    prop = next(m for m in greeter.methods if m.name == "greeting")
+    assert prop.is_property is True
+    assert prop.is_classmethod is False
+    assert prop.is_staticmethod is False
+
+
+def test_parse_classmethod(advanced_module: Path) -> None:
+    parser = DocstringParser()
+    modules = parser.parse(advanced_module)
+    greeter = next(c for c in modules[0].classes if c.name == "Greeter")
+    cm = next(m for m in greeter.methods if m.name == "from_language")
+    assert cm.is_classmethod is True
+    assert cm.is_property is False
+    assert cm.is_staticmethod is False
+
+
+def test_parse_staticmethod(advanced_module: Path) -> None:
+    parser = DocstringParser()
+    modules = parser.parse(advanced_module)
+    greeter = next(c for c in modules[0].classes if c.name == "Greeter")
+    sm = next(m for m in greeter.methods if m.name == "default_greeting")
+    assert sm.is_staticmethod is True
+    assert sm.is_property is False
+    assert sm.is_classmethod is False
+
+
+def test_parse_dataclass(advanced_module: Path) -> None:
+    parser = DocstringParser()
+    modules = parser.parse(advanced_module)
+    dc = next(c for c in modules[0].classes if c.name == "MyDataclass")
+    assert dc.class_type == "dataclass"
+
+
+def test_parse_enum(advanced_module: Path) -> None:
+    parser = DocstringParser()
+    modules = parser.parse(advanced_module)
+    en = next(c for c in modules[0].classes if c.name == "MyEnum")
+    assert en.class_type == "enum"
+
+
+def test_parse_typeddict(advanced_module: Path) -> None:
+    parser = DocstringParser()
+    modules = parser.parse(advanced_module)
+    td = next(c for c in modules[0].classes if c.name == "MyTypedDict")
+    assert td.class_type == "typeddict"
+
+
+def test_parse_public_api(advanced_module: Path) -> None:
+    parser = DocstringParser()
+    modules = parser.parse(advanced_module)
+    assert modules[0].public_api == [
+        "MyDataclass",
+        "MyEnum",
+        "MyTypedDict",
+        "utility",
+    ]

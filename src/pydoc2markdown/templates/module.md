@@ -4,11 +4,18 @@
 {{ module.docstring }}
 {% endif %}
 
+{% if module.public_api %}
+**Public API:**
+{% for name in module.public_api %}
+- `{{ name }}`
+{% endfor %}
+{% endif %}
+
 {% if module.classes %}
 ## Classes
 
 {% for class in module.classes %}
-### `{{ class.name }}`
+### `{{ class.name }}`{% if class.class_type != "class" %} ({{ class.class_type }}){% endif %}
 
 {% if class.bases %}
 **Bases:** `{{ class.bases | join(", ") }}`
@@ -32,7 +39,7 @@
 #### Methods
 
 {% for method in class.methods %}
-##### `{{ method.name }}`
+##### {% if method.is_property %}@property {% elif method.is_classmethod %}@classmethod {% elif method.is_staticmethod %}@staticmethod {% endif %}`{{ method.name }}`
 
 {% if method.docstring %}
 {{ method.docstring }}

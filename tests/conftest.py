@@ -71,3 +71,69 @@ def multiply(x: int, y: int) -> int:
         encoding="utf-8",
     )
     return pkg
+
+
+@pytest.fixture
+def advanced_module(tmp_path: Path) -> Path:
+    """Create a temporary module with advanced Python constructs."""
+    module = tmp_path / "advanced_module.py"
+    module.write_text(
+        '''"""Advanced module for testing extended parsing."""
+
+__all__ = ["MyDataclass", "MyEnum", "MyTypedDict", "utility"]
+
+from dataclasses import dataclass
+from enum import Enum
+from typing import TypedDict
+
+
+@dataclass
+class MyDataclass:
+    """A sample dataclass."""
+
+    value: int
+
+
+class MyEnum(Enum):
+    """A sample enum."""
+
+    A = 1
+    B = 2
+
+
+class MyTypedDict(TypedDict):
+    """A sample typed dict."""
+
+    name: str
+    age: int
+
+
+class Greeter:
+    """A class with various method types."""
+
+    def __init__(self, greeting: str) -> None:
+        self._greeting = greeting
+
+    @property
+    def greeting(self) -> str:
+        """The greeting message."""
+        return self._greeting
+
+    @classmethod
+    def from_language(cls, lang: str) -> "Greeter":
+        """Create from language."""
+        return cls(f"Hello in {lang}")
+
+    @staticmethod
+    def default_greeting() -> str:
+        """Return default greeting."""
+        return "Hello"
+
+
+def utility() -> None:
+    """A utility function."""
+    pass
+''',
+        encoding="utf-8",
+    )
+    return module
