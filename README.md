@@ -8,11 +8,15 @@
 
 ## Features
 
-- **Docstring parsing** — Extract Google, NumPy, and reStructuredText style docstrings.
+- **Docstring parsing** — Extract Google, NumPy, and reStructuredText style docstrings with structured params, returns, and raises.
 - **Markdown generation** — Produce beautiful Markdown files with customizable Jinja2 templates.
+- **Auto-generated index & TOC** — Each module gets a Table of Contents; an `index.md` with package grouping is created automatically.
+- **Package grouping** — Output files are organized into subdirectories matching the package structure.
+- **Built-in themes** — Choose between `default` (detailed) and `minimal` themes, or supply your own template.
 - **CLI & API** — Use via command line or import as a Python library.
 - **Recursive processing** — Scan entire packages in one command.
 - **Type-aware** — Respects type hints and annotations.
+- **Advanced constructs** — Supports `property`, `classmethod`, `staticmethod`, `dataclass`, `Enum`, `TypedDict`, and `__all__`.
 
 ## Installation
 
@@ -31,8 +35,14 @@ pydoc2markdown my_module.py -o docs
 # Recursively process a package
 pydoc2markdown src/my_package --recursive -o docs
 
+# Use a built-in theme
+pydoc2markdown src/my_package --recursive --theme minimal -o docs
+
 # Use a custom template
 pydoc2markdown src/my_package --recursive --template custom.md.j2 -o docs
+
+# Enable verbose logging
+pydoc2markdown src/my_package --recursive -vv -o docs
 ```
 
 ### Library Usage
@@ -44,7 +54,7 @@ from pydoc2markdown import DocstringParser, MarkdownGenerator
 parser = DocstringParser()
 modules = parser.parse(Path("src/my_package"), recursive=True)
 
-generator = MarkdownGenerator()
+generator = MarkdownGenerator(theme="default")
 generator.generate(modules, output_dir=Path("docs"))
 ```
 
