@@ -26,8 +26,8 @@ Thank you for your interest in contributing! This document provides guidelines t
 
 We follow the [Conventional Commits](https://www.conventionalcommits.org/) specification. Prefix your commit messages:
 
-- `feat:` — New features
-- `fix:` — Bug fixes
+- `feat:` — New features (triggers **MINOR** version bump)
+- `fix:` — Bug fixes (triggers **PATCH** version bump)
 - `docs:` — Documentation changes
 - `style:` — Code style changes (formatting, semicolons, etc.)
 - `refactor:` — Code refactoring
@@ -38,6 +38,23 @@ Example:
 ```bash
 git commit -m "feat: add support for NumPy-style docstrings"
 ```
+
+## Automated Releases
+
+This project uses [release-please](https://github.com/googleapis/release-please) to automate versioning and publishing:
+
+1. When a PR with conventional commits is merged to `main`, release-please analyzes the commit history.
+2. If there are releasable changes, release-please opens a **Release PR** containing:
+   - Bumped version in `pyproject.toml`
+   - Updated `CHANGELOG.md`
+3. Merging the Release PR creates a **GitHub Release** and triggers a PyPI publish via Trusted Publishing.
+
+**Version bumping rules:**
+- `feat:` commits bump the **minor** version (e.g. `0.1.0` → `0.2.0`)
+- `fix:` commits bump the **patch** version (e.g. `0.1.0` → `0.1.1`)
+- A commit footer with `BREAKING CHANGE:` bumps the **major** version
+
+Commits with prefixes `docs:`, `style:`, `refactor:`, `test:`, `chore:` do not trigger a release by themselves.
 
 ## Code Quality
 
