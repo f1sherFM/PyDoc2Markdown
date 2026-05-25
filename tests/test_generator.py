@@ -77,3 +77,27 @@ def test_generate_toc_in_module(sample_module: Path, tmp_path: Path) -> None:
     assert "## Table of Contents" in content
     assert "[Classes](#classes)" in content
     assert "[Functions](#functions)" in content
+
+
+def test_generate_package_grouping(tmp_path: Path) -> None:
+    pkg = tmp_path / "my_pkg"
+    sub = pkg / "sub"
+    sub.mkdir(parents=True)
+    (pkg / "top.py").write_text('"""Top module."""\n', encoding="utf-8")
+    (sub / "nested.py").write_text('"""Nested module."""\n', encoding="utf-8")
+
+    parser = DocstringParser()
+    modules = parser.parse(pkg, recursive=True)
+
+    generator = MarkdownGenerator()
+    output_dir = tmp_path / "docs"
+    generator.generate(modules, output_dir)
+
+    assert (output_dir / "top.md").exists()
+    assert (output_dir / "sub" / "nested.md").exists()
+
+    index = output_dir / "index.md"
+    assert index.exists()
+    content = index.read_text()
+    assert "## sub" in content
+    assert "[nested](sub/nested.md)" in content

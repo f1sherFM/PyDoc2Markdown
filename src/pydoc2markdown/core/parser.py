@@ -76,6 +76,7 @@ class ModuleDoc:
     classes: list[ClassDoc] = field(default_factory=list)
     functions: list[FunctionDoc] = field(default_factory=list)
     public_api: list[str] = field(default_factory=list)
+    package: str = ""
 
 
 class DocstringParser:
@@ -83,6 +84,7 @@ class DocstringParser:
 
     def __init__(self) -> None:
         self._modules: list[ModuleDoc] = []
+        self._source: Path = Path()
 
     def parse(
         self,
@@ -91,6 +93,7 @@ class DocstringParser:
     ) -> list[ModuleDoc]:
         """Parse a file or directory and return extracted documentation."""
         self._modules.clear()
+        self._source = source
 
         if source.is_file() and source.suffix == ".py":
             self._parse_file(source)
@@ -124,10 +127,19 @@ class DocstringParser:
     def _extract_module(self, path: Path, tree: ast.AST) -> ModuleDoc:
         """Extract module-level documentation."""
         assert isinstance(tree, ast.Module)
+        package = ""
+        if self._source.is_dir():
+            try:
+                rel = path.parent.relative_to(self._source)
+                if rel != Path("."):
+                    package = str(rel).replace("\\", ".").replace("/", ".")
+            except ValueError:
+                package = ""
         module = ModuleDoc(
             name=path.stem,
             path=path,
             docstring=ast.get_docstring(tree),
+            package=package,
         )
 
         for node in ast.iter_child_nodes(tree):

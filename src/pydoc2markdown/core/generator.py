@@ -195,7 +195,12 @@ class MarkdownGenerator:
         template = self._env.get_template(template_name)
 
         for module in modules:
-            output_path = output_dir / f"{module.name}.md"
+            if module.package:
+                module_dir = output_dir / module.package.replace(".", "/")
+                module_dir.mkdir(parents=True, exist_ok=True)
+                output_path = module_dir / f"{module.name}.md"
+            else:
+                output_path = output_dir / f"{module.name}.md"
             logger.debug("Generating %s", output_path)
             content = template.render(module=module)
             output_path.write_text(content, encoding="utf-8")
@@ -212,18 +217,33 @@ class MarkdownGenerator:
         modules: list[ModuleDoc],
         output_dir: Path,
     ) -> Path | None:
-        """Generate an index.md with links to all module docs."""
+        """Generate an index.md with links to all module docs, grouped by package."""
         if not modules:
             return None
 
+        from collections import OrderedDict
+
+        groups: OrderedDict[str, list[ModuleDoc]] = OrderedDict()
+        for module in sorted(modules, key=lambda m: (m.package, m.name)):
+            groups.setdefault(module.package, []).append(module)
+
         lines = ["# Index", ""]
-        for module in modules:
-            filename = f"{module.name}.md"
-            lines.append(f"- [{module.name}]({filename})")
-            if module.docstring:
-                first_line = module.docstring.split("\n")[0]
-                lines.append(f"  - {first_line}")
-        lines.append("")
+        for package, mods in groups.items():
+            if package:
+                lines.append(f"## {package}")
+            else:
+                lines.append("## Modules")
+            for module in mods:
+                rel_path = (
+                    f"{module.package.replace('.', '/')}/{module.name}.md"
+                    if module.package
+                    else f"{module.name}.md"
+                )
+                lines.append(f"- [{module.name}]({rel_path})")
+                if module.docstring:
+                    first_line = module.docstring.split("\n")[0]
+                    lines.append(f"  - {first_line}")
+            lines.append("")
 
         index_path = output_dir / "index.md"
         logger.debug("Generating %s", index_path)
