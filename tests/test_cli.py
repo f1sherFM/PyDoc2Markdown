@@ -38,3 +38,19 @@ def test_cli_verbose(sample_module: Path, tmp_path: Path) -> None:
     result = main([str(sample_module), "-o", str(output), "-v"])
     assert result == 0
     assert (output / "sample_module.md").exists()
+
+
+def test_cli_watch(sample_module: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    calls: list[list[object]] = []
+
+    def _fake_watch(**kwargs: object) -> int:
+        calls.append(list(kwargs.values()))
+        return 0
+
+    monkeypatch.setattr("pydoc2markdown.cli.watch_and_generate", _fake_watch)
+    output = tmp_path / "docs"
+    result = main([str(sample_module), "-o", str(output), "--watch"])
+    assert result == 0
+    assert len(calls) == 1
+    assert calls[0][0] == sample_module
+    assert calls[0][1] == output

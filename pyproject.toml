@@ -31,12 +31,16 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+watch = [
+    "watchdog>=3.0",
+]
 dev = [
     "pytest>=7.4.0",
     "pytest-cov>=4.1.0",
     "mypy>=1.5.0",
     "ruff>=0.1.0",
     "pre-commit>=3.5.0",
+    "watchdog>=3.0",
 ]
 
 [project.scripts]
@@ -79,6 +83,19 @@ warn_unused_configs = true
 disallow_untyped_defs = true
 disallow_incomplete_defs = true
 check_untyped_defs = true
+
+[[tool.mypy.overrides]]
+module = "watchdog.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "tomllib"
+ignore_missing_imports = true
+
+[tool.pydoc2markdown]
+output = "docs"
+theme = "default"
+recursive = true
 
 [tool.pytest.ini_options]
 minversion = "7.0"

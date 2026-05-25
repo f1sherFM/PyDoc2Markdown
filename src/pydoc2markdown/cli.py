@@ -5,14 +5,17 @@ import logging
 import sys
 from pathlib import Path
 
+from pydoc2markdown.core.config import load_config
 from pydoc2markdown.core.generator import MarkdownGenerator
 from pydoc2markdown.core.parser import DocstringParser
+from pydoc2markdown.core.watcher import watch_and_generate
 
 logger = logging.getLogger(__name__)
 
 
 def create_parser() -> argparse.ArgumentParser:
     """Create and configure the argument parser."""
+    defaults = load_config()
     parser = argparse.ArgumentParser(
         prog="pydoc2markdown",
         description="Convert Python docstrings to Markdown documentation.",
@@ -26,12 +29,13 @@ def create_parser() -> argparse.ArgumentParser:
         "-o",
         "--output",
         type=Path,
-        default=Path("docs"),
+        default=Path(str(defaults.get("output", "docs"))),
         help="Output directory for generated Markdown files (default: docs).",
     )
     parser.add_argument(
         "--recursive",
         action="store_true",
+        default=defaults.get("recursive", False),
         help="Recursively process subdirectories.",
     )
     parser.add_argument(
@@ -43,8 +47,13 @@ def create_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--theme",
         choices=["default", "minimal"],
-        default="default",
+        default=defaults.get("theme", "default"),
         help="Built-in theme/template to use (default: default).",
+    )
+    parser.add_argument(
+        "--watch",
+        action="store_true",
+        help="Watch source files and regenerate docs on change.",
     )
     parser.add_argument(
         "-v",
@@ -83,6 +92,15 @@ def main(args: list[str] | None = None) -> int:
     if not parsed_args.source.exists():
         logger.error("Source path does not exist: %s", parsed_args.source)
         return 1
+
+    if parsed_args.watch:
+        return watch_and_generate(
+            source=parsed_args.source,
+            output_dir=parsed_args.output,
+            recursive=parsed_args.recursive,
+            theme=parsed_args.theme,
+            template_path=parsed_args.template,
+        )
 
     logger.info("Parsing source: %s (recursive=%s)", parsed_args.source, parsed_args.recursive)
     doc_parser = DocstringParser()
