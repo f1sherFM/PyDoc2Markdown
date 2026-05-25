@@ -4,6 +4,31 @@
 {{ module.docstring }}
 {% endif %}
 
+{% if module.classes or module.functions %}
+## Table of Contents
+
+{% if module.classes %}
+- [Classes](#classes)
+{% for class in module.classes %}
+  - [`{{ class.name }}`](#{{ class.name | lower | replace(' ', '-') }})
+{% if class.methods %}
+{% for method in class.methods %}
+    - [
+{% if method.is_property %}@property {% elif method.is_classmethod %}@classmethod
+{% elif method.is_staticmethod %}@staticmethod {% endif %}
+`{{ method.name }}`](#{{ method.name | lower | replace(' ', '-') }})
+{% endfor %}
+{% endif %}
+{% endfor %}
+{% endif %}
+{% if module.functions %}
+- [Functions](#functions)
+{% for func in module.functions %}
+  - [`{{ func.name }}`](#{{ func.name | lower | replace(' ', '-') }})
+{% endfor %}
+{% endif %}
+{% endif %}
+
 {% if module.public_api %}
 **Public API:**
 {% for name in module.public_api %}

@@ -19,6 +19,31 @@ class MarkdownGenerator:
 {{ module.docstring }}
 {% endif %}
 
+{% if module.classes or module.functions %}
+## Table of Contents
+
+{% if module.classes %}
+- [Classes](#classes)
+{% for class in module.classes %}
+  - [`{{ class.name }}`](#{{ class.name | lower | replace(' ', '-') }})
+{% if class.methods %}
+{% for method in class.methods %}
+    - [
+{% if method.is_property %}@property {% elif method.is_classmethod %}@classmethod
+{% elif method.is_staticmethod %}@staticmethod {% endif %}
+`{{ method.name }}`](#{{ method.name | lower | replace(' ', '-') }})
+{% endfor %}
+{% endif %}
+{% endfor %}
+{% endif %}
+{% if module.functions %}
+- [Functions](#functions)
+{% for func in module.functions %}
+  - [`{{ func.name }}`](#{{ func.name | lower | replace(' ', '-') }})
+{% endfor %}
+{% endif %}
+{% endif %}
+
 {% if module.public_api %}
 **Public API:**
 {% for name in module.public_api %}
@@ -176,7 +201,34 @@ class MarkdownGenerator:
             output_path.write_text(content, encoding="utf-8")
             generated.append(output_path)
 
+        index_path = self._generate_index(modules, output_dir)
+        if index_path:
+            generated.append(index_path)
+
         return generated
+
+    def _generate_index(
+        self,
+        modules: list[ModuleDoc],
+        output_dir: Path,
+    ) -> Path | None:
+        """Generate an index.md with links to all module docs."""
+        if not modules:
+            return None
+
+        lines = ["# Index", ""]
+        for module in modules:
+            filename = f"{module.name}.md"
+            lines.append(f"- [{module.name}]({filename})")
+            if module.docstring:
+                first_line = module.docstring.split("\n")[0]
+                lines.append(f"  - {first_line}")
+        lines.append("")
+
+        index_path = output_dir / "index.md"
+        logger.debug("Generating %s", index_path)
+        index_path.write_text("\n".join(lines), encoding="utf-8")
+        return index_path
 
     def generate_string(self, module: ModuleDoc) -> str:
         """Generate Markdown content as a string for a single module."""
