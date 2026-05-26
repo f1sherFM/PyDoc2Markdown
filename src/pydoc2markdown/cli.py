@@ -123,11 +123,11 @@ def main(args: list[str] | None = None) -> int:
         )
         logger.info("Parsed %d module(s)", len(modules))
         if parsed_args.single_file:
-            generated = md_generator.generate_single_file(
+            single_path = md_generator.generate_single_file(
                 modules=modules,
                 output_path=parsed_args.output,
             )
-            logger.info("Generated single Markdown file: %s", generated)
+            logger.info("Generated single Markdown file: %s", single_path)
         else:
             generated = md_generator.generate(
                 modules=modules,
