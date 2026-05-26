@@ -134,6 +134,24 @@ def test_generate_type_hint_formatting(typed_module: Path, tmp_path: Path) -> No
     assert "list[str]" in content
 
 
+def test_generate_cross_references(crossref_module: Path, tmp_path: Path) -> None:
+    parser = DocstringParser()
+    modules = parser.parse(crossref_module)
+
+    generator = MarkdownGenerator()
+    output_dir = tmp_path / "docs"
+    generator.generate(modules, output_dir)
+
+    module_path = output_dir / "crossref_module.md"
+    content = module_path.read_text()
+    # UserProfile referenced as return type in User.get_profile
+    assert "[UserProfile](#userprofile)" in content
+    # User referenced as return type in UserProfile.get_user
+    assert "[User](#user)" in content
+    # create_user returns User
+    assert "[User](#user)" in content
+
+
 def test_generate_single_file(sample_package: Path, tmp_path: Path) -> None:
     parser = DocstringParser()
     modules = parser.parse(sample_package, recursive=True)

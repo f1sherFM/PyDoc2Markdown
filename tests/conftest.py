@@ -96,6 +96,36 @@ def items(data: List[int]) -> List[str]:
 
 
 @pytest.fixture
+def crossref_module(tmp_path: Path) -> Path:
+    """Create a module with types referencing each other."""
+    module = tmp_path / "crossref_module.py"
+    module.write_text(
+        '''"""Module with cross-referencing types."""
+
+class User:
+    """A user."""
+
+    def get_profile(self) -> UserProfile:
+        """Get the user profile."""
+        return UserProfile()
+
+class UserProfile:
+    """A user profile."""
+
+    def get_user(self) -> User:
+        """Get the associated user."""
+        return User()
+
+def create_user() -> User:
+    """Create a new user."""
+    return User()
+''',
+        encoding="utf-8",
+    )
+    return module
+
+
+@pytest.fixture
 def advanced_module(tmp_path: Path) -> Path:
     """Create a temporary module with advanced Python constructs."""
     module = tmp_path / "advanced_module.py"

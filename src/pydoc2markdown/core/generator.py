@@ -190,7 +190,10 @@ class MarkdownGenerator:
                 loader=PackageLoader("pydoc2markdown", "templates"),
                 autoescape=select_autoescape(),
             )
+        from pydoc2markdown.core.crossref import link_type_filter
+
         env.filters["format_type_hint"] = format_type_hint
+        env.filters["link_type"] = link_type_filter
         return env
 
     def _resolve_template_name(self) -> str:
@@ -207,12 +210,15 @@ class MarkdownGenerator:
         output_dir: Path,
     ) -> list[Path]:
         """Generate Markdown files for the given modules."""
+        from pydoc2markdown.core.crossref import TypeIndex
+
         output_dir.mkdir(parents=True, exist_ok=True)
         generated: list[Path] = []
 
         template_name = self._resolve_template_name()
         logger.debug("Using template: %s", template_name)
         template = self._env.get_template(template_name)
+        type_index = TypeIndex.from_modules(modules)
 
         for module in modules:
             if module.package:
@@ -222,7 +228,7 @@ class MarkdownGenerator:
             else:
                 output_path = output_dir / f"{module.name}.md"
             logger.debug("Generating %s", output_path)
-            content = template.render(module=module)
+            content = template.render(module=module, type_index=type_index)
             output_path.write_text(content, encoding="utf-8")
             generated.append(output_path)
 
@@ -284,10 +290,13 @@ class MarkdownGenerator:
         Returns:
             Path to the generated file.
         """
+        from pydoc2markdown.core.crossref import TypeIndex
+
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
         template_name = self._resolve_template_name()
         template = self._env.get_template(template_name)
+        type_index = TypeIndex.from_modules(modules)
 
         lines: list[str] = ["# Documentation", ""]
 
@@ -300,7 +309,7 @@ class MarkdownGenerator:
 
         # Render each module and concatenate
         for module in sorted(modules, key=lambda m: (m.package, m.name)):
-            content = template.render(module=module)
+            content = template.render(module=module, type_index=type_index)
             lines.append(content)
             lines.append("---")
             lines.append("")
@@ -313,9 +322,14 @@ class MarkdownGenerator:
         """Generate Markdown content as a string for a single module."""
         from jinja2 import Environment
 
+        from pydoc2markdown.core.crossref import TypeIndex
         from pydoc2markdown.core.type_hints import format_type_hint
 
         env = Environment()
+        from pydoc2markdown.core.crossref import link_type_filter
+
         env.filters["format_type_hint"] = format_type_hint
+        env.filters["link_type"] = link_type_filter
         template = env.from_string(self.DEFAULT_TEMPLATE)
-        return template.render(module=module)
+        type_index = TypeIndex.from_modules([module])
+        return template.render(module=module, type_index=type_index)

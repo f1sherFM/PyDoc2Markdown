@@ -56,7 +56,7 @@
 | Name | Type | Description |
 |------|------|-------------|
 {% for attr in class.attributes %}
-| `{{ attr.name }}` | {% if attr.type_hint %}`{{ attr.type_hint | format_type_hint }}`{% else %}-{% endif %} | {% if attr.description %}{{ attr.description }}{% else %}-{% endif %} |
+| `{{ attr.name }}` | {% if attr.type_hint %}`{{ attr.type_hint | format_type_hint | link_type }}`{% else %}-{% endif %} | {% if attr.description %}{{ attr.description }}{% else %}-{% endif %} |
 {% endfor %}
 {% endif %}
 
@@ -76,12 +76,12 @@
 | Name | Type | Description |
 |------|------|-------------|
 {% for param in method.params %}
-| `{{ param.name }}` | {% if param.type_hint %}`{{ param.type_hint | format_type_hint }}`{% else %}-{% endif %} | {% if param.description %}{{ param.description }}{% else %}-{% endif %} |
+| `{{ param.name }}` | {% if param.type_hint %}`{{ param.type_hint | format_type_hint | link_type }}`{% else %}-{% endif %} | {% if param.description %}{{ param.description }}{% else %}-{% endif %} |
 {% endfor %}
 {% endif %}
 
 {% if method.returns %}
-**Returns:**{% if method.returns.type_hint %} `{{ method.returns.type_hint | format_type_hint }}`{% endif %}
+**Returns:**{% if method.returns.type_hint %} `{{ method.returns.type_hint | format_type_hint | link_type }}`{% endif %}
 
 {% if method.returns.description %}{{ method.returns.description }}{% endif %}
 {% endif %}
@@ -116,12 +116,12 @@
 | Name | Type | Description |
 |------|------|-------------|
 {% for param in func.params %}
-| `{{ param.name }}` | {% if param.type_hint %}`{{ param.type_hint | format_type_hint }}`{% else %}-{% endif %} | {% if param.description %}{{ param.description }}{% else %}-{% endif %} |
+| `{{ param.name }}` | {% if param.type_hint %}`{{ param.type_hint | format_type_hint | link_type }}`{% else %}-{% endif %} | {% if param.description %}{{ param.description }}{% else %}-{% endif %} |
 {% endfor %}
 {% endif %}
 
 {% if func.returns %}
-**Returns:**{% if func.returns.type_hint %} `{{ func.returns.type_hint | format_type_hint }}`{% endif %}
+**Returns:**{% if func.returns.type_hint %} `{{ func.returns.type_hint | format_type_hint | link_type }}`{% endif %}
 
 {% if func.returns.description %}{{ func.returns.description }}{% endif %}
 {% endif %}
