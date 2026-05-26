@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.3.0](https://github.com/f1sherFM/PyDoc2Markdown/compare/v0.2.0...v0.3.0) (2026-05-26)
+
+
+### Features
+
+* add cross-referencing hyperlinks for project-defined types ([7576075](https://github.com/f1sherFM/PyDoc2Markdown/commit/7576075f0cdd756ed8f7fdf3e489d04e35c9ca59))
+* add modern type hint formatting ([53c2a11](https://github.com/f1sherFM/PyDoc2Markdown/commit/53c2a11049a4eaa99c3ad4f05c8b600f95f7fa6e))
+* add Protocol and ABC support with badges in generated docs ([19c766e](https://github.com/f1sherFM/PyDoc2Markdown/commit/19c766ee7876ee64d8f8061de8088070a4856b3c))
+* enhance index.md with overview stats and package descriptions ([fe149d2](https://github.com/f1sherFM/PyDoc2Markdown/commit/fe149d2adf89baf04ea86731f1b160a48b21fc8a))
+
 ## [0.2.0](https://github.com/f1sherFM/PyDoc2Markdown/compare/v0.1.0...v0.2.0) (2026-05-26)
 
 
