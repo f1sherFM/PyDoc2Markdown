@@ -12,6 +12,7 @@ def watch_and_generate(
     recursive: bool,
     theme: str,
     template_path: Path | None,
+    single_file: bool = False,
 ) -> int:
     """Watch source files and regenerate docs on change.
 
@@ -55,7 +56,10 @@ def watch_and_generate(
             logger.info("Change detected, regenerating docs...")
             try:
                 modules = self._parser.parse(source, recursive=recursive)
-                generator.generate(modules, output_dir)
+                if single_file:
+                    generator.generate_single_file(modules, output_dir)
+                else:
+                    generator.generate(modules, output_dir)
                 logger.info("Docs regenerated in %s", output_dir)
             except Exception:
                 logger.exception("Regeneration failed")
@@ -71,7 +75,10 @@ def watch_and_generate(
     # Generate once before watching
     try:
         modules = handler._parser.parse(source, recursive=recursive)
-        generator.generate(modules, output_dir)
+        if single_file:
+            generator.generate_single_file(modules, output_dir)
+        else:
+            generator.generate(modules, output_dir)
         logger.info("Initial docs generated in %s", output_dir)
     except Exception:
         logger.exception("Initial generation failed")

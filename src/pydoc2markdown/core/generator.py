@@ -263,6 +263,45 @@ class MarkdownGenerator:
         index_path.write_text("\n".join(lines), encoding="utf-8")
         return index_path
 
+    def generate_single_file(
+        self,
+        modules: list[ModuleDoc],
+        output_path: Path,
+    ) -> Path:
+        """Generate a single combined Markdown file for all modules.
+
+        Args:
+            modules: List of parsed modules.
+            output_path: File path for the combined Markdown output.
+
+        Returns:
+            Path to the generated file.
+        """
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+
+        template_name = self._resolve_template_name()
+        template = self._env.get_template(template_name)
+
+        lines: list[str] = ["# Documentation", ""]
+
+        # Table of contents for all modules
+        if modules:
+            lines.append("## Modules")
+            for module in sorted(modules, key=lambda m: (m.package, m.name)):
+                lines.append(f"- {module.name}")
+            lines.append("")
+
+        # Render each module and concatenate
+        for module in sorted(modules, key=lambda m: (m.package, m.name)):
+            content = template.render(module=module)
+            lines.append(content)
+            lines.append("---")
+            lines.append("")
+
+        output_path.write_text("\n".join(lines), encoding="utf-8")
+        logger.info("Generated single file: %s", output_path)
+        return output_path
+
     def generate_string(self, module: ModuleDoc) -> str:
         """Generate Markdown content as a string for a single module."""
         from jinja2 import Template

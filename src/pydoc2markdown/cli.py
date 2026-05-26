@@ -30,7 +30,13 @@ def create_parser() -> argparse.ArgumentParser:
         "--output",
         type=Path,
         default=Path(str(defaults.get("output", "docs"))),
-        help="Output directory for generated Markdown files (default: docs).",
+        help="Output directory (or file when --single-file is used).",
+    )
+    parser.add_argument(
+        "--single-file",
+        action="store_true",
+        default=False,
+        help="Generate a single combined Markdown file instead of separate files.",
     )
     parser.add_argument(
         "--recursive",
@@ -100,6 +106,7 @@ def main(args: list[str] | None = None) -> int:
             recursive=parsed_args.recursive,
             theme=parsed_args.theme,
             template_path=parsed_args.template,
+            single_file=parsed_args.single_file,
         )
 
     logger.info("Parsing source: %s (recursive=%s)", parsed_args.source, parsed_args.recursive)
@@ -115,11 +122,18 @@ def main(args: list[str] | None = None) -> int:
             recursive=parsed_args.recursive,
         )
         logger.info("Parsed %d module(s)", len(modules))
-        generated = md_generator.generate(
-            modules=modules,
-            output_dir=parsed_args.output,
-        )
-        logger.info("Generated %d Markdown file(s) in %s", len(generated), parsed_args.output)
+        if parsed_args.single_file:
+            generated = md_generator.generate_single_file(
+                modules=modules,
+                output_path=parsed_args.output,
+            )
+            logger.info("Generated single Markdown file: %s", generated)
+        else:
+            generated = md_generator.generate(
+                modules=modules,
+                output_dir=parsed_args.output,
+            )
+            logger.info("Generated %d Markdown file(s) in %s", len(generated), parsed_args.output)
     except Exception:
         logger.exception("Documentation generation failed")
         return 1

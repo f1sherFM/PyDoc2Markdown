@@ -54,3 +54,13 @@ def test_cli_watch(sample_module: Path, tmp_path: Path, monkeypatch: pytest.Monk
     assert len(calls) == 1
     assert calls[0][0] == sample_module
     assert calls[0][1] == output
+
+
+def test_cli_single_file(sample_package: Path, tmp_path: Path) -> None:
+    output = tmp_path / "combined.md"
+    result = main([str(sample_package), "--recursive", "--single-file", "-o", str(output)])
+    assert result == 0
+    assert output.exists()
+    content = output.read_text(encoding="utf-8")
+    assert "# Documentation" in content
+    assert "math_utils" in content

@@ -116,3 +116,20 @@ def test_generate_minimal_theme(sample_module: Path, tmp_path: Path) -> None:
     assert "# sample_module" in content
     assert "## Classes" in content
     assert "## Table of Contents" not in content
+
+
+def test_generate_single_file(sample_package: Path, tmp_path: Path) -> None:
+    parser = DocstringParser()
+    modules = parser.parse(sample_package, recursive=True)
+
+    generator = MarkdownGenerator()
+    output_path = tmp_path / "combined.md"
+    result = generator.generate_single_file(modules, output_path)
+
+    assert result == output_path
+    assert output_path.exists()
+    content = output_path.read_text()
+    assert "# Documentation" in content
+    assert "## Modules" in content
+    assert "math_utils" in content
+    assert "multiply" in content
