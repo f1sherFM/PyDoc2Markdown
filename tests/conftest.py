@@ -74,6 +74,28 @@ def multiply(x: int, y: int) -> int:
 
 
 @pytest.fixture
+def typed_module(tmp_path: Path) -> Path:
+    """Create a module with typing constructs for testing type hint formatting."""
+    module = tmp_path / "typed_module.py"
+    module.write_text(
+        '''"""Module with typing constructs."""
+
+from typing import Optional, Union, List
+
+def process(value: Optional[str]) -> Union[int, str]:
+    """Process a value."""
+    return value if value else 0
+
+def items(data: List[int]) -> List[str]:
+    """Convert ints to strings."""
+    return [str(x) for x in data]
+''',
+        encoding="utf-8",
+    )
+    return module
+
+
+@pytest.fixture
 def advanced_module(tmp_path: Path) -> Path:
     """Create a temporary module with advanced Python constructs."""
     module = tmp_path / "advanced_module.py"

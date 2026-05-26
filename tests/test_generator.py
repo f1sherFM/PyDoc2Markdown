@@ -118,6 +118,22 @@ def test_generate_minimal_theme(sample_module: Path, tmp_path: Path) -> None:
     assert "## Table of Contents" not in content
 
 
+def test_generate_type_hint_formatting(typed_module: Path, tmp_path: Path) -> None:
+    parser = DocstringParser()
+    modules = parser.parse(typed_module)
+
+    generator = MarkdownGenerator()
+    output_dir = tmp_path / "docs"
+    generator.generate(modules, output_dir)
+
+    module_path = output_dir / "typed_module.md"
+    content = module_path.read_text()
+    assert "str | None" in content
+    assert "int | str" in content
+    assert "list[int]" in content
+    assert "list[str]" in content
+
+
 def test_generate_single_file(sample_package: Path, tmp_path: Path) -> None:
     parser = DocstringParser()
     modules = parser.parse(sample_package, recursive=True)

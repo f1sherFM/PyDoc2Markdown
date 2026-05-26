@@ -72,7 +72,7 @@ class MarkdownGenerator:
 |------|------|-------------|
 {% for attr in class.attributes %}
 | `{{ attr.name }}` |
-{% if attr.type_hint %}`{{ attr.type_hint }}`{% else %}-{% endif %} |
+{% if attr.type_hint %}`{{ attr.type_hint | format_type_hint }}`{% else %}-{% endif %} |
 {% if attr.description %}{{ attr.description }}{% else %}-{% endif %} |
 {% endfor %}
 {% endif %}
@@ -98,13 +98,14 @@ class MarkdownGenerator:
 |------|------|-------------|
 {% for param in method.params %}
 | `{{ param.name }}` |
-{% if param.type_hint %}`{{ param.type_hint }}`{% else %}-{% endif %} |
+{% if param.type_hint %}`{{ param.type_hint | format_type_hint }}`{% else %}-{% endif %} |
 {% if param.description %}{{ param.description }}{% else %}-{% endif %} |
 {% endfor %}
 {% endif %}
 
 {% if method.returns %}
-**Returns:**{% if method.returns.type_hint %} `{{ method.returns.type_hint }}`{% endif %}
+**Returns:**
+{% if method.returns.type_hint %} `{{ method.returns.type_hint | format_type_hint }}`{% endif %}
 
 {% if method.returns.description %}{{ method.returns.description }}{% endif %}
 {% endif %}
@@ -141,13 +142,14 @@ class MarkdownGenerator:
 |------|------|-------------|
 {% for param in func.params %}
 | `{{ param.name }}` |
-{% if param.type_hint %}`{{ param.type_hint }}`{% else %}-{% endif %} |
+{% if param.type_hint %}`{{ param.type_hint | format_type_hint }}`{% else %}-{% endif %} |
 {% if param.description %}{{ param.description }}{% else %}-{% endif %} |
 {% endfor %}
 {% endif %}
 
 {% if func.returns %}
-**Returns:**{% if func.returns.type_hint %} `{{ func.returns.type_hint }}`{% endif %}
+**Returns:**
+{% if func.returns.type_hint %} `{{ func.returns.type_hint | format_type_hint }}`{% endif %}
 
 {% if func.returns.description %}{{ func.returns.description }}{% endif %}
 {% endif %}
@@ -176,15 +178,20 @@ class MarkdownGenerator:
 
     def _create_environment(self) -> Environment:
         """Create and configure the Jinja2 environment."""
+        from pydoc2markdown.core.type_hints import format_type_hint
+
         if self._template_path and self._template_path.exists():
-            return Environment(
+            env = Environment(
                 loader=FileSystemLoader(str(self._template_path.parent)),
                 autoescape=select_autoescape(),
             )
-        return Environment(
-            loader=PackageLoader("pydoc2markdown", "templates"),
-            autoescape=select_autoescape(),
-        )
+        else:
+            env = Environment(
+                loader=PackageLoader("pydoc2markdown", "templates"),
+                autoescape=select_autoescape(),
+            )
+        env.filters["format_type_hint"] = format_type_hint
+        return env
 
     def _resolve_template_name(self) -> str:
         """Resolve the template file name based on theme or custom path."""
@@ -304,7 +311,11 @@ class MarkdownGenerator:
 
     def generate_string(self, module: ModuleDoc) -> str:
         """Generate Markdown content as a string for a single module."""
-        from jinja2 import Template
+        from jinja2 import Environment
 
-        template = Template(self.DEFAULT_TEMPLATE)
+        from pydoc2markdown.core.type_hints import format_type_hint
+
+        env = Environment()
+        env.filters["format_type_hint"] = format_type_hint
+        template = env.from_string(self.DEFAULT_TEMPLATE)
         return template.render(module=module)
