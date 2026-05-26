@@ -253,22 +253,47 @@ class MarkdownGenerator:
         for module in sorted(modules, key=lambda m: (m.package, m.name)):
             groups.setdefault(module.package, []).append(module)
 
-        lines = ["# Index", ""]
+        total_classes = sum(len(m.classes) for m in modules)
+        total_functions = sum(len(m.functions) for m in modules)
+
+        lines = ["# Documentation Index", ""]
+        lines.append(
+            f"**Overview:** {len(modules)} modules, "
+            f"{total_classes} classes, "
+            f"{total_functions} functions."
+        )
+        lines.append("")
+
         for package, mods in groups.items():
             if package:
-                lines.append(f"## {package}")
+                lines.append(f"## Package `{package}`")
+                # Try to find __init__ module for package description
+                init_mod = next((m for m in mods if m.name == "__init__"), None)
+                if init_mod and init_mod.docstring:
+                    first_line = init_mod.docstring.strip().split("\n")[0]
+                    lines.append(f"\n{first_line}\n")
             else:
                 lines.append("## Modules")
+                lines.append("")
+
             for module in mods:
+                if module.name == "__init__":
+                    continue
                 rel_path = (
                     f"{module.package.replace('.', '/')}/{module.name}.md"
                     if module.package
                     else f"{module.name}.md"
                 )
-                lines.append(f"- [{module.name}]({rel_path})")
+                stats_parts: list[str] = []
+                if module.classes:
+                    stats_parts.append(f"{len(module.classes)} class(es)")
+                if module.functions:
+                    stats_parts.append(f"{len(module.functions)} function(s)")
+                stats = f" — {', '.join(stats_parts)}" if stats_parts else ""
+                lines.append(f"- [{module.name}]({rel_path}){stats}")
                 if module.docstring:
-                    first_line = module.docstring.split("\n")[0]
-                    lines.append(f"  - {first_line}")
+                    first_line = module.docstring.strip().split("\n")[0]
+                    lines.append(f"  > {first_line}")
             lines.append("")
 
         index_path = output_dir / "index.md"

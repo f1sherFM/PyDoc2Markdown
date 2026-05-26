@@ -60,8 +60,11 @@ def test_generate_index(sample_module: Path, tmp_path: Path) -> None:
     index_path = output_dir / "index.md"
     assert index_path.exists()
     content = index_path.read_text()
-    assert "# Index" in content
+    assert "# Documentation Index" in content
+    assert "**Overview:**" in content
     assert "[sample_module](sample_module.md)" in content
+    assert "1 class(es)" in content
+    assert "1 function(s)" in content
 
 
 def test_generate_toc_in_module(sample_module: Path, tmp_path: Path) -> None:
@@ -99,8 +102,9 @@ def test_generate_package_grouping(tmp_path: Path) -> None:
     index = output_dir / "index.md"
     assert index.exists()
     content = index.read_text()
-    assert "## sub" in content
+    assert "## Package `sub`" in content
     assert "[nested](sub/nested.md)" in content
+    assert "**Overview:**" in content
 
 
 def test_generate_minimal_theme(sample_module: Path, tmp_path: Path) -> None:
