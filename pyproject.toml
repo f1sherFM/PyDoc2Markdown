@@ -93,6 +93,10 @@ ignore_missing_imports = true
 module = "tomllib"
 ignore_missing_imports = true
 
+[[tool.mypy.overrides]]
+module = "tomli"
+ignore_missing_imports = true
+
 [tool.pydoc2markdown]
 output = "docs"
 theme = "default"
