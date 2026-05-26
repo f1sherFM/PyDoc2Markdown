@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.2.0](https://github.com/f1sherFM/PyDoc2Markdown/compare/v0.1.0...v0.2.0) (2026-05-26)
+
+
+### Features
+
+* add --single-file mode for combined Markdown output ([60e3561](https://github.com/f1sherFM/PyDoc2Markdown/commit/60e3561b6fd0c859e47631111274c6b5da80cb6c))
+
+
+### Bug Fixes
+
+* add mypy override for tomli ([be58be8](https://github.com/f1sherFM/PyDoc2Markdown/commit/be58be8424b67da367928fee91a6712173a2f2ba))
+
+
+### Documentation
+
+* add shields, issue/PR templates, and Dependabot config ([173241b](https://github.com/f1sherFM/PyDoc2Markdown/commit/173241bb041a990cbc09a8d7b48abb6c21f0ac30))
+
 ## 0.1.0 (2026-05-26)
 
 
