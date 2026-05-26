@@ -40,7 +40,7 @@
 ## Classes
 
 {% for class in module.classes %}
-### `{{ class.name }}`{% if class.class_type != "class" %} ({{ class.class_type }}){% endif %}
+### `{{ class.name }}`{% if class.class_type != "class" %} ({{ class.class_type }}){% endif %}{% if class.is_protocol %} *(Protocol)*{% endif %}{% if class.is_abstract %} *(Abstract)*{% endif %}
 
 {% if class.bases %}
 **Bases:** `{{ class.bases | join(", ") }}`

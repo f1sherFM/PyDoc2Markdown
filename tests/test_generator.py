@@ -171,3 +171,16 @@ def test_generate_single_file(sample_package: Path, tmp_path: Path) -> None:
     assert "## Modules" in content
     assert "math_utils" in content
     assert "multiply" in content
+
+
+def test_generate_protocol_abc(protocol_abc_module: Path, tmp_path: Path) -> None:
+    parser = DocstringParser()
+    modules = parser.parse(protocol_abc_module)
+
+    generator = MarkdownGenerator()
+    output_dir = tmp_path / "docs"
+    generator.generate(modules, output_dir)
+
+    content = (output_dir / "protocol_abc_module.md").read_text()
+    assert "*(Protocol)*" in content
+    assert "*(Abstract)*" in content

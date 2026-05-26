@@ -172,3 +172,27 @@ def test_parse_public_api(advanced_module: Path) -> None:
         "MyTypedDict",
         "utility",
     ]
+
+
+def test_parse_protocol(protocol_abc_module: Path) -> None:
+    parser = DocstringParser()
+    modules = parser.parse(protocol_abc_module)
+    drawable = next(c for c in modules[0].classes if c.name == "Drawable")
+    assert drawable.is_protocol is True
+    assert drawable.is_abstract is False
+
+
+def test_parse_abc(protocol_abc_module: Path) -> None:
+    parser = DocstringParser()
+    modules = parser.parse(protocol_abc_module)
+    shape = next(c for c in modules[0].classes if c.name == "Shape")
+    assert shape.is_protocol is False
+    assert shape.is_abstract is True
+
+
+def test_parse_concrete_subclass(protocol_abc_module: Path) -> None:
+    parser = DocstringParser()
+    modules = parser.parse(protocol_abc_module)
+    rect = next(c for c in modules[0].classes if c.name == "Rectangle")
+    assert rect.is_protocol is False
+    assert rect.is_abstract is False

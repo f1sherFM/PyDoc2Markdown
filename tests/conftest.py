@@ -189,3 +189,40 @@ def utility() -> None:
         encoding="utf-8",
     )
     return module
+
+
+@pytest.fixture
+def protocol_abc_module(tmp_path: Path) -> Path:
+    """Create a module with Protocol and ABC classes."""
+    module = tmp_path / "protocol_abc_module.py"
+    module.write_text(
+        '''"""Module with Protocol and ABC classes."""
+
+from abc import ABC, abstractmethod
+from typing import Protocol
+
+class Drawable(Protocol):
+    """A drawable protocol."""
+
+    def draw(self) -> None:
+        """Draw something."""
+        ...
+
+class Shape(ABC):
+    """An abstract shape."""
+
+    @abstractmethod
+    def area(self) -> float:
+        """Calculate area."""
+        ...
+
+class Rectangle(Shape):
+    """A concrete rectangle."""
+
+    def area(self) -> float:
+        """Calculate rectangle area."""
+        return 0.0
+''',
+        encoding="utf-8",
+    )
+    return module

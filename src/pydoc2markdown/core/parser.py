@@ -64,6 +64,8 @@ class ClassDoc:
     attributes: list[Parameter] = field(default_factory=list)
     bases: list[str] = field(default_factory=list)
     class_type: str = "class"
+    is_protocol: bool = False
+    is_abstract: bool = False
 
 
 @dataclass
@@ -160,6 +162,8 @@ class DocstringParser:
             docstring=ast.get_docstring(node),
             bases=bases,
             class_type=self._resolve_class_type(node, bases),
+            is_protocol=self._is_protocol(bases),
+            is_abstract=self._is_abstract(bases),
         )
 
         for item in node.body:
@@ -372,6 +376,14 @@ class DocstringParser:
         if any(base.rsplit(".", 1)[-1] in ("TypedDict", "typing.TypedDict") for base in bases):
             return "typeddict"
         return "class"
+
+    def _is_protocol(self, bases: list[str]) -> bool:
+        """Check if the class inherits from typing.Protocol."""
+        return any(base.rsplit(".", 1)[-1] in ("Protocol", "typing.Protocol") for base in bases)
+
+    def _is_abstract(self, bases: list[str]) -> bool:
+        """Check if the class inherits from ABC."""
+        return any(base.rsplit(".", 1)[-1] in ("ABC", "abc.ABC") for base in bases)
 
     def _extract_public_api(
         self,
