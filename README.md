@@ -43,9 +43,17 @@ pydoc2markdown src/my_package --recursive --theme minimal -o docs
 # Use a custom template
 pydoc2markdown src/my_package --recursive --template custom.md.j2 -o docs
 
+# Single combined file
+pydoc2markdown src/my_package --recursive --single-file -o docs/README.md
+
+# Watch mode — auto-regenerate on changes
+pydoc2markdown src/my_package --recursive --watch -o docs
+
 # Enable verbose logging
 pydoc2markdown src/my_package --recursive -vv -o docs
 ```
+
+> See [`examples/docs/`](examples/docs/) for a sample of the generated output.
 
 ### Library Usage
 

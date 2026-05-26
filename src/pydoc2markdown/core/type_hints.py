@@ -58,7 +58,7 @@ def format_type_hint(type_str: str) -> str:
     if not type_str:
         return type_str
 
-    type_str = type_str.strip()
+    type_str = type_str.strip().strip("'\"")
 
     # Handle Optional[...]
     match = re.match(r"^(typing\.)?Optional\[(.*)\]$", type_str, re.DOTALL)
