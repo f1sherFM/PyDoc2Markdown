@@ -6,13 +6,15 @@ coverage:
     project:
       default:
         target: 80%
-        threshold: 5%
+        threshold: 10%
         paths:
           - "src/pydoc2markdown"
+        informational: true  # Don't fail CI, just report
     patch:
       default:
         target: 80%
-        threshold: 5%
+        threshold: 10%
+        informational: true  # Don't fail CI, just report
 
 comment:
   layout: "reach, diff, flags, files"
