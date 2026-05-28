@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.4.0](https://github.com/f1sherFM/PyDoc2Markdown/compare/v0.3.0...v0.4.0) (2026-05-28)
+
+
+### Features
+
+* add Pydantic BaseModel support with field extraction ([9d01b51](https://github.com/f1sherFM/PyDoc2Markdown/commit/9d01b5115b2c29ad62902463993ff055c0991c88))
+
+
+### Documentation
+
+* improve README with TOC, CLI reference, config, and API docs ([ec7e275](https://github.com/f1sherFM/PyDoc2Markdown/commit/ec7e2758e5b920d08a00cef227e4d5c2df047957))
+
 ## [0.3.0](https://github.com/f1sherFM/PyDoc2Markdown/compare/v0.2.0...v0.3.0) (2026-05-26)
 
 
