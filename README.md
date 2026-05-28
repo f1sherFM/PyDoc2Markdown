@@ -34,7 +34,6 @@ PyDoc2Markdown takes a different approach: **zero configuration, zero framework 
 - **No `conf.py`** — works out of the box
 - **No framework lock-in** — generates plain `.md` files
 - **Minimal dependencies** — Jinja2 + docstring-parser
-- **Cross-references** — automatic type linking within your project
 
 ## Features
 
@@ -174,14 +173,6 @@ gen.generate_single_file(modules, output_path=Path("docs/README.md"))
 md_string = gen.generate_string(modules[0])
 ```
 
-**Methods available on `MarkdownGenerator`:**
-
-| Method | Description |
-|--------|-------------|
-| `generate(modules, output_dir)` → `list[Path]` | Generate separate Markdown files for each module |
-| `generate_single_file(modules, output_path)` → `Path` | Generate a single combined Markdown file |
-| `generate_string(module)` → `str` | Return Markdown as a string for a single module |
-
 ## Supported Docstring Formats
 
 PyDoc2Markdown uses [docstring-parser](https://github.com/rr-/docstring-parser) and supports:
@@ -194,26 +185,87 @@ PyDoc2Markdown uses [docstring-parser](https://github.com/rr-/docstring-parser) 
 
 ## Example Output
 
-Running `pydoc2markdown examples/basic_usage.py -o docs` produces:
+Given this source file:
+
+```python
+from pydantic import BaseModel, Field
+
+
+class User(BaseModel):
+    """A user in the system."""
+
+    id: int = Field(description="Unique identifier")
+    email: str = Field(default="", description="Email address")
+    is_active: bool = True
+
+
+class UserService:
+    """Service for managing users."""
+
+    def get_user(self, user_id: int) -> User:
+        """Fetch a user by ID.
+
+        Args:
+            user_id: The user's unique identifier.
+
+        Returns:
+            The requested User instance.
+
+        Raises:
+            ValueError: If the user does not exist.
+        """
+        ...
+```
+
+Running `pydoc2markdown src/users.py -o docs` produces:
 
 ```markdown
-# basic_usage
-
-Basic usage example for PyDoc2Markdown library API.
+# users
 
 ## Table of Contents
 
-- [Functions](#functions)
-  - [`main`](#main)
+- [Classes](#classes)
+  - [`User`](#user)
+  - [`UserService`](#userservice)
 
-## Functions
+## Classes
 
-### `main`
+### `User` *(Pydantic)*
 
-**Returns:** `None`
+A user in the system.
+
+#### Pydantic Fields
+
+| Name | Type | Default | Description |
+|------|------|---------|-------------|
+| `id` | `int` | *required* | Unique identifier |
+| `email` | `str` | `""` | Email address |
+| `is_active` | `bool` | `True` | - |
+
+### `UserService`
+
+Service for managing users.
+
+#### Methods
+
+##### `get_user`
+
+Fetch a user by ID.
+
+**Parameters:**
+
+| Name | Type | Default | Description |
+|------|------|---------|-------------|
+| `user_id` | `int` | *required* | The user's unique identifier. |
+
+**Returns:** `User`
+
+**Raises:**
+
+- `ValueError` — If the user does not exist.
 ```
 
-For a more complete example, see the [examples/](examples/) directory in this repository.
+For a more complete example, see the [examples/](examples/) directory or the pre-built documentation in [examples/docs/](examples/docs/).
 
 ## Documentation
 
