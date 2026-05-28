@@ -1,0 +1,24 @@
+# Codecov configuration for PyDoc2Markdown
+# https://docs.codecov.com/docs/codecovyml-reference
+
+coverage:
+  status:
+    project:
+      default:
+        target: 80%
+        threshold: 5%
+        paths:
+          - "src/pydoc2markdown"
+    patch:
+      default:
+        target: 80%
+        threshold: 5%
+
+comment:
+  layout: "reach, diff, flags, files"
+  behavior: default
+  require_changes: true
+
+ignore:
+  - "tests/"
+  - "examples/"
