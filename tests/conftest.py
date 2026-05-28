@@ -226,3 +226,31 @@ class Rectangle(Shape):
         encoding="utf-8",
     )
     return module
+
+
+@pytest.fixture
+def pydantic_module(tmp_path: Path) -> Path:
+    """Create a module with a Pydantic BaseModel class."""
+    module = tmp_path / "pydantic_module.py"
+    module.write_text(
+        '''"""Module with Pydantic models."""
+
+from pydantic import BaseModel, Field
+
+class User(BaseModel):
+    """A user model."""
+
+    id: int
+    name: str = "Anonymous"
+    email: str = Field(default="", description="User email address")
+    age: int | None = Field(default=None, description="User age in years")
+
+class Config(BaseModel):
+    """Configuration model."""
+
+    debug: bool = False
+    timeout: float = Field(default=30.0, description="Request timeout in seconds")
+''',
+        encoding="utf-8",
+    )
+    return module

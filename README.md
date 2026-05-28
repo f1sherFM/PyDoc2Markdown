@@ -46,7 +46,7 @@ PyDoc2Markdown takes a different approach: **zero configuration, zero framework 
 - **CLI & API** — Use via command line or import as a Python library.
 - **Recursive processing** — Scan entire packages in one command.
 - **Type-aware** — Respects type hints and annotations.
-- **Advanced constructs** — Supports `property`, `classmethod`, `staticmethod`, `dataclass`, `Enum`, `TypedDict`, `Protocol`, `ABC`, and `__all__`.
+- **Advanced constructs** — Supports `property`, `classmethod`, `staticmethod`, `dataclass`, `Enum`, `TypedDict`, `Protocol`, `ABC`, `Pydantic`, and `__all__`.
 
 ## Requirements
 

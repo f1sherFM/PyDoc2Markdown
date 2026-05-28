@@ -196,3 +196,44 @@ def test_parse_concrete_subclass(protocol_abc_module: Path) -> None:
     rect = next(c for c in modules[0].classes if c.name == "Rectangle")
     assert rect.is_protocol is False
     assert rect.is_abstract is False
+
+
+def test_parse_pydantic_model(pydantic_module: Path) -> None:
+    parser = DocstringParser()
+    modules = parser.parse(pydantic_module)
+    user = next(c for c in modules[0].classes if c.name == "User")
+    assert user.is_pydantic_model is True
+    assert len(user.pydantic_fields) == 4
+
+    id_field = next(f for f in user.pydantic_fields if f.name == "id")
+    assert id_field.type_hint == "int"
+    assert id_field.required is True
+    assert id_field.default is None
+
+    name_field = next(f for f in user.pydantic_fields if f.name == "name")
+    assert name_field.type_hint == "str"
+    assert name_field.required is False
+    assert name_field.default == "'Anonymous'"
+
+    email_field = next(f for f in user.pydantic_fields if f.name == "email")
+    assert email_field.description == "User email address"
+    assert email_field.required is False
+
+    age_field = next(f for f in user.pydantic_fields if f.name == "age")
+    assert age_field.type_hint == "int | None"
+    assert age_field.description == "User age in years"
+
+
+def test_parse_pydantic_config(pydantic_module: Path) -> None:
+    parser = DocstringParser()
+    modules = parser.parse(pydantic_module)
+    config = next(c for c in modules[0].classes if c.name == "Config")
+    assert config.is_pydantic_model is True
+    assert len(config.pydantic_fields) == 2
+
+    debug_field = next(f for f in config.pydantic_fields if f.name == "debug")
+    assert debug_field.type_hint == "bool"
+    assert debug_field.default == "False"
+
+    timeout_field = next(f for f in config.pydantic_fields if f.name == "timeout")
+    assert timeout_field.description == "Request timeout in seconds"

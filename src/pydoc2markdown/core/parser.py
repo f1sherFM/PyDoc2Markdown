@@ -55,6 +55,17 @@ class FunctionDoc:
 
 
 @dataclass
+class PydanticField:
+    """Represents a Pydantic model field."""
+
+    name: str
+    type_hint: str | None = None
+    default: str | None = None
+    description: str | None = None
+    required: bool = True
+
+
+@dataclass
 class ClassDoc:
     """Represents extracted documentation for a class."""
 
@@ -66,6 +77,8 @@ class ClassDoc:
     class_type: str = "class"
     is_protocol: bool = False
     is_abstract: bool = False
+    is_pydantic_model: bool = False
+    pydantic_fields: list[PydanticField] = field(default_factory=list)
 
 
 @dataclass
@@ -157,6 +170,7 @@ class DocstringParser:
     def _extract_class(self, node: ast.ClassDef) -> ClassDoc:
         """Extract documentation from a class definition."""
         bases = [self._format_base(base) for base in node.bases]
+        is_pydantic = self._is_pydantic_model(bases)
         class_doc = ClassDoc(
             name=node.name,
             docstring=ast.get_docstring(node),
@@ -164,7 +178,11 @@ class DocstringParser:
             class_type=self._resolve_class_type(node, bases),
             is_protocol=self._is_protocol(bases),
             is_abstract=self._is_abstract(bases),
+            is_pydantic_model=is_pydantic,
         )
+
+        if is_pydantic:
+            class_doc.pydantic_fields = self._extract_pydantic_fields(node)
 
         for item in node.body:
             if isinstance(item, ast.FunctionDef | ast.AsyncFunctionDef):
@@ -384,6 +402,63 @@ class DocstringParser:
     def _is_abstract(self, bases: list[str]) -> bool:
         """Check if the class inherits from ABC."""
         return any(base.rsplit(".", 1)[-1] in ("ABC", "abc.ABC") for base in bases)
+
+    def _is_pydantic_model(self, bases: list[str]) -> bool:
+        """Check if the class inherits from pydantic.BaseModel."""
+        return any(base.rsplit(".", 1)[-1] in ("BaseModel", "pydantic.BaseModel") for base in bases)
+
+    def _extract_pydantic_fields(self, node: ast.ClassDef) -> list[PydanticField]:
+        """Extract Pydantic field definitions from a class body."""
+        fields: list[PydanticField] = []
+        for item in node.body:
+            if isinstance(item, ast.AnnAssign):
+                field = self._parse_pydantic_field(item)
+                if field is not None:
+                    fields.append(field)
+        return fields
+
+    def _parse_pydantic_field(self, node: ast.AnnAssign) -> PydanticField | None:
+        """Parse a single AnnAssign node as a Pydantic field."""
+        if not isinstance(node.target, ast.Name):
+            return None
+
+        name = node.target.id
+        type_hint = ast.unparse(node.annotation) if node.annotation else None
+        default: str | None = None
+        description: str | None = None
+        required = True
+
+        if node.value is not None:
+            required = False
+            if isinstance(node.value, ast.Call):
+                default = ast.unparse(node.value)
+                description = self._extract_field_description(node.value)
+            else:
+                default = ast.unparse(node.value)
+
+        return PydanticField(
+            name=name,
+            type_hint=type_hint,
+            default=default,
+            description=description,
+            required=required,
+        )
+
+    def _extract_field_description(self, node: ast.Call) -> str | None:
+        """Extract description keyword from a Field() call."""
+        if not isinstance(node.func, ast.Name | ast.Attribute):
+            return None
+        func_name = node.func.id if isinstance(node.func, ast.Name) else node.func.attr
+        if func_name != "Field":
+            return None
+        for kw in node.keywords:
+            if (
+                kw.arg == "description"
+                and isinstance(kw.value, ast.Constant)
+                and isinstance(kw.value.value, str)
+            ):
+                return kw.value.value
+        return None
 
     def _extract_public_api(
         self,

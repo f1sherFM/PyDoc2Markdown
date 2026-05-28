@@ -184,3 +184,19 @@ def test_generate_protocol_abc(protocol_abc_module: Path, tmp_path: Path) -> Non
     content = (output_dir / "protocol_abc_module.md").read_text()
     assert "*(Protocol)*" in content
     assert "*(Abstract)*" in content
+
+
+def test_generate_pydantic_model(pydantic_module: Path, tmp_path: Path) -> None:
+    parser = DocstringParser()
+    modules = parser.parse(pydantic_module)
+
+    generator = MarkdownGenerator()
+    output_dir = tmp_path / "docs"
+    generator.generate(modules, output_dir)
+
+    content = (output_dir / "pydantic_module.md").read_text()
+    assert "*(Pydantic)*" in content
+    assert "#### Pydantic Fields" in content
+    assert "User email address" in content
+    assert "User age in years" in content
+    assert "Request timeout in seconds" in content

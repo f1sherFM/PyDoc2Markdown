@@ -57,7 +57,8 @@ class MarkdownGenerator:
 {% for class in module.classes %}
 ### `{{ class.name }}`{%- if class.class_type != "class" %} ({{ class.class_type }}){%- endif -%}
 {%- if class.is_protocol %} *(Protocol)*{%- endif -%}
-{%- if class.is_abstract %} *(Abstract)*{%- endif %}
+{%- if class.is_abstract %} *(Abstract)*{%- endif -%}
+{%- if class.is_pydantic_model %} *(Pydantic)*{%- endif %}
 
 {% if class.bases %}
 **Bases:** `{{ class.bases | join(", ") }}`
@@ -77,6 +78,22 @@ class MarkdownGenerator:
 {% if attr.type_hint %}`{{ attr.type_hint | format_type_hint }}`{% else %}-{% endif %} |
 {% if attr.description %}{{ attr.description }}{% else %}-{% endif %} |
 {% endfor %}
+{% endif %}
+
+{% if class.pydantic_fields %}
+#### Pydantic Fields
+
+| Name | Type | Default | Description |
+|------|------|---------|-------------|
+{% for field in class.pydantic_fields %}
+| `{{ field.name }}` |
+{%- if field.type_hint %}`{{ field.type_hint | format_type_hint }}`{%- else %}-{%- endif %} |
+{%- if field.default %}`{{ field.default }}`
+{%- elif field.required %}*required*{%- else %}-{%- endif -%}
+|
+{%- if field.description %}{{ field.description }}{%- else %}-{%- endif -%}
+|
+{%- endfor %}
 {% endif %}
 
 {% if class.methods %}
