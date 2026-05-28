@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.1](https://github.com/f1sherFM/PyDoc2Markdown/compare/v0.4.0...v0.4.1) (2026-05-28)
+
+
+### Documentation
+
+* improve README with richer Example Output and cleaner Library API ([410f2f8](https://github.com/f1sherFM/PyDoc2Markdown/commit/410f2f808a98b3d7bf359331922689308a3633c1))
+
 ## [0.4.0](https://github.com/f1sherFM/PyDoc2Markdown/compare/v0.3.0...v0.4.0) (2026-05-28)
 
 
