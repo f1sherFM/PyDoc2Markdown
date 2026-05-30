@@ -5,6 +5,7 @@ import logging
 import sys
 from pathlib import Path
 
+from pydoc2markdown import __version__
 from pydoc2markdown.core.config import load_config
 from pydoc2markdown.core.generator import MarkdownGenerator
 from pydoc2markdown.core.parser import DocstringParser
@@ -71,7 +72,7 @@ def create_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--version",
         action="version",
-        version="%(prog)s 0.4.1",
+        version=f"%(prog)s {__version__}",
     )
     return parser
 

@@ -4,13 +4,15 @@ from pathlib import Path
 
 import pytest
 
+from pydoc2markdown import __version__
 from pydoc2markdown.cli import main
 
 
-def test_cli_version() -> None:
+def test_cli_version(capsys: pytest.CaptureFixture[str]) -> None:
     with pytest.raises(SystemExit) as exc_info:
         main(["--version"])
     assert exc_info.value.code == 0
+    assert capsys.readouterr().out.strip() == f"pydoc2markdown {__version__}"
 
 
 def test_cli_missing_source() -> None:

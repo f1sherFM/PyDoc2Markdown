@@ -5,8 +5,27 @@
 
 ### Bug Fixes
 
-* align generate_string cross-reference rendering ([fde8f7a](https://github.com/f1sherFM/PyDoc2Markdown/commit/fde8f7af4654db718e0ab2c2d0ca6f1b0dddc289))
-* render generate_string with configured template ([24a97fc](https://github.com/f1sherFM/PyDoc2Markdown/commit/24a97fc6623f5da23b135fcf8d80808934635fe1))
+* align `generate_string()` type formatting and cross-reference rendering with file generation ([fde8f7a](https://github.com/f1sherFM/PyDoc2Markdown/commit/fde8f7a))
+* render `generate_string()` through the configured Jinja2 template instead of a duplicated built-in template ([24a97fc](https://github.com/f1sherFM/PyDoc2Markdown/commit/24a97fc))
+* read the CLI `--version` value from package `__version__` instead of hardcoding it
+
+
+### Continuous Integration
+
+* pass `CODECOV_TOKEN` to `codecov-action` so coverage uploads work on `main` ([7e95f03](https://github.com/f1sherFM/PyDoc2Markdown/commit/7e95f03))
+
+
+### Documentation
+
+* clarify `docstring-parser` support for Google, NumPy, and basic reStructuredText fields
+* document that the `dev` extra already includes watcher dependencies
+
+
+### Tests
+
+* add CLI version output coverage
+* add invalid `pyproject.toml` config error-path coverage
+* add watcher missing-dependency and initial-generation failure coverage
 
 ## [0.4.1](https://github.com/f1sherFM/PyDoc2Markdown/compare/v0.4.0...v0.4.1) (2026-05-28)
 
