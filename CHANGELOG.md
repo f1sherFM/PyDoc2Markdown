@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.4.2](https://github.com/f1sherFM/PyDoc2Markdown/compare/v0.4.1...v0.4.2) (2026-05-30)
+
+
+### Bug Fixes
+
+* align generate_string cross-reference rendering ([fde8f7a](https://github.com/f1sherFM/PyDoc2Markdown/commit/fde8f7af4654db718e0ab2c2d0ca6f1b0dddc289))
+* render generate_string with configured template ([24a97fc](https://github.com/f1sherFM/PyDoc2Markdown/commit/24a97fc6623f5da23b135fcf8d80808934635fe1))
+
 ## [0.4.1](https://github.com/f1sherFM/PyDoc2Markdown/compare/v0.4.0...v0.4.1) (2026-05-28)
 
 
