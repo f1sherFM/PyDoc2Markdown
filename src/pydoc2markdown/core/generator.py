@@ -75,7 +75,7 @@ class MarkdownGenerator:
 |------|------|-------------|
 {% for attr in class.attributes %}
 | `{{ attr.name }}` |
-{% if attr.type_hint %}`{{ attr.type_hint | format_type_hint }}`{% else %}-{% endif %} |
+{% if attr.type_hint %}`{{ attr.type_hint | format_type_hint | link_type }}`{% else %}-{% endif %} |
 {% if attr.description %}{{ attr.description }}{% else %}-{% endif %} |
 {% endfor %}
 {% endif %}
@@ -87,7 +87,9 @@ class MarkdownGenerator:
 |------|------|---------|-------------|
 {% for field in class.pydantic_fields %}
 | `{{ field.name }}` |
-{%- if field.type_hint %}`{{ field.type_hint | format_type_hint }}`{%- else %}-{%- endif %} |
+{%- if field.type_hint %}
+`{{ field.type_hint | format_type_hint | link_type }}`
+{%- else %}-{%- endif %} |
 {%- if field.default %}`{{ field.default }}`
 {%- elif field.required %}*required*{%- else %}-{%- endif -%}
 |
@@ -117,14 +119,18 @@ class MarkdownGenerator:
 |------|------|-------------|
 {% for param in method.params %}
 | `{{ param.name }}` |
-{% if param.type_hint %}`{{ param.type_hint | format_type_hint }}`{% else %}-{% endif %} |
+{% if param.type_hint %}
+`{{ param.type_hint | format_type_hint | link_type }}`
+{% else %}-{% endif %} |
 {% if param.description %}{{ param.description }}{% else %}-{% endif %} |
 {% endfor %}
 {% endif %}
 
 {% if method.returns %}
 **Returns:**
-{% if method.returns.type_hint %} `{{ method.returns.type_hint | format_type_hint }}`{% endif %}
+{% if method.returns.type_hint %}
+ `{{ method.returns.type_hint | format_type_hint | link_type }}`
+{% endif %}
 
 {% if method.returns.description %}{{ method.returns.description }}{% endif %}
 {% endif %}
@@ -161,14 +167,18 @@ class MarkdownGenerator:
 |------|------|-------------|
 {% for param in func.params %}
 | `{{ param.name }}` |
-{% if param.type_hint %}`{{ param.type_hint | format_type_hint }}`{% else %}-{% endif %} |
+{% if param.type_hint %}
+`{{ param.type_hint | format_type_hint | link_type }}`
+{% else %}-{% endif %} |
 {% if param.description %}{{ param.description }}{% else %}-{% endif %} |
 {% endfor %}
 {% endif %}
 
 {% if func.returns %}
 **Returns:**
-{% if func.returns.type_hint %} `{{ func.returns.type_hint | format_type_hint }}`{% endif %}
+{% if func.returns.type_hint %}
+ `{{ func.returns.type_hint | format_type_hint | link_type }}`
+{% endif %}
 
 {% if func.returns.description %}{{ func.returns.description }}{% endif %}
 {% endif %}

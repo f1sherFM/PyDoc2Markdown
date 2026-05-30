@@ -37,7 +37,7 @@ PyDoc2Markdown takes a different approach: **zero configuration, zero framework 
 
 ## Features
 
-- **Docstring parsing** — Extract Google, NumPy, and reStructuredText style docstrings with structured params, returns, and raises.
+- **Docstring parsing** — Extract Google and NumPy style docstrings, with basic reStructuredText field support via `docstring-parser`.
 - **Markdown generation** — Produce beautiful Markdown files with customizable Jinja2 templates.
 - **Auto-generated index & TOC** — Each module gets a Table of Contents; an `index.md` with package grouping is created automatically.
 - **Package grouping** — Output files are organized into subdirectories matching the package structure.
@@ -175,13 +175,13 @@ md_string = gen.generate_string(modules[0])
 
 ## Supported Docstring Formats
 
-PyDoc2Markdown uses [docstring-parser](https://github.com/rr-/docstring-parser) and supports:
+PyDoc2Markdown uses [docstring-parser](https://github.com/rr-/docstring-parser) and supports common structured docstring sections:
 
 | Style | Support | Notes |
 |-------|---------|-------|
 | **Google** | ✅ Full | Args, Returns, Raises, Attributes, Examples |
 | **NumPy** | ✅ Full | Parameters, Returns, Raises, Attributes, Examples |
-| **reStructuredText (reST)** | ⚠️ Partial | Basic structure via `docstring-parser`; `:param:`, `:returns:`, `:raises:` fields |
+| **reStructuredText (reST)** | ⚠️ Basic | Field-style metadata via `docstring-parser`, including `:param:`, `:returns:`, and `:raises:` |
 
 ## Example Output
 

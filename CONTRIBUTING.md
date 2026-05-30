@@ -22,6 +22,10 @@ Thank you for your interest in contributing! This document provides guidelines t
    pip install -e ".[dev]"
    ```
 
+   The `dev` extra includes watcher dependencies for local development. Use
+   `pip install pydoc2markdown[watch]` when installing only the runtime package
+   with `--watch` support.
+
 ## Conventional Commits
 
 We follow the [Conventional Commits](https://www.conventionalcommits.org/) specification. Prefix your commit messages:

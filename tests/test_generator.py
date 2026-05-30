@@ -35,6 +35,22 @@ def test_generate_string(sample_module: Path) -> None:
     assert "## Functions" in content
 
 
+def test_generate_string_formats_type_hints_and_crossrefs(
+    typed_module: Path,
+    crossref_module: Path,
+) -> None:
+    parser = DocstringParser()
+    generator = MarkdownGenerator()
+
+    typed_content = generator.generate_string(parser.parse(typed_module)[0])
+    assert "str | None" in typed_content
+    assert "list[int]" in typed_content
+
+    crossref_content = generator.generate_string(parser.parse(crossref_module)[0])
+    assert "[UserProfile](#userprofile)" in crossref_content
+    assert "[User](#user)" in crossref_content
+
+
 def test_generate_creates_output_dir(tmp_path: Path) -> None:
     parser = DocstringParser()
     module = tmp_path / "empty.py"
