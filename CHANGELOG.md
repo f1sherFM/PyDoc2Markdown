@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.3](https://github.com/f1sherFM/PyDoc2Markdown/compare/v0.4.2...v0.4.3) (2026-05-30)
+
+
+### Features
+
+* add init command for pyproject config ([0804433](https://github.com/f1sherFM/PyDoc2Markdown/commit/08044332f861d44390dcf3731d83e5ac0997cf96))
+
 ## [0.4.2](https://github.com/f1sherFM/PyDoc2Markdown/compare/v0.4.1...v0.4.2) (2026-05-30)
 
 
