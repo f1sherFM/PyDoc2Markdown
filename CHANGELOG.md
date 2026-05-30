@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.5.0](https://github.com/f1sherFM/PyDoc2Markdown/compare/v0.4.2...v0.5.0) (2026-05-30)
+## [0.4.3](https://github.com/f1sherFM/PyDoc2Markdown/compare/v0.4.2...v0.4.3) (2026-05-30)
 
 
 ### Features
