@@ -66,3 +66,49 @@ def test_cli_single_file(sample_package: Path, tmp_path: Path) -> None:
     content = output.read_text(encoding="utf-8")
     assert "# Documentation" in content
     assert "math_utils" in content
+
+
+def test_cli_init_creates_pyproject(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.chdir(tmp_path)
+    result = main(["--init"])
+    assert result == 0
+    pyproject = tmp_path / "pyproject.toml"
+    assert pyproject.exists()
+    content = pyproject.read_text(encoding="utf-8")
+    assert "[tool.pydoc2markdown]" in content
+    assert 'output = "docs"' in content
+    assert 'theme = "default"' in content
+    assert "recursive = true" in content
+
+
+def test_cli_init_appends_to_existing(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.chdir(tmp_path)
+    existing = "[project]\nname = 'my-app'\n"
+    (tmp_path / "pyproject.toml").write_text(existing, encoding="utf-8")
+    result = main(["--init"])
+    assert result == 0
+    content = (tmp_path / "pyproject.toml").read_text(encoding="utf-8")
+    assert "[project]" in content
+    assert "name = 'my-app'" in content
+    assert "[tool.pydoc2markdown]" in content
+    # Original content preserved
+    assert content.index("[project]") < content.index("[tool.pydoc2markdown]")
+
+
+def test_cli_init_no_overwrite_existing_section(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    existing = '[tool.pydoc2markdown]\noutput = "custom"\n'
+    (tmp_path / "pyproject.toml").write_text(existing, encoding="utf-8")
+    result = main(["--init"])
+    assert result == 0
+    content = (tmp_path / "pyproject.toml").read_text(encoding="utf-8")
+    assert content == existing  # Not modified
+
+
+def test_cli_init_invalid_toml(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "pyproject.toml").write_text("not valid toml {{{", encoding="utf-8")
+    result = main(["--init"])
+    assert result == 1

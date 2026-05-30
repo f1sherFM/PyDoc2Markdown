@@ -13,6 +13,12 @@ from pydoc2markdown.core.watcher import watch_and_generate
 
 logger = logging.getLogger(__name__)
 
+_DEFAULT_CONFIG = """[tool.pydoc2markdown]
+output = "docs"
+theme = "default"
+recursive = true
+"""
+
 
 def create_parser() -> argparse.ArgumentParser:
     """Create and configure the argument parser."""
@@ -24,7 +30,14 @@ def create_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "source",
         type=Path,
+        nargs="?",
         help="Path to a Python file or directory to process.",
+    )
+    parser.add_argument(
+        "--init",
+        action="store_true",
+        default=False,
+        help="Create or update [tool.pydoc2markdown] in pyproject.toml.",
     )
     parser.add_argument(
         "-o",
@@ -90,11 +103,62 @@ def _setup_logging(verbosity: int) -> None:
     )
 
 
+def init_config() -> int:
+    """Create or update [tool.pydoc2markdown] in pyproject.toml.
+
+    Returns:
+        0 on success, 1 on error.
+    """
+    try:
+        import tomllib
+    except ModuleNotFoundError:
+        import tomli as tomllib
+
+    pyproject = Path.cwd() / "pyproject.toml"
+
+    if not pyproject.exists():
+        # Create minimal pyproject.toml with just our section
+        pyproject.write_text(_DEFAULT_CONFIG, encoding="utf-8")
+        logger.info("Created pyproject.toml with [tool.pydoc2markdown] defaults.")
+        return 0
+
+    # File exists — parse it
+    try:
+        with pyproject.open("rb") as f:
+            data = tomllib.load(f)
+    except Exception:
+        logger.error("Failed to parse pyproject.toml — file exists but is not valid TOML.")
+        return 1
+
+    # Check if section already exists
+    if "tool" in data and "pydoc2markdown" in data["tool"]:
+        logger.info(
+            "[tool.pydoc2markdown] already exists in pyproject.toml — nothing to change. "
+            "Edit it manually if you want to override defaults."
+        )
+        return 0
+
+    # Section doesn't exist — append it
+    existing = pyproject.read_text(encoding="utf-8")
+    if existing and not existing.endswith("\n"):
+        existing += "\n"
+    existing += "\n" + _DEFAULT_CONFIG
+    pyproject.write_text(existing, encoding="utf-8")
+    logger.info("Added [tool.pydoc2markdown] to existing pyproject.toml.")
+    return 0
+
+
 def main(args: list[str] | None = None) -> int:
     """Main entry point for the CLI."""
     parser = create_parser()
     parsed_args = parser.parse_args(args)
     _setup_logging(parsed_args.verbose)
+
+    if parsed_args.init:
+        return init_config()
+
+    if parsed_args.source is None:
+        parser.error("the following arguments are required: source")
 
     if not parsed_args.source.exists():
         logger.error("Source path does not exist: %s", parsed_args.source)

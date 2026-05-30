@@ -68,6 +68,9 @@ pip install pydoc2markdown[watch]
 ### CLI Usage
 
 ```bash
+# Initialize default configuration in pyproject.toml
+pydoc2markdown --init
+
 # Generate docs for a single file
 pydoc2markdown my_module.py -o docs
 
@@ -107,7 +110,8 @@ generator.generate(modules, output_dir=Path("docs"))
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `source` | *(required)* | Path to a Python file or directory to process |
+| `source` | *(required unless `--init` is used)* | Path to a Python file or directory to process |
+| `--init` | `False` | Create or update `[tool.pydoc2markdown]` in `pyproject.toml` |
 | `-o`, `--output` | `docs` / value from `pyproject.toml` | Output directory (or file path when `--single-file` is used) |
 | `--recursive` | `False` / value from `pyproject.toml` | Recursively process subdirectories |
 | `--theme` | `default` / value from `pyproject.toml` | Built-in theme: `default` (detailed) or `minimal` |
@@ -121,7 +125,16 @@ generator.generate(modules, output_dir=Path("docs"))
 
 ## Configuration
 
-You can set default values in your `pyproject.toml` under the `[tool.pydoc2markdown]` section:
+You can initialize default configuration with:
+
+```bash
+pydoc2markdown --init
+```
+
+This creates or appends a `[tool.pydoc2markdown]` section in `pyproject.toml`.
+If the section already exists, it is left unchanged.
+
+You can also set default values manually in your `pyproject.toml`:
 
 ```toml
 [tool.pydoc2markdown]
