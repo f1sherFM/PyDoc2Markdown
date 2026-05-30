@@ -51,6 +51,18 @@ def test_generate_string_formats_type_hints_and_crossrefs(
     assert "[User](#user)" in crossref_content
 
 
+def test_generate_string_uses_configured_theme(sample_module: Path) -> None:
+    parser = DocstringParser()
+    modules = parser.parse(sample_module)
+
+    generator = MarkdownGenerator(theme="minimal")
+    content = generator.generate_string(modules[0])
+
+    assert "# sample_module" in content
+    assert "## Classes" in content
+    assert "## Table of Contents" not in content
+
+
 def test_generate_creates_output_dir(tmp_path: Path) -> None:
     parser = DocstringParser()
     module = tmp_path / "empty.py"
