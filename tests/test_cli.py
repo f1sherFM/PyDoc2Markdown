@@ -43,10 +43,10 @@ def test_cli_verbose(sample_module: Path, tmp_path: Path) -> None:
 
 
 def test_cli_watch(sample_module: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    calls: list[list[object]] = []
+    calls: list[dict[str, object]] = []
 
     def _fake_watch(**kwargs: object) -> int:
-        calls.append(list(kwargs.values()))
+        calls.append(kwargs)
         return 0
 
     monkeypatch.setattr("pydoc2markdown.cli.watch_and_generate", _fake_watch)
@@ -54,8 +54,41 @@ def test_cli_watch(sample_module: Path, tmp_path: Path, monkeypatch: pytest.Monk
     result = main([str(sample_module), "-o", str(output), "--watch"])
     assert result == 0
     assert len(calls) == 1
-    assert calls[0][0] == sample_module
-    assert calls[0][1] == output
+    assert calls[0]["source"] == sample_module
+    assert calls[0]["output_dir"] == output
+
+
+def test_cli_watch_passes_navigation_options(
+    sample_module: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[dict[str, object]] = []
+
+    def _fake_watch(**kwargs: object) -> int:
+        calls.append(kwargs)
+        return 0
+
+    monkeypatch.setattr("pydoc2markdown.cli.watch_and_generate", _fake_watch)
+    result = main(
+        [
+            str(sample_module),
+            "--watch",
+            "--nav",
+            "--api-dir",
+            "reference",
+            "--readme",
+            "--readme-path",
+            str(tmp_path / "README.md"),
+            "-o",
+            str(tmp_path / "docs"),
+        ]
+    )
+
+    assert result == 0
+    assert calls[0]["navigation"] is True
+    assert calls[0]["api_dir"] == Path("reference")
+    assert calls[0]["readme_path"] == tmp_path / "README.md"
 
 
 def test_cli_single_file(sample_package: Path, tmp_path: Path) -> None:
@@ -66,6 +99,94 @@ def test_cli_single_file(sample_package: Path, tmp_path: Path) -> None:
     content = output.read_text(encoding="utf-8")
     assert "# Documentation" in content
     assert "math_utils" in content
+
+
+def test_cli_nav_generates_navigation_layout(sample_package: Path, tmp_path: Path) -> None:
+    output = tmp_path / "docs"
+    result = main([str(sample_package), "--recursive", "--nav", "-o", str(output)])
+
+    assert result == 0
+    assert (output / "index.md").exists()
+    assert (output / "modules.md").exists()
+    assert (output / "api" / "math_utils.md").exists()
+    content = (output / "index.md").read_text(encoding="utf-8")
+    assert "# Documentation" in content
+    assert "[`math_utils`](api/math_utils.md)" in content
+
+
+def test_cli_nav_uses_custom_api_dir(sample_module: Path, tmp_path: Path) -> None:
+    output = tmp_path / "docs"
+    result = main(
+        [
+            str(sample_module),
+            "--nav",
+            "--api-dir",
+            "reference",
+            "-o",
+            str(output),
+        ]
+    )
+
+    assert result == 0
+    assert (output / "reference" / "sample_module.md").exists()
+
+
+def test_cli_nav_rejects_single_file(sample_module: Path, tmp_path: Path) -> None:
+    result = main(
+        [
+            str(sample_module),
+            "--nav",
+            "--single-file",
+            "-o",
+            str(tmp_path / "docs"),
+        ]
+    )
+
+    assert result == 1
+
+
+def test_cli_readme_updates_custom_readme(sample_module: Path, tmp_path: Path) -> None:
+    output = tmp_path / "docs"
+    readme_path = tmp_path / "README.md"
+
+    result = main(
+        [
+            str(sample_module),
+            "-o",
+            str(output),
+            "--readme",
+            "--readme-path",
+            str(readme_path),
+        ]
+    )
+
+    assert result == 0
+    assert (output / "sample_module.md").exists()
+    content = readme_path.read_text(encoding="utf-8")
+    assert "# API Reference" in content
+    assert "Calculator" in content
+    assert "greet" in content
+
+
+def test_cli_readme_invalid_marker_block_returns_error(
+    sample_module: Path,
+    tmp_path: Path,
+) -> None:
+    readme_path = tmp_path / "README.md"
+    readme_path.write_text("<!-- pydoc2markdown:start -->\n", encoding="utf-8")
+
+    result = main(
+        [
+            str(sample_module),
+            "-o",
+            str(tmp_path / "docs"),
+            "--readme",
+            "--readme-path",
+            str(readme_path),
+        ]
+    )
+
+    assert result == 1
 
 
 def test_cli_init_creates_pyproject(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

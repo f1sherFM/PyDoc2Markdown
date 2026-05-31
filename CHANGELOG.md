@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.5.0](https://github.com/f1sherFM/PyDoc2Markdown/compare/v0.4.3...v0.5.0) (2026-05-31)
+
+
+### Features
+
+* add README API section generation with marker-based updates
+* add navigation-first docs layout with API pages under `api/`
+
 ## [0.4.3](https://github.com/f1sherFM/PyDoc2Markdown/compare/v0.4.2...v0.4.3) (2026-05-30)
 
 

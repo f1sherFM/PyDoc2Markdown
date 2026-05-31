@@ -13,6 +13,9 @@ def watch_and_generate(
     theme: str,
     template_path: Path | None,
     single_file: bool = False,
+    readme_path: Path | None = None,
+    navigation: bool = False,
+    api_dir: Path = Path("api"),
 ) -> int:
     """Watch source files and regenerate docs on change.
 
@@ -22,6 +25,9 @@ def watch_and_generate(
         recursive: Whether to scan subdirectories recursively.
         theme: Built-in theme name.
         template_path: Optional custom template path.
+        readme_path: Optional README path to update with an API reference.
+        navigation: Whether to generate the navigation-first docs layout.
+        api_dir: Directory for API pages when navigation is enabled.
 
     Returns:
         Exit code (0 for success, 1 for error).
@@ -58,8 +64,12 @@ def watch_and_generate(
                 modules = self._parser.parse(source, recursive=recursive)
                 if single_file:
                     generator.generate_single_file(modules, output_dir)
+                elif navigation:
+                    generator.generate_navigation(modules, output_dir, api_dir)
                 else:
                     generator.generate(modules, output_dir)
+                if readme_path:
+                    generator.update_readme(modules, readme_path)
                 logger.info("Docs regenerated in %s", output_dir)
             except Exception:
                 logger.exception("Regeneration failed")
@@ -77,8 +87,12 @@ def watch_and_generate(
         modules = handler._parser.parse(source, recursive=recursive)
         if single_file:
             generator.generate_single_file(modules, output_dir)
+        elif navigation:
+            generator.generate_navigation(modules, output_dir, api_dir)
         else:
             generator.generate(modules, output_dir)
+        if readme_path:
+            generator.update_readme(modules, readme_path)
         logger.info("Initial docs generated in %s", output_dir)
     except Exception:
         logger.exception("Initial generation failed")

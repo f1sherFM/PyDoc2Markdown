@@ -53,6 +53,30 @@ def create_parser() -> argparse.ArgumentParser:
         help="Generate a single combined Markdown file instead of separate files.",
     )
     parser.add_argument(
+        "--readme",
+        action="store_true",
+        default=False,
+        help="Create or update an API reference section in README.md.",
+    )
+    parser.add_argument(
+        "--readme-path",
+        type=Path,
+        default=Path("README.md"),
+        help="Path to the README file updated by --readme.",
+    )
+    parser.add_argument(
+        "--nav",
+        action="store_true",
+        default=False,
+        help="Generate a navigation-first docs layout with API pages under api/.",
+    )
+    parser.add_argument(
+        "--api-dir",
+        type=Path,
+        default=Path("api"),
+        help="Directory for API pages when --nav is used.",
+    )
+    parser.add_argument(
         "--recursive",
         action="store_true",
         default=defaults.get("recursive", False),
@@ -164,6 +188,10 @@ def main(args: list[str] | None = None) -> int:
         logger.error("Source path does not exist: %s", parsed_args.source)
         return 1
 
+    if parsed_args.nav and parsed_args.single_file:
+        logger.error("--nav cannot be combined with --single-file")
+        return 1
+
     if parsed_args.watch:
         return watch_and_generate(
             source=parsed_args.source,
@@ -172,6 +200,9 @@ def main(args: list[str] | None = None) -> int:
             theme=parsed_args.theme,
             template_path=parsed_args.template,
             single_file=parsed_args.single_file,
+            readme_path=parsed_args.readme_path if parsed_args.readme else None,
+            navigation=parsed_args.nav,
+            api_dir=parsed_args.api_dir,
         )
 
     logger.info("Parsing source: %s (recursive=%s)", parsed_args.source, parsed_args.recursive)
@@ -193,12 +224,29 @@ def main(args: list[str] | None = None) -> int:
                 output_path=parsed_args.output,
             )
             logger.info("Generated single Markdown file: %s", single_path)
+        elif parsed_args.nav:
+            generated = md_generator.generate_navigation(
+                modules=modules,
+                output_dir=parsed_args.output,
+                api_dir=parsed_args.api_dir,
+            )
+            logger.info(
+                "Generated %d navigation docs file(s) in %s",
+                len(generated),
+                parsed_args.output,
+            )
         else:
             generated = md_generator.generate(
                 modules=modules,
                 output_dir=parsed_args.output,
             )
             logger.info("Generated %d Markdown file(s) in %s", len(generated), parsed_args.output)
+        if parsed_args.readme:
+            readme_path = md_generator.update_readme(
+                modules=modules,
+                readme_path=parsed_args.readme_path,
+            )
+            logger.info("Updated README API reference: %s", readme_path)
     except Exception:
         logger.exception("Documentation generation failed")
         return 1

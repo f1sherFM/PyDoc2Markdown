@@ -2,7 +2,9 @@
 
 from pathlib import Path
 
-from pydoc2markdown.core.generator import MarkdownGenerator
+import pytest
+
+from pydoc2markdown.core.generator import README_END_MARKER, README_START_MARKER, MarkdownGenerator
 from pydoc2markdown.core.parser import DocstringParser
 
 
@@ -135,6 +137,62 @@ def test_generate_package_grouping(tmp_path: Path) -> None:
     assert "**Overview:**" in content
 
 
+def test_generate_navigation_layout(tmp_path: Path) -> None:
+    pkg = tmp_path / "my_pkg"
+    sub = pkg / "sub"
+    sub.mkdir(parents=True)
+    (pkg / "top.py").write_text('"""Top module."""\n', encoding="utf-8")
+    (sub / "nested.py").write_text(
+        '''"""Nested module."""
+
+def helper() -> None:
+    """Help with something."""
+''',
+        encoding="utf-8",
+    )
+
+    parser = DocstringParser()
+    modules = parser.parse(pkg, recursive=True)
+
+    generator = MarkdownGenerator()
+    output_dir = tmp_path / "docs"
+    paths = generator.generate_navigation(modules, output_dir)
+
+    assert output_dir.exists()
+    assert (output_dir / "api" / "top.md").exists()
+    assert (output_dir / "api" / "sub" / "nested.md").exists()
+    assert (output_dir / "index.md").exists()
+    assert (output_dir / "modules.md").exists()
+    assert (output_dir / "sub.md").exists()
+    assert len(paths) == 5
+
+    index_content = (output_dir / "index.md").read_text(encoding="utf-8")
+    assert "# Documentation" in index_content
+    assert "[Modules](modules.md)" in index_content
+    assert "[sub](sub.md)" in index_content
+    assert "[`top`](api/top.md)" in index_content
+    assert "[`sub.nested`](api/sub/nested.md)" in index_content
+
+    package_content = (output_dir / "sub.md").read_text(encoding="utf-8")
+    assert "# sub" in package_content
+    assert "[`sub.nested`](api/sub/nested.md)" in package_content
+
+
+def test_generate_navigation_uses_custom_api_dir(
+    sample_module: Path,
+    tmp_path: Path,
+) -> None:
+    parser = DocstringParser()
+    modules = parser.parse(sample_module)
+
+    output_dir = tmp_path / "docs"
+    MarkdownGenerator().generate_navigation(modules, output_dir, api_dir=Path("reference"))
+
+    assert (output_dir / "reference" / "sample_module.md").exists()
+    content = (output_dir / "index.md").read_text(encoding="utf-8")
+    assert "[`sample_module`](reference/sample_module.md)" in content
+
+
 def test_generate_minimal_theme(sample_module: Path, tmp_path: Path) -> None:
     parser = DocstringParser()
     modules = parser.parse(sample_module)
@@ -228,3 +286,75 @@ def test_generate_pydantic_model(pydantic_module: Path, tmp_path: Path) -> None:
     assert "User email address" in content
     assert "User age in years" in content
     assert "Request timeout in seconds" in content
+
+
+def test_update_readme_creates_file(sample_module: Path, tmp_path: Path) -> None:
+    parser = DocstringParser()
+    modules = parser.parse(sample_module)
+
+    generator = MarkdownGenerator()
+    readme_path = tmp_path / "README.md"
+    result = generator.update_readme(modules, readme_path)
+
+    assert result == readme_path
+    content = readme_path.read_text(encoding="utf-8")
+    assert "# API Reference" in content
+    assert README_START_MARKER in content
+    assert README_END_MARKER in content
+    assert "Calculator" in content
+    assert "greet" in content
+
+
+def test_update_readme_replaces_marked_section(sample_module: Path, tmp_path: Path) -> None:
+    parser = DocstringParser()
+    modules = parser.parse(sample_module)
+    readme_path = tmp_path / "README.md"
+    readme_path.write_text(
+        "# Project\n\n"
+        "Before\n\n"
+        f"{README_START_MARKER}\nold content\n{README_END_MARKER}\n\n"
+        "After\n",
+        encoding="utf-8",
+    )
+
+    MarkdownGenerator().update_readme(modules, readme_path)
+
+    content = readme_path.read_text(encoding="utf-8")
+    assert "Before" in content
+    assert "After" in content
+    assert "old content" not in content
+    assert "Calculator" in content
+
+
+def test_update_readme_appends_section_when_markers_missing(
+    sample_module: Path,
+    tmp_path: Path,
+) -> None:
+    parser = DocstringParser()
+    modules = parser.parse(sample_module)
+    readme_path = tmp_path / "README.md"
+    readme_path.write_text("# Project\n\nIntro.\n", encoding="utf-8")
+
+    MarkdownGenerator().update_readme(modules, readme_path)
+
+    content = readme_path.read_text(encoding="utf-8")
+    assert content.startswith("# Project")
+    assert "## API Reference" in content
+    assert README_START_MARKER in content
+    assert "Calculator" in content
+
+
+def test_update_readme_rejects_partial_marker_block(
+    sample_module: Path,
+    tmp_path: Path,
+) -> None:
+    parser = DocstringParser()
+    modules = parser.parse(sample_module)
+    readme_path = tmp_path / "README.md"
+    readme_path.write_text(
+        f"# Project\n\n{README_START_MARKER}\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="only one PyDoc2Markdown marker"):
+        MarkdownGenerator().update_readme(modules, readme_path)

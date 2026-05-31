@@ -19,6 +19,8 @@
   - [Library Usage](#library-usage)
 - [CLI Reference](#cli-reference)
 - [Configuration](#configuration)
+- [README API Sections](#readme-api-sections)
+- [Navigation Docs Layout](#navigation-docs-layout)
 - [Library API](#library-api)
 - [Supported Docstring Formats](#supported-docstring-formats)
 - [Example Output](#example-output)
@@ -39,7 +41,9 @@ PyDoc2Markdown takes a different approach: **zero configuration, zero framework 
 
 - **Docstring parsing** — Extract Google and NumPy style docstrings, with basic reStructuredText field support via `docstring-parser`.
 - **Markdown generation** — Produce beautiful Markdown files with customizable Jinja2 templates.
+- **README API sections** — Create or update a generated API reference block in README files.
 - **Auto-generated index & TOC** — Each module gets a Table of Contents; an `index.md` with package grouping is created automatically.
+- **Navigation layout** — Generate a docs entrypoint with package pages and API files under `api/`.
 - **Package grouping** — Output files are organized into subdirectories matching the package structure.
 - **Built-in themes** — Choose between `default` (detailed) and `minimal` themes, or supply your own template.
 - **CLI & API** — Use via command line or import as a Python library.
@@ -86,6 +90,12 @@ pydoc2markdown src/my_package --recursive --template custom.md.j2 -o docs
 # Single combined file
 pydoc2markdown src/my_package --recursive --single-file -o docs/README.md
 
+# Update the API section in README.md
+pydoc2markdown src/my_package --recursive --readme
+
+# Generate a navigation-first docs layout
+pydoc2markdown src/my_package --recursive --nav -o docs
+
 # Watch mode — auto-regenerate on changes
 pydoc2markdown src/my_package --recursive --watch -o docs
 
@@ -117,6 +127,10 @@ generator.generate(modules, output_dir=Path("docs"))
 | `--theme` | `default` / value from `pyproject.toml` | Built-in theme: `default` (detailed) or `minimal` |
 | `--template` | `None` | Path to a custom Jinja2 template for Markdown generation |
 | `--single-file` | `False` | Generate a single combined Markdown file instead of separate files |
+| `--readme` | `False` | Create or update an API reference section in README.md |
+| `--readme-path` | `README.md` | Path to the README file updated by `--readme` |
+| `--nav` | `False` | Generate a navigation-first docs layout with API pages under `api/` |
+| `--api-dir` | `api` | Directory for API pages when `--nav` is used |
 | `--watch` | `False` | Watch source files and regenerate docs on change |
 | `-v`, `--verbose` | `0` | Increase verbosity (`-v` = INFO, `-vv` = DEBUG) |
 | `--version` | — | Show version and exit |
@@ -144,6 +158,61 @@ recursive = true
 ```
 
 Any values set here serve as defaults and can be overridden by CLI flags.
+
+## README API Sections
+
+Use `--readme` to create or update a compact API reference in your README:
+
+```bash
+pydoc2markdown src/my_package --recursive --readme
+```
+
+By default, PyDoc2Markdown updates `README.md`. Use `--readme-path` to target a
+different file:
+
+```bash
+pydoc2markdown src/my_package --recursive --readme --readme-path docs/index.md
+```
+
+When the file already contains PyDoc2Markdown markers, only the generated block
+between the markers is replaced:
+
+```markdown
+## API Reference
+
+<!-- pydoc2markdown:start -->
+<!-- pydoc2markdown:end -->
+```
+
+If the markers are missing, a new `## API Reference` section is appended. If the
+README does not exist, it is created.
+
+## Navigation Docs Layout
+
+Use `--nav` when you want a docs directory that is ready to browse from a single
+entrypoint:
+
+```bash
+pydoc2markdown src/my_package --recursive --nav -o docs
+```
+
+This creates a layout like:
+
+```text
+docs/
+├── index.md
+├── modules.md
+└── api/
+    ├── package.md
+    └── utils.md
+```
+
+The root `index.md` links to package landing pages and every generated API page.
+Use `--api-dir` to change where module pages are written:
+
+```bash
+pydoc2markdown src/my_package --recursive --nav --api-dir reference -o docs
+```
 
 ## Library API
 
@@ -181,6 +250,12 @@ gen_tmpl.generate(modules, output_dir=Path("docs_custom"))
 
 # Single combined file
 gen.generate_single_file(modules, output_path=Path("docs/README.md"))
+
+# README API section
+gen.update_readme(modules, readme_path=Path("README.md"))
+
+# Navigation docs layout
+gen.generate_navigation(modules, output_dir=Path("docs"))
 
 # Markdown string for a single module
 md_string = gen.generate_string(modules[0])
