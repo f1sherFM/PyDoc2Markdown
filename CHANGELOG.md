@@ -5,6 +5,13 @@
 
 ### Features
 
+* add README and navigation docs generation ([30ca8a8](https://github.com/f1sherFM/PyDoc2Markdown/commit/30ca8a8c5b123b3057b5ef8a5d20f6051715a68c))
+
+## [0.5.0](https://github.com/f1sherFM/PyDoc2Markdown/compare/v0.4.3...v0.5.0) (2026-05-31)
+
+
+### Features
+
 * add README API section generation with marker-based updates
 * add navigation-first docs layout with API pages under `api/`
 
