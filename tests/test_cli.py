@@ -25,7 +25,9 @@ def test_cli_help_groups_options(capsys: pytest.CaptureFixture[str]) -> None:
     assert "Input:" in help_text
     assert "Output:" in help_text
     assert "README integration:" in help_text
+    assert "Demo:" in help_text
     assert "Examples:" in help_text
+    assert "pydoc2markdown --demo" in help_text
     assert "pydoc2markdown src/my_package --recursive --nav -o docs" in help_text
 
 
@@ -126,6 +128,64 @@ def test_cli_single_file(sample_package: Path, tmp_path: Path) -> None:
     content = output.read_text(encoding="utf-8")
     assert "# Documentation" in content
     assert "math_utils" in content
+
+
+def test_cli_demo_creates_project(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    output = tmp_path / "demo"
+    result = main(["--demo", "--demo-output", str(output)])
+
+    assert result == 0
+    assert (output / "README.md").exists()
+    assert (output / "src" / "shop_demo" / "inventory.py").exists()
+    assert (output / "docs" / "index.md").exists()
+    assert (output / "docs" / "api" / "shop_demo" / "orders.md").exists()
+
+    readme = (output / "README.md").read_text(encoding="utf-8")
+    assert "### `shop_demo.inventory`" in readme
+    assert "### `shop_demo.orders`" in readme
+
+    out = capsys.readouterr().out
+    assert "Created demo project:" in out
+    assert "Open docs index:" in out
+
+
+def test_cli_demo_rejects_non_empty_output(
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    output = tmp_path / "demo"
+    output.mkdir()
+    (output / "existing.txt").write_text("keep me", encoding="utf-8")
+
+    with caplog.at_level(logging.ERROR):
+        result = main(["--demo", "--demo-output", str(output)])
+
+    assert result == 1
+    assert "Demo output directory is not empty" in caplog.text
+    assert "--demo-output" in caplog.text
+    assert (output / "existing.txt").read_text(encoding="utf-8") == "keep me"
+
+
+def test_cli_demo_rejects_source_argument(
+    sample_module: Path,
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    with caplog.at_level(logging.ERROR):
+        result = main(
+            [
+                str(sample_module),
+                "--demo",
+                "--demo-output",
+                str(tmp_path / "demo"),
+            ]
+        )
+
+    assert result == 1
+    assert "--demo does not accept a source path." in caplog.text
 
 
 def test_cli_nav_generates_navigation_layout(sample_package: Path, tmp_path: Path) -> None:

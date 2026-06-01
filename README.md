@@ -116,6 +116,15 @@ It exists so you can inspect both sides of the workflow:
 - [generated docs index](examples/sample_project/docs/index.md)
 - [README API section](examples/sample_project/README.md)
 
+You can also create a local copy of the same style of demo project:
+
+```bash
+pydoc2markdown --demo
+```
+
+By default this writes to `pydoc2markdown-demo/`. Use `--demo-output` to choose
+another directory. Existing non-empty directories are not overwritten.
+
 ## Before And After
 
 Start with normal Python code and docstrings:
@@ -170,6 +179,7 @@ Start with the command that matches how you want to publish docs:
 | Generate one combined Markdown file | `pydoc2markdown src/my_package --recursive --single-file -o docs/api.md` |
 | Watch source files while editing | `pydoc2markdown src/my_package --recursive --watch -o docs` |
 | Create default pyproject config | `pydoc2markdown --init` |
+| Create a local demo project | `pydoc2markdown --demo` |
 
 Use `--theme minimal` for shorter output, or `--template path/to/template.md.j2`
 when a project needs custom Markdown.
@@ -221,6 +231,8 @@ generator.generate(modules, output_dir=Path("docs"))
 | `--nav` | `False` | Generate a navigation-first docs layout with API pages under `api/` |
 | `--api-dir` | `api` | Directory for API pages when `--nav` is used |
 | `--watch` | `False` | Watch source files and regenerate docs on change |
+| `--demo` | `False` | Create a small demo project and generate docs for it |
+| `--demo-output` | `pydoc2markdown-demo` | Directory created by `--demo` |
 | `-v`, `--verbose` | `0` | Increase verbosity (`-v` = INFO, `-vv` = DEBUG) |
 | `--version` | — | Show version and exit |
 
