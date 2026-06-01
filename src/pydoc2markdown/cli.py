@@ -25,88 +25,105 @@ def create_parser() -> argparse.ArgumentParser:
     defaults = load_config()
     parser = argparse.ArgumentParser(
         prog="pydoc2markdown",
-        description="Convert Python docstrings to Markdown documentation.",
+        description=(
+            "Convert Python docstrings into Markdown docs, README API sections, "
+            "or a navigation-ready docs layout."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""Examples:
+  pydoc2markdown src/my_package --recursive -o docs
+  pydoc2markdown src/my_package --recursive --nav -o docs
+  pydoc2markdown src/my_package --recursive --readme
+  pydoc2markdown --init
+""",
     )
-    parser.add_argument(
+    input_group = parser.add_argument_group("Input")
+    output_group = parser.add_argument_group("Output")
+    readme_group = parser.add_argument_group("README integration")
+    config_group = parser.add_argument_group("Configuration")
+    watch_group = parser.add_argument_group("Watch mode")
+    logging_group = parser.add_argument_group("Logging")
+
+    input_group.add_argument(
         "source",
         type=Path,
         nargs="?",
         help="Path to a Python file or directory to process.",
     )
-    parser.add_argument(
+    input_group.add_argument(
+        "--recursive",
+        action="store_true",
+        default=defaults.get("recursive", False),
+        help="Recursively process subdirectories.",
+    )
+    config_group.add_argument(
         "--init",
         action="store_true",
         default=False,
         help="Create or update [tool.pydoc2markdown] in pyproject.toml.",
     )
-    parser.add_argument(
+    config_group.add_argument(
+        "--template",
+        type=Path,
+        default=None,
+        help="Path to a custom Jinja2 template for Markdown generation.",
+    )
+    config_group.add_argument(
+        "--theme",
+        choices=["default", "minimal"],
+        default=defaults.get("theme", "default"),
+        help="Built-in theme/template to use (default: default).",
+    )
+    output_group.add_argument(
         "-o",
         "--output",
         type=Path,
         default=Path(str(defaults.get("output", "docs"))),
         help="Output directory (or file when --single-file is used).",
     )
-    parser.add_argument(
+    output_group.add_argument(
         "--single-file",
         action="store_true",
         default=False,
         help="Generate a single combined Markdown file instead of separate files.",
     )
-    parser.add_argument(
-        "--readme",
-        action="store_true",
-        default=False,
-        help="Create or update an API reference section in README.md.",
-    )
-    parser.add_argument(
-        "--readme-path",
-        type=Path,
-        default=Path("README.md"),
-        help="Path to the README file updated by --readme.",
-    )
-    parser.add_argument(
+    output_group.add_argument(
         "--nav",
         action="store_true",
         default=False,
         help="Generate a navigation-first docs layout with API pages under api/.",
     )
-    parser.add_argument(
+    output_group.add_argument(
         "--api-dir",
         type=Path,
         default=Path("api"),
         help="Directory for API pages when --nav is used.",
     )
-    parser.add_argument(
-        "--recursive",
+    readme_group.add_argument(
+        "--readme",
         action="store_true",
-        default=defaults.get("recursive", False),
-        help="Recursively process subdirectories.",
+        default=False,
+        help="Create or update an API reference section in README.md.",
     )
-    parser.add_argument(
-        "--template",
+    readme_group.add_argument(
+        "--readme-path",
         type=Path,
-        default=None,
-        help="Path to a custom Jinja2 template for Markdown generation.",
+        default=Path("README.md"),
+        help="Path to the README file updated by --readme.",
     )
-    parser.add_argument(
-        "--theme",
-        choices=["default", "minimal"],
-        default=defaults.get("theme", "default"),
-        help="Built-in theme/template to use (default: default).",
-    )
-    parser.add_argument(
+    watch_group.add_argument(
         "--watch",
         action="store_true",
         help="Watch source files and regenerate docs on change.",
     )
-    parser.add_argument(
+    logging_group.add_argument(
         "-v",
         "--verbose",
         action="count",
         default=0,
         help="Increase verbosity (-v for INFO, -vv for DEBUG).",
     )
-    parser.add_argument(
+    logging_group.add_argument(
         "--version",
         action="version",
         version=f"%(prog)s {__version__}",
@@ -125,6 +142,14 @@ def _setup_logging(verbosity: int) -> None:
         level=level,
         format="%(name)s - %(levelname)s - %(message)s",
     )
+
+
+def _log_cli_error(message: str, *, hint: str | None = None) -> int:
+    """Log a user-facing CLI error and optional next step."""
+    logger.error(message)
+    if hint:
+        logger.error("Hint: %s", hint)
+    return 1
 
 
 def init_config() -> int:
@@ -182,15 +207,25 @@ def main(args: list[str] | None = None) -> int:
         return init_config()
 
     if parsed_args.source is None:
-        parser.error("the following arguments are required: source")
+        return _log_cli_error(
+            "Missing source path.",
+            hint="Run 'pydoc2markdown --help' for examples, or use '--init' to create config.",
+        )
 
     if not parsed_args.source.exists():
-        logger.error("Source path does not exist: %s", parsed_args.source)
-        return 1
+        return _log_cli_error(
+            f"Source path does not exist: {parsed_args.source}",
+            hint=(
+                "Pass a Python file or package directory, for example: "
+                "pydoc2markdown src --recursive -o docs"
+            ),
+        )
 
     if parsed_args.nav and parsed_args.single_file:
-        logger.error("--nav cannot be combined with --single-file")
-        return 1
+        return _log_cli_error(
+            "--nav cannot be combined with --single-file.",
+            hint="Use --nav for a docs directory, or --single-file for one combined Markdown file.",
+        )
 
     if parsed_args.watch:
         return watch_and_generate(
@@ -242,10 +277,19 @@ def main(args: list[str] | None = None) -> int:
             )
             logger.info("Generated %d Markdown file(s) in %s", len(generated), parsed_args.output)
         if parsed_args.readme:
-            readme_path = md_generator.update_readme(
-                modules=modules,
-                readme_path=parsed_args.readme_path,
-            )
+            try:
+                readme_path = md_generator.update_readme(
+                    modules=modules,
+                    readme_path=parsed_args.readme_path,
+                )
+            except ValueError as exc:
+                return _log_cli_error(
+                    str(exc),
+                    hint=(
+                        "Keep both <!-- pydoc2markdown:start --> and "
+                        "<!-- pydoc2markdown:end --> in the README, or remove both markers."
+                    ),
+                )
             logger.info("Updated README API reference: %s", readme_path)
     except Exception:
         logger.exception("Documentation generation failed")

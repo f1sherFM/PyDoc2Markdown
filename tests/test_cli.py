@@ -1,5 +1,6 @@
 """Tests for CLI."""
 
+import logging
 from pathlib import Path
 
 import pytest
@@ -15,9 +16,35 @@ def test_cli_version(capsys: pytest.CaptureFixture[str]) -> None:
     assert capsys.readouterr().out.strip() == f"pydoc2markdown {__version__}"
 
 
-def test_cli_missing_source() -> None:
-    result = main(["nonexistent.py"])
+def test_cli_help_groups_options(capsys: pytest.CaptureFixture[str]) -> None:
+    with pytest.raises(SystemExit) as exc_info:
+        main(["--help"])
+
+    assert exc_info.value.code == 0
+    help_text = capsys.readouterr().out
+    assert "Input:" in help_text
+    assert "Output:" in help_text
+    assert "README integration:" in help_text
+    assert "Examples:" in help_text
+    assert "pydoc2markdown src/my_package --recursive --nav -o docs" in help_text
+
+
+def test_cli_missing_source(caplog: pytest.LogCaptureFixture) -> None:
+    with caplog.at_level(logging.ERROR):
+        result = main([])
+
     assert result == 1
+    assert "Missing source path." in caplog.text
+    assert "pydoc2markdown --help" in caplog.text
+
+
+def test_cli_missing_source_path(caplog: pytest.LogCaptureFixture) -> None:
+    with caplog.at_level(logging.ERROR):
+        result = main(["nonexistent.py"])
+
+    assert result == 1
+    assert "Source path does not exist: nonexistent.py" in caplog.text
+    assert "pydoc2markdown src --recursive -o docs" in caplog.text
 
 
 def test_cli_success(sample_module: Path, tmp_path: Path) -> None:
@@ -131,18 +158,25 @@ def test_cli_nav_uses_custom_api_dir(sample_module: Path, tmp_path: Path) -> Non
     assert (output / "reference" / "sample_module.md").exists()
 
 
-def test_cli_nav_rejects_single_file(sample_module: Path, tmp_path: Path) -> None:
-    result = main(
-        [
-            str(sample_module),
-            "--nav",
-            "--single-file",
-            "-o",
-            str(tmp_path / "docs"),
-        ]
-    )
+def test_cli_nav_rejects_single_file(
+    sample_module: Path,
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    with caplog.at_level(logging.ERROR):
+        result = main(
+            [
+                str(sample_module),
+                "--nav",
+                "--single-file",
+                "-o",
+                str(tmp_path / "docs"),
+            ]
+        )
 
     assert result == 1
+    assert "--nav cannot be combined with --single-file." in caplog.text
+    assert "Use --nav for a docs directory" in caplog.text
 
 
 def test_cli_readme_updates_custom_readme(sample_module: Path, tmp_path: Path) -> None:
@@ -171,22 +205,26 @@ def test_cli_readme_updates_custom_readme(sample_module: Path, tmp_path: Path) -
 def test_cli_readme_invalid_marker_block_returns_error(
     sample_module: Path,
     tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
     readme_path = tmp_path / "README.md"
     readme_path.write_text("<!-- pydoc2markdown:start -->\n", encoding="utf-8")
 
-    result = main(
-        [
-            str(sample_module),
-            "-o",
-            str(tmp_path / "docs"),
-            "--readme",
-            "--readme-path",
-            str(readme_path),
-        ]
-    )
+    with caplog.at_level(logging.ERROR):
+        result = main(
+            [
+                str(sample_module),
+                "-o",
+                str(tmp_path / "docs"),
+                "--readme",
+                "--readme-path",
+                str(readme_path),
+            ]
+        )
 
     assert result == 1
+    assert "only one PyDoc2Markdown marker" in caplog.text
+    assert "<!-- pydoc2markdown:end -->" in caplog.text
 
 
 def test_cli_init_creates_pyproject(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
