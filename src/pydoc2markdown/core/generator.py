@@ -35,11 +35,15 @@ class MarkdownGenerator:
             env = Environment(
                 loader=FileSystemLoader(str(self._template_path.parent)),
                 autoescape=select_autoescape(),
+                trim_blocks=True,
+                lstrip_blocks=True,
             )
         else:
             env = Environment(
                 loader=PackageLoader("pydoc2markdown", "templates"),
                 autoescape=select_autoescape(),
+                trim_blocks=True,
+                lstrip_blocks=True,
             )
         from pydoc2markdown.core.crossref import link_type_filter
 

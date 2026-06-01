@@ -6,8 +6,8 @@ from pydoc2markdown import DocstringParser, MarkdownGenerator
 
 
 def main() -> None:
-    # Path to your Python package or module
-    source = Path("src/my_awesome_project")
+    # Path to the sample package included in this repository
+    source = Path("examples/sample_project/src")
 
     # Parse docstrings from source files
     parser = DocstringParser()
@@ -15,9 +15,9 @@ def main() -> None:
     print(f"Parsed {len(modules)} module(s)")
 
     # Generate Markdown documentation
-    output_dir = Path("docs")
+    output_dir = Path("examples/sample_project/docs")
     generator = MarkdownGenerator()
-    generated = generator.generate(modules, output_dir)
+    generated = generator.generate_navigation(modules, output_dir)
     print(f"Generated {len(generated)} Markdown file(s) in {output_dir}")
 
     # Or generate a single module as a string
