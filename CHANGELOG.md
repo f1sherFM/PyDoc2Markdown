@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.3](https://github.com/f1sherFM/PyDoc2Markdown/compare/v0.5.2...v0.5.3) (2026-06-01)
+
+
+### Documentation
+
+* add common CLI commands ([203b86f](https://github.com/f1sherFM/PyDoc2Markdown/commit/203b86fb7923bc388148abff899cdb10c3d98463))
+
 ## [0.5.2](https://github.com/f1sherFM/PyDoc2Markdown/compare/v0.5.1...v0.5.2) (2026-06-01)
 
 
