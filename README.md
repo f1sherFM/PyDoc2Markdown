@@ -8,12 +8,24 @@
 
 > Convert Python docstrings into clean, structured Markdown documentation.
 
+PyDoc2Markdown is a lightweight documentation tool for Python projects that want
+plain Markdown output without adopting a full documentation framework. It works
+as both a CLI and a library: point it at your source code, and it generates
+module docs, a navigation-ready docs directory, or an API section inside your
+README.
+
+It is built for projects that want documentation to stay close to the code while
+remaining easy to publish on GitHub, GitLab, MkDocs, or any Markdown renderer.
+
 ## Table of Contents
 
 - [Why PyDoc2Markdown?](#why-pydoc2markdown)
 - [Features](#features)
 - [Requirements](#requirements)
 - [Installation](#installation)
+- [Try It In 30 Seconds](#try-it-in-30-seconds)
+- [Sample Project](#sample-project)
+- [Before And After](#before-and-after)
 - [Quick Start](#quick-start)
   - [CLI Usage](#cli-usage)
   - [Library Usage](#library-usage)
@@ -36,6 +48,7 @@ PyDoc2Markdown takes a different approach: **zero configuration, zero framework 
 - **No `conf.py`** — works out of the box
 - **No framework lock-in** — generates plain `.md` files
 - **Minimal dependencies** — Jinja2 + docstring-parser
+- **Practical defaults** — useful CLI output before you write any config
 
 ## Features
 
@@ -65,6 +78,83 @@ pip install pydoc2markdown
 
 # With file watcher support
 pip install pydoc2markdown[watch]
+```
+
+## Try It In 30 Seconds
+
+Clone the repository and run PyDoc2Markdown against the included sample project:
+
+```bash
+pydoc2markdown examples/sample_project/src --recursive --nav --readme \
+  --readme-path examples/sample_project/README.md \
+  -o examples/sample_project/docs
+```
+
+That command updates the sample project's README API block and creates a
+navigation-first docs layout:
+
+```text
+examples/sample_project/
+├── README.md
+├── src/shop_demo/
+└── docs/
+    ├── index.md
+    ├── shop_demo.md
+    └── api/shop_demo/
+        ├── inventory.md
+        └── orders.md
+```
+
+## Sample Project
+
+The [sample project](examples/sample_project/) is a tiny shop package with
+dataclasses, an enum, typed functions, properties, and Google-style docstrings.
+It exists so you can inspect both sides of the workflow:
+
+- [source code](examples/sample_project/src/shop_demo/)
+- [generated docs index](examples/sample_project/docs/index.md)
+- [README API section](examples/sample_project/README.md)
+
+## Before And After
+
+Start with normal Python code and docstrings:
+
+```python
+def calculate_total(items: list[Product], discount: float = 0.0) -> float:
+    """Calculate the discounted order total.
+
+    Args:
+        items: Products to include in the total.
+        discount: Discount ratio between 0 and 1.
+
+    Returns:
+        Total price after discount.
+
+    Raises:
+        ValueError: If discount is outside the accepted range.
+    """
+```
+
+PyDoc2Markdown turns it into Markdown with headings, parameter tables, return
+types, and raised exceptions:
+
+```markdown
+### `calculate_total`
+
+Calculate the discounted order total.
+
+**Parameters:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `items` | `list[Product]` | Products to include in the total. |
+| `discount` | `float` | Discount ratio between 0 and 1. |
+
+**Returns:** `float`
+Total price after discount.
+
+**Raises:**
+- `ValueError`: If discount is outside the accepted range.
 ```
 
 ## Quick Start
