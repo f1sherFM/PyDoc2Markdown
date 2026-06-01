@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.5.1](https://github.com/f1sherFM/PyDoc2Markdown/compare/v0.5.0...v0.5.1) (2026-06-01)
+
+
+### Bug Fixes
+
+* clean generated markdown spacing ([11ee206](https://github.com/f1sherFM/PyDoc2Markdown/commit/11ee2062cea12d46418b6c6f56bc40c21c7c1603))
+
+
+### Documentation
+
+* add sample project example ([cb2d7f5](https://github.com/f1sherFM/PyDoc2Markdown/commit/cb2d7f57b25593006241ee51ba2980476494270b))
+
 ## [0.5.0](https://github.com/f1sherFM/PyDoc2Markdown/compare/v0.4.3...v0.5.0) (2026-05-31)
 
 
