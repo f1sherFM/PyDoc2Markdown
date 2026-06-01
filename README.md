@@ -26,6 +26,7 @@ remaining easy to publish on GitHub, GitLab, MkDocs, or any Markdown renderer.
 - [Try It In 30 Seconds](#try-it-in-30-seconds)
 - [Sample Project](#sample-project)
 - [Before And After](#before-and-after)
+- [Common Commands](#common-commands)
 - [Quick Start](#quick-start)
   - [CLI Usage](#cli-usage)
   - [Library Usage](#library-usage)
@@ -157,40 +158,38 @@ Total price after discount.
 - `ValueError`: If discount is outside the accepted range.
 ```
 
+## Common Commands
+
+Start with the command that matches how you want to publish docs:
+
+| Goal | Command |
+|------|---------|
+| Generate module docs | `pydoc2markdown src/my_package --recursive -o docs` |
+| Generate a docs index and API pages | `pydoc2markdown src/my_package --recursive --nav -o docs` |
+| Update the API section in README.md | `pydoc2markdown src/my_package --recursive --readme` |
+| Generate one combined Markdown file | `pydoc2markdown src/my_package --recursive --single-file -o docs/api.md` |
+| Watch source files while editing | `pydoc2markdown src/my_package --recursive --watch -o docs` |
+| Create default pyproject config | `pydoc2markdown --init` |
+
+Use `--theme minimal` for shorter output, or `--template path/to/template.md.j2`
+when a project needs custom Markdown.
+
 ## Quick Start
 
 ### CLI Usage
 
 ```bash
-# Initialize default configuration in pyproject.toml
-pydoc2markdown --init
-
 # Generate docs for a single file
 pydoc2markdown my_module.py -o docs
 
 # Recursively process a package
 pydoc2markdown src/my_package --recursive -o docs
 
-# Use a built-in theme
-pydoc2markdown src/my_package --recursive --theme minimal -o docs
-
-# Use a custom template
-pydoc2markdown src/my_package --recursive --template custom.md.j2 -o docs
-
-# Single combined file
-pydoc2markdown src/my_package --recursive --single-file -o docs/README.md
-
-# Update the API section in README.md
-pydoc2markdown src/my_package --recursive --readme
-
 # Generate a navigation-first docs layout
 pydoc2markdown src/my_package --recursive --nav -o docs
 
-# Watch mode — auto-regenerate on changes
-pydoc2markdown src/my_package --recursive --watch -o docs
-
-# Enable verbose logging
-pydoc2markdown src/my_package --recursive -vv -o docs
+# Initialize default configuration in pyproject.toml
+pydoc2markdown --init
 ```
 
 ### Library Usage
