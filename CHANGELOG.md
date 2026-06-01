@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.5.2](https://github.com/f1sherFM/PyDoc2Markdown/compare/v0.5.1...v0.5.2) (2026-06-01)
+
+
+### Bug Fixes
+
+* improve CLI help and errors ([93da13b](https://github.com/f1sherFM/PyDoc2Markdown/commit/93da13babed643856797f6fd5540a38fbf6f8ea6))
+
+
+### Documentation
+
+* improve README first impression ([89aa6fd](https://github.com/f1sherFM/PyDoc2Markdown/commit/89aa6fdead8d8dd919329049820416f7315c9fa5))
+
 ## [0.5.1](https://github.com/f1sherFM/PyDoc2Markdown/compare/v0.5.0...v0.5.1) (2026-06-01)
 
 
