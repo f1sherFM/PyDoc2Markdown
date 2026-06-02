@@ -8,7 +8,7 @@
 ## Classes
 {% for class in module.classes %}
 
-### `{{ class.name }}`{% if class.class_type != "class" %} ({{ class.class_type }}){% endif %}
+### `{{ class.name }}`{% if class.class_type != "class" %} ({{ class.class_type }}){% endif %}{% set class_source = source_url(class.source_path, class.line_number) %}{% if class_source %} [source]({{ class_source }}){% endif %}
 {% if class.docstring %}
 
 {{ class.docstring }}
@@ -20,7 +20,7 @@
 ## Functions
 {% for func in module.functions %}
 
-### `{{ func.name }}`
+### `{{ func.name }}`{% set func_source = source_url(func.source_path, func.line_number) %}{% if func_source %} [source]({{ func_source }}){% endif %}
 {% if func.docstring %}
 
 {{ func.docstring }}

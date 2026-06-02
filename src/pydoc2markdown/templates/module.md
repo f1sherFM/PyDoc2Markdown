@@ -36,7 +36,7 @@
 ## Classes
 {% for class in module.classes %}
 
-### `{{ class.name }}`{% if class.class_type != "class" %} ({{ class.class_type }}){% endif %}{% if class.is_protocol %} *(Protocol)*{% endif %}{% if class.is_abstract %} *(Abstract)*{% endif %}{% if class.is_pydantic_model %} *(Pydantic)*{% endif %}
+### `{{ class.name }}`{% if class.class_type != "class" %} ({{ class.class_type }}){% endif %}{% if class.is_protocol %} *(Protocol)*{% endif %}{% if class.is_abstract %} *(Abstract)*{% endif %}{% if class.is_pydantic_model %} *(Pydantic)*{% endif %}{% set class_source = source_url(class.source_path, class.line_number) %}{% if class_source %} [source]({{ class_source }}){% endif %}
 {% if class.bases %}
 
 **Bases:** `{{ class.bases | join(", ") }}`
@@ -70,7 +70,7 @@
 #### Methods
 {% for method in class.methods %}
 
-##### {% if method.is_property %}@property {% elif method.is_classmethod %}@classmethod {% elif method.is_staticmethod %}@staticmethod {% endif %}`{{ method.name }}`
+##### {% if method.is_property %}@property {% elif method.is_classmethod %}@classmethod {% elif method.is_staticmethod %}@staticmethod {% endif %}`{{ method.name }}`{% set method_source = source_url(method.source_path, method.line_number) %}{% if method_source %} [source]({{ method_source }}){% endif %}
 {% if method.docstring %}
 
 {{ method.docstring }}
@@ -79,10 +79,10 @@
 
 **Parameters:**
 
-| Name | Type | Description |
-|------|------|-------------|
+| Name | Type | Default | Description |
+|------|------|---------|-------------|
 {% for param in method.params %}
-| `{{ param.name }}` | {% if param.type_hint %}`{{ param.type_hint | format_type_hint | link_type }}`{% else %}-{% endif %} | {% if param.description %}{{ param.description }}{% else %}-{% endif %} |
+| `{{ param.name }}` | {% if param.type_hint %}`{{ param.type_hint | format_type_hint | link_type }}`{% else %}-{% endif %} | {% if param.default %}`{{ param.default }}`{% else %}*required*{% endif %} | {% if param.description %}{{ param.description }}{% else %}-{% endif %} |
 {% endfor %}
 {% endif %}
 {% if method.returns %}
@@ -112,7 +112,7 @@
 ## Functions
 {% for func in module.functions %}
 
-### `{{ func.name }}`
+### `{{ func.name }}`{% set func_source = source_url(func.source_path, func.line_number) %}{% if func_source %} [source]({{ func_source }}){% endif %}
 {% if func.docstring %}
 
 {{ func.docstring }}
@@ -121,10 +121,10 @@
 
 **Parameters:**
 
-| Name | Type | Description |
-|------|------|-------------|
+| Name | Type | Default | Description |
+|------|------|---------|-------------|
 {% for param in func.params %}
-| `{{ param.name }}` | {% if param.type_hint %}`{{ param.type_hint | format_type_hint | link_type }}`{% else %}-{% endif %} | {% if param.description %}{{ param.description }}{% else %}-{% endif %} |
+| `{{ param.name }}` | {% if param.type_hint %}`{{ param.type_hint | format_type_hint | link_type }}`{% else %}-{% endif %} | {% if param.default %}`{{ param.default }}`{% else %}*required*{% endif %} | {% if param.description %}{{ param.description }}{% else %}-{% endif %} |
 {% endfor %}
 {% endif %}
 {% if func.returns %}

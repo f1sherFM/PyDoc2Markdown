@@ -27,6 +27,8 @@ def test_cli_help_groups_options(capsys: pytest.CaptureFixture[str]) -> None:
     assert "README integration:" in help_text
     assert "Demo:" in help_text
     assert "Examples:" in help_text
+    assert "--include" in help_text
+    assert "--exclude" in help_text
     assert "pydoc2markdown --demo" in help_text
     assert "pydoc2markdown src/my_package --recursive --nav -o docs" in help_text
 
@@ -62,6 +64,75 @@ def test_cli_recursive(sample_package: Path, tmp_path: Path) -> None:
     result = main([str(sample_package), "--recursive", "-o", str(output)])
     assert result == 0
     assert (output / "math_utils.md").exists()
+
+
+def test_cli_recursive_filters_include_exclude(tmp_path: Path) -> None:
+    source = tmp_path / "pkg"
+    api = source / "api"
+    internal = source / "internal"
+    api.mkdir(parents=True)
+    internal.mkdir()
+    (api / "public.py").write_text('"""Public API."""\n', encoding="utf-8")
+    (api / "generated.py").write_text('"""Generated API."""\n', encoding="utf-8")
+    (internal / "secret.py").write_text('"""Internal module."""\n', encoding="utf-8")
+
+    output = tmp_path / "docs"
+    result = main(
+        [
+            str(source),
+            "--recursive",
+            "--include",
+            "api/*",
+            "--exclude",
+            "*/generated.py",
+            "-o",
+            str(output),
+        ]
+    )
+
+    assert result == 0
+    assert (output / "api" / "public.md").exists()
+    assert not (output / "api" / "generated.md").exists()
+    assert not (output / "internal" / "secret.md").exists()
+
+
+def test_cli_source_repo_generates_source_links(sample_module: Path, tmp_path: Path) -> None:
+    output = tmp_path / "docs"
+    result = main(
+        [
+            str(sample_module),
+            "--source-repo",
+            "acme/app",
+            "-o",
+            str(output),
+        ]
+    )
+
+    assert result == 0
+    content = (output / "sample_module.md").read_text(encoding="utf-8")
+    assert "[source](https://github.com/acme/app/blob/main/sample_module.py#L" in content
+
+
+def test_cli_source_link_rejects_source_repo(
+    sample_module: Path,
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    with caplog.at_level(logging.ERROR):
+        result = main(
+            [
+                str(sample_module),
+                "--source-link",
+                "https://example.com/{path}#L{line}",
+                "--source-repo",
+                "acme/app",
+                "-o",
+                str(tmp_path / "docs"),
+            ]
+        )
+
+    assert result == 1
+    assert "--source-link cannot be combined with --source-repo." in caplog.text
 
 
 def test_cli_verbose(sample_module: Path, tmp_path: Path) -> None:
@@ -106,6 +177,12 @@ def test_cli_watch_passes_navigation_options(
             "--nav",
             "--api-dir",
             "reference",
+            "--include",
+            "pkg/*",
+            "--exclude",
+            "pkg/internal/*",
+            "--source-repo",
+            "acme/app",
             "--readme",
             "--readme-path",
             str(tmp_path / "README.md"),
@@ -117,6 +194,11 @@ def test_cli_watch_passes_navigation_options(
     assert result == 0
     assert calls[0]["navigation"] is True
     assert calls[0]["api_dir"] == Path("reference")
+    assert calls[0]["include"] == ["pkg/*"]
+    assert calls[0]["exclude"] == ["pkg/internal/*"]
+    assert (
+        calls[0]["source_link_template"] == "https://github.com/acme/app/blob/main/{path}#L{line}"
+    )
     assert calls[0]["readme_path"] == tmp_path / "README.md"
 
 

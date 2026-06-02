@@ -19,6 +19,9 @@ def watch_and_generate(
     readme_path: Path | None = None,
     navigation: bool = False,
     api_dir: Path = Path("api"),
+    include: list[str] | None = None,
+    exclude: list[str] | None = None,
+    source_link_template: str | None = None,
 ) -> int:
     """Watch source files and regenerate docs on change.
 
@@ -31,6 +34,9 @@ def watch_and_generate(
         readme_path: Optional README path to update with an API reference.
         navigation: Whether to generate the navigation-first docs layout.
         api_dir: Directory for API pages when navigation is enabled.
+        include: Optional glob patterns for files to include.
+        exclude: Optional glob patterns for files to exclude.
+        source_link_template: Optional URL template for source links.
 
     Returns:
         Exit code (0 for success, 1 for error).
@@ -50,11 +56,17 @@ def watch_and_generate(
     generator = MarkdownGenerator(
         template_path=template_path,
         theme=theme,
+        source_link_template=source_link_template,
     )
     parser = DocstringParser()
 
     def _generate_docs(message: str) -> None:
-        modules = parser.parse(source, recursive=recursive)
+        modules = parser.parse(
+            source,
+            recursive=recursive,
+            include=include,
+            exclude=exclude,
+        )
         if single_file:
             generator.generate_single_file(modules, output_dir)
         elif navigation:

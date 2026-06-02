@@ -196,6 +196,16 @@ def create_parser() -> argparse.ArgumentParser:
         default=defaults.get("recursive", False),
         help="Recursively process subdirectories.",
     )
+    input_group.add_argument(
+        "--include",
+        default=None,
+        help="Comma-separated glob patterns for files to include.",
+    )
+    input_group.add_argument(
+        "--exclude",
+        default=None,
+        help="Comma-separated glob patterns for files to exclude.",
+    )
     config_group.add_argument(
         "--init",
         action="store_true",
@@ -257,6 +267,16 @@ def create_parser() -> argparse.ArgumentParser:
         default=Path("api"),
         help="Directory for API pages when --nav is used.",
     )
+    output_group.add_argument(
+        "--source-link",
+        default=None,
+        help="URL template for source links, using {path}, {file}, and {line}.",
+    )
+    output_group.add_argument(
+        "--source-repo",
+        default=None,
+        help="GitHub repository shorthand for source links, for example user/repo.",
+    )
     readme_group.add_argument(
         "--readme",
         action="store_true",
@@ -308,6 +328,14 @@ def _log_cli_error(message: str, *, hint: str | None = None) -> int:
     if hint:
         logger.error("Hint: %s", hint)
     return 1
+
+
+def _split_patterns(raw: str | None) -> list[str] | None:
+    """Split comma-separated CLI glob patterns."""
+    if raw is None:
+        return None
+    patterns = [pattern.strip() for pattern in raw.split(",") if pattern.strip()]
+    return patterns or None
 
 
 def init_config() -> int:
@@ -496,6 +524,17 @@ def _validate_single_file_output(output: Path) -> int:
     return 0
 
 
+def _source_link_template(source_link: str | None, source_repo: str | None) -> str | None:
+    """Resolve source-link CLI options into a URL template."""
+    if source_link and source_repo:
+        raise ValueError("--source-link cannot be combined with --source-repo.")
+    if source_link:
+        return source_link
+    if source_repo:
+        return f"https://github.com/{source_repo}/blob/main/{{path}}#L{{line}}"
+    return None
+
+
 def main(args: list[str] | None = None) -> int:
     """Main entry point for the CLI."""
     parser = create_parser()
@@ -540,6 +579,14 @@ def main(args: list[str] | None = None) -> int:
             hint="Use --check in CI, or --watch while editing locally.",
         )
 
+    try:
+        source_link_template = _source_link_template(
+            parsed_args.source_link,
+            parsed_args.source_repo,
+        )
+    except ValueError as exc:
+        return _log_cli_error(str(exc))
+
     if parsed_args.single_file:
         single_file_error = _validate_single_file_output(parsed_args.output)
         if single_file_error:
@@ -556,6 +603,9 @@ def main(args: list[str] | None = None) -> int:
             readme_path=parsed_args.readme_path if parsed_args.readme else None,
             navigation=parsed_args.nav,
             api_dir=parsed_args.api_dir,
+            include=_split_patterns(parsed_args.include),
+            exclude=_split_patterns(parsed_args.exclude),
+            source_link_template=source_link_template,
         )
 
     logger.info("Parsing source: %s (recursive=%s)", parsed_args.source, parsed_args.recursive)
@@ -563,12 +613,15 @@ def main(args: list[str] | None = None) -> int:
     md_generator = MarkdownGenerator(
         template_path=parsed_args.template,
         theme=parsed_args.theme,
+        source_link_template=source_link_template,
     )
 
     try:
         modules = doc_parser.parse(
             source=parsed_args.source,
             recursive=parsed_args.recursive,
+            include=_split_patterns(parsed_args.include),
+            exclude=_split_patterns(parsed_args.exclude),
         )
         logger.info("Parsed %d module(s)", len(modules))
         if parsed_args.check:

@@ -25,7 +25,6 @@ Args:
 #### Methods
 
 ##### @property `available`
-
 Whether the product can be purchased.
 
 **Returns:** `bool`
@@ -40,7 +39,6 @@ Args:
 #### Methods
 
 ##### `add`
-
 Add or replace a product.
 
 Args:
@@ -48,13 +46,12 @@ Args:
 
 **Parameters:**
 
-| Name | Type | Description |
-|------|------|-------------|
-| `product` | `[Product](#product)` | Product to store. |
+| Name | Type | Default | Description |
+|------|------|---------|-------------|
+| `product` | `[Product](#product)` | *required* | Product to store. |
 
 **Returns:** `None`
 ##### `get`
-
 Return a product by SKU.
 
 Args:
@@ -68,9 +65,9 @@ Raises:
 
 **Parameters:**
 
-| Name | Type | Description |
-|------|------|-------------|
-| `sku` | `str` | Product identifier. |
+| Name | Type | Default | Description |
+|------|------|---------|-------------|
+| `sku` | `str` | *required* | Product identifier. |
 
 **Returns:** `[Product](#product)`
 Matching product.

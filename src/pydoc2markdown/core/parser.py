@@ -2,6 +2,7 @@
 
 import ast
 import contextlib
+import fnmatch
 import logging
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -52,6 +53,8 @@ class FunctionDoc:
     is_property: bool = False
     is_classmethod: bool = False
     is_staticmethod: bool = False
+    source_path: str | None = None
+    line_number: int | None = None
 
 
 @dataclass
@@ -79,6 +82,8 @@ class ClassDoc:
     is_abstract: bool = False
     is_pydantic_model: bool = False
     pydantic_fields: list[PydanticField] = field(default_factory=list)
+    source_path: str | None = None
+    line_number: int | None = None
 
 
 @dataclass
@@ -105,21 +110,52 @@ class DocstringParser:
         self,
         source: Path,
         recursive: bool = False,
+        include: list[str] | None = None,
+        exclude: list[str] | None = None,
     ) -> list[ModuleDoc]:
         """Parse a file or directory and return extracted documentation."""
         self._modules.clear()
         self._source = source
 
         if source.is_file() and source.suffix == ".py":
-            self._parse_file(source)
+            if self._should_parse_file(source, include, exclude):
+                self._parse_file(source)
         elif source.is_dir():
             pattern = "**/*.py" if recursive else "*.py"
             for file_path in sorted(source.glob(pattern)):
-                self._parse_file(file_path)
+                if self._should_parse_file(file_path, include, exclude):
+                    self._parse_file(file_path)
         else:
             raise ValueError(f"Invalid source: {source}")
 
         return self._modules
+
+    def _should_parse_file(
+        self,
+        path: Path,
+        include: list[str] | None,
+        exclude: list[str] | None,
+    ) -> bool:
+        """Return whether a source file passes include/exclude filters."""
+        if include and not any(self._path_matches(path, pattern) for pattern in include):
+            return False
+        return not (exclude and any(self._path_matches(path, pattern) for pattern in exclude))
+
+    def _path_matches(self, path: Path, pattern: str) -> bool:
+        """Match a path against a glob pattern using source-relative POSIX paths."""
+        source_root = self._source if self._source.is_dir() else self._source.parent
+        try:
+            relative = path.relative_to(source_root)
+        except ValueError:
+            relative = path
+
+        relative_text = relative.as_posix()
+        normalized_pattern = pattern.replace("\\", "/")
+        if fnmatch.fnmatch(relative_text, normalized_pattern):
+            return True
+        if "/" not in normalized_pattern:
+            return fnmatch.fnmatch(path.name, normalized_pattern)
+        return False
 
     def _parse_file(self, path: Path) -> None:
         """Parse a single Python file."""
@@ -143,6 +179,7 @@ class DocstringParser:
         """Extract module-level documentation."""
         assert isinstance(tree, ast.Module)
         package = ""
+        source_path = self._source_relative_path(path)
         if self._source.is_dir():
             try:
                 rel = path.parent.relative_to(self._source)
@@ -159,15 +196,23 @@ class DocstringParser:
 
         for node in ast.iter_child_nodes(tree):
             if isinstance(node, ast.ClassDef):
-                module.classes.append(self._extract_class(node))
+                module.classes.append(self._extract_class(node, source_path))
             elif isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef):
-                module.functions.append(self._extract_function(node))
+                module.functions.append(self._extract_function(node, source_path=source_path))
             elif isinstance(node, ast.Assign | ast.AnnAssign):
                 module.public_api.extend(self._extract_public_api(node))
 
         return module
 
-    def _extract_class(self, node: ast.ClassDef) -> ClassDoc:
+    def _source_relative_path(self, path: Path) -> str:
+        """Return a POSIX source path relative to the parse root."""
+        source_root = self._source if self._source.is_dir() else self._source.parent
+        try:
+            return path.relative_to(source_root).as_posix()
+        except ValueError:
+            return path.as_posix()
+
+    def _extract_class(self, node: ast.ClassDef, source_path: str) -> ClassDoc:
         """Extract documentation from a class definition."""
         bases = [self._format_base(base) for base in node.bases]
         is_pydantic = self._is_pydantic_model(bases)
@@ -179,6 +224,8 @@ class DocstringParser:
             is_protocol=self._is_protocol(bases),
             is_abstract=self._is_abstract(bases),
             is_pydantic_model=is_pydantic,
+            source_path=source_path,
+            line_number=node.lineno,
         )
 
         if is_pydantic:
@@ -189,7 +236,13 @@ class DocstringParser:
                 if item.name == "__init__":
                     class_doc.attributes.extend(self._extract_attributes(item))
                 else:
-                    class_doc.methods.append(self._extract_function(item, is_method=True))
+                    class_doc.methods.append(
+                        self._extract_function(
+                            item,
+                            is_method=True,
+                            source_path=source_path,
+                        )
+                    )
 
         return class_doc
 
@@ -197,6 +250,7 @@ class DocstringParser:
         self,
         node: ast.FunctionDef | ast.AsyncFunctionDef,
         is_method: bool = False,
+        source_path: str | None = None,
     ) -> FunctionDoc:
         """Extract documentation from a function definition."""
         raw_docstring = ast.get_docstring(node)
@@ -234,6 +288,8 @@ class DocstringParser:
             is_property=is_property,
             is_classmethod=is_classmethod,
             is_staticmethod=is_staticmethod,
+            source_path=source_path,
+            line_number=node.lineno,
         )
 
     def _extract_ast_params(
@@ -243,17 +299,20 @@ class DocstringParser:
         """Extract parameter names and type hints from AST."""
         params: list[Parameter] = []
         args = node.args
+        positional_args = [*args.posonlyargs, *args.args]
+        positional_defaults = self._positional_defaults(positional_args, args.defaults)
 
         # Determine start index (skip self/cls for methods)
         start = 0
-        if args.args and args.args[0].arg in ("self", "cls"):
+        if positional_args and positional_args[0].arg in ("self", "cls"):
             start = 1
 
         # Positional args
-        for _idx, arg in enumerate(args.args[start:], start=start):
+        for idx, arg in enumerate(positional_args[start:], start=start):
             param = Parameter(
                 name=arg.arg,
                 type_hint=ast.unparse(arg.annotation) if arg.annotation else None,
+                default=positional_defaults[idx],
             )
             params.append(param)
 
@@ -269,11 +328,12 @@ class DocstringParser:
             )
 
         # Keyword-only args
-        for arg in args.kwonlyargs:
+        for arg, default in zip(args.kwonlyargs, args.kw_defaults, strict=True):
             params.append(
                 Parameter(
                     name=arg.arg,
                     type_hint=ast.unparse(arg.annotation) if arg.annotation else None,
+                    default=ast.unparse(default) if default else None,
                 ),
             )
 
@@ -287,6 +347,15 @@ class DocstringParser:
             )
 
         return params
+
+    def _positional_defaults(
+        self,
+        args: list[ast.arg],
+        defaults: list[ast.expr],
+    ) -> list[str | None]:
+        """Return defaults right-aligned to positional arguments."""
+        required_count = len(args) - len(defaults)
+        return [None] * required_count + [ast.unparse(default) for default in defaults]
 
     def _merge_param_descriptions(
         self,

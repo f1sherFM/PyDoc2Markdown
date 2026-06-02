@@ -35,6 +35,8 @@ def test_parse_module_classes(sample_module: Path) -> None:
     assert isinstance(cls, ClassDoc)
     assert cls.name == "Calculator"
     assert cls.docstring == "A simple calculator class."
+    assert cls.source_path == "sample_module.py"
+    assert cls.line_number is not None
 
 
 def test_parse_module_functions(sample_module: Path) -> None:
@@ -46,6 +48,8 @@ def test_parse_module_functions(sample_module: Path) -> None:
     func = module.functions[0]
     assert isinstance(func, FunctionDoc)
     assert func.name == "greet"
+    assert func.source_path == "sample_module.py"
+    assert func.line_number is not None
 
 
 def test_parse_class_methods(sample_module: Path) -> None:
@@ -67,6 +71,56 @@ def test_parse_recursive(sample_package: Path) -> None:
     assert names == {"__init__", "math_utils"}
 
 
+def test_parse_recursive_excludes_matching_files(tmp_path: Path) -> None:
+    pkg = tmp_path / "pkg"
+    internal = pkg / "internal"
+    tests_dir = pkg / "tests"
+    internal.mkdir(parents=True)
+    tests_dir.mkdir()
+    (pkg / "public.py").write_text('"""Public module."""\n', encoding="utf-8")
+    (internal / "secret.py").write_text('"""Internal module."""\n', encoding="utf-8")
+    (tests_dir / "test_public.py").write_text('"""Test module."""\n', encoding="utf-8")
+
+    modules = DocstringParser().parse(
+        pkg,
+        recursive=True,
+        exclude=["internal/*", "test_*.py"],
+    )
+
+    assert [module.name for module in modules] == ["public"]
+
+
+def test_parse_recursive_includes_matching_files(tmp_path: Path) -> None:
+    pkg = tmp_path / "pkg"
+    api = pkg / "api"
+    core = pkg / "core"
+    api.mkdir(parents=True)
+    core.mkdir()
+    (api / "users.py").write_text('"""Users API."""\n', encoding="utf-8")
+    (core / "utils.py").write_text('"""Core utils."""\n', encoding="utf-8")
+
+    modules = DocstringParser().parse(pkg, recursive=True, include=["api/*"])
+
+    assert [module.name for module in modules] == ["users"]
+
+
+def test_parse_recursive_applies_include_then_exclude(tmp_path: Path) -> None:
+    pkg = tmp_path / "pkg"
+    api = pkg / "api"
+    api.mkdir(parents=True)
+    (api / "public.py").write_text('"""Public API."""\n', encoding="utf-8")
+    (api / "generated.py").write_text('"""Generated API."""\n', encoding="utf-8")
+
+    modules = DocstringParser().parse(
+        pkg,
+        recursive=True,
+        include=["api/*"],
+        exclude=["*/generated.py"],
+    )
+
+    assert [module.name for module in modules] == ["public"]
+
+
 def test_parse_invalid_source() -> None:
     parser = DocstringParser()
     with pytest.raises(ValueError, match="Invalid source"):
@@ -82,6 +136,49 @@ def test_parse_function_params(sample_module: Path) -> None:
     assert func.params[0].name == "name"
     assert func.params[0].type_hint == "str"
     assert func.params[0].description == "Name of the person."
+
+
+def test_parse_function_parameter_defaults(tmp_path: Path) -> None:
+    module = tmp_path / "defaults.py"
+    module.write_text(
+        '''"""Defaults module."""
+
+def connect(host: str, port: int = 8080, *, timeout: float = 30.0, secure: bool):
+    """Connect to a service."""
+    return None
+''',
+        encoding="utf-8",
+    )
+
+    func = DocstringParser().parse(module)[0].functions[0]
+
+    defaults = {param.name: param.default for param in func.params}
+    assert defaults == {
+        "host": None,
+        "port": "8080",
+        "timeout": "30.0",
+        "secure": None,
+    }
+
+
+def test_parse_method_parameter_defaults_skip_self(tmp_path: Path) -> None:
+    module = tmp_path / "defaults.py"
+    module.write_text(
+        '''"""Defaults module."""
+
+class Client:
+    """Client."""
+
+    def request(self, path: str, retries: int = 3) -> None:
+        """Send a request."""
+''',
+        encoding="utf-8",
+    )
+
+    method = DocstringParser().parse(module)[0].classes[0].methods[0]
+
+    assert [param.name for param in method.params] == ["path", "retries"]
+    assert [param.default for param in method.params] == [None, "3"]
 
 
 def test_parse_function_returns(sample_module: Path) -> None:

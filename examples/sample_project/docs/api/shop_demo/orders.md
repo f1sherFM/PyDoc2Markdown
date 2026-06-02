@@ -32,7 +32,6 @@ Args:
 #### Methods
 
 ##### `mark_paid`
-
 Mark the order as paid.
 
 **Returns:** `None`
@@ -41,7 +40,6 @@ Mark the order as paid.
 ## Functions
 
 ### `calculate_total`
-
 Calculate the discounted order total.
 
 Args:
@@ -56,10 +54,10 @@ Raises:
 
 **Parameters:**
 
-| Name | Type | Description |
-|------|------|-------------|
-| `items` | `list[[Product](#product)]` | Products to include in the total. |
-| `discount` | `float` | Discount ratio between 0 and 1. |
+| Name | Type | Default | Description |
+|------|------|---------|-------------|
+| `items` | `list[[Product](#product)]` | *required* | Products to include in the total. |
+| `discount` | `float` | `0.0` | Discount ratio between 0 and 1. |
 
 **Returns:** `float`
 Total price after discount.

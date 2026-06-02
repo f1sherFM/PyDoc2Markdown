@@ -224,6 +224,47 @@ def test_generate_type_hint_formatting(typed_module: Path, tmp_path: Path) -> No
     assert "list[str]" in content
 
 
+def test_generate_parameter_defaults(tmp_path: Path) -> None:
+    module = tmp_path / "defaults.py"
+    module.write_text(
+        '''"""Defaults module."""
+
+def connect(host: str, port: int = 8080, *, timeout: float = 30.0) -> None:
+    """Connect to a service.
+
+    Args:
+        host: Host name.
+        port: Port number.
+        timeout: Timeout in seconds.
+    """
+''',
+        encoding="utf-8",
+    )
+
+    modules = DocstringParser().parse(module)
+    output_dir = tmp_path / "docs"
+    MarkdownGenerator().generate(modules, output_dir)
+
+    content = (output_dir / "defaults.md").read_text(encoding="utf-8")
+    assert "| Name | Type | Default | Description |" in content
+    assert "| `host` | `str` | *required* | Host name. |" in content
+    assert "| `port` | `int` | `8080` | Port number. |" in content
+    assert "| `timeout` | `float` | `30.0` | Timeout in seconds. |" in content
+
+
+def test_generate_source_links(sample_module: Path, tmp_path: Path) -> None:
+    modules = DocstringParser().parse(sample_module)
+    output_dir = tmp_path / "docs"
+    generator = MarkdownGenerator(
+        source_link_template="https://github.com/acme/app/blob/main/{path}#L{line}"
+    )
+
+    generator.generate(modules, output_dir)
+
+    content = (output_dir / "sample_module.md").read_text(encoding="utf-8")
+    assert "[source](https://github.com/acme/app/blob/main/sample_module.py#L" in content
+
+
 def test_generate_cross_references(crossref_module: Path, tmp_path: Path) -> None:
     parser = DocstringParser()
     modules = parser.parse(crossref_module)

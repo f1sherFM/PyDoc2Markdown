@@ -26,10 +26,12 @@ class MarkdownGenerator:
         self,
         template_path: Path | None = None,
         theme: str = "default",
+        source_link_template: str | None = None,
     ) -> None:
         """Initialize the generator with an optional custom template or theme."""
         self._template_path = template_path
         self._theme = theme
+        self._source_link_template = source_link_template
         self._env = self._create_environment()
 
     def _create_environment(self) -> Environment:
@@ -54,7 +56,18 @@ class MarkdownGenerator:
 
         env.filters["format_type_hint"] = format_type_hint
         env.filters["link_type"] = link_type_filter
+        env.globals["source_url"] = self._source_url
         return env
+
+    def _source_url(self, path: str | None, line: int | None) -> str | None:
+        """Render a source URL for a documented object."""
+        if not (self._source_link_template and path and line):
+            return None
+        return self._source_link_template.format(
+            path=path,
+            file=Path(path).name,
+            line=line,
+        )
 
     def _resolve_template_name(self) -> str:
         """Resolve the template file name based on theme or custom path."""

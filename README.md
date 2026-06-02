@@ -32,6 +32,8 @@ remaining easy to publish on GitHub, GitLab, MkDocs, or any Markdown renderer.
   - [Library Usage](#library-usage)
 - [CLI Reference](#cli-reference)
 - [Configuration](#configuration)
+- [Module Filtering](#module-filtering)
+- [Source Links](#source-links)
 - [README API Sections](#readme-api-sections)
 - [Navigation Docs Layout](#navigation-docs-layout)
 - [CI Checks](#ci-checks)
@@ -60,6 +62,9 @@ PyDoc2Markdown takes a different approach: **zero configuration, zero framework 
 - **Auto-generated index & TOC** — Each module gets a Table of Contents; an `index.md` with package grouping is created automatically.
 - **Navigation layout** — Generate a docs entrypoint with package pages and API files under `api/`.
 - **CI-friendly checks** — Verify generated docs are up to date with `--check`.
+- **Module filtering** — Include or exclude source files with glob patterns.
+- **Parameter defaults** — Show which function arguments are required or optional.
+- **Source links** — Link generated classes, functions, and methods back to source code.
 - **Package grouping** — Output files are organized into subdirectories matching the package structure.
 - **Built-in themes** — Choose between `default` (detailed) and `minimal` themes, or supply your own template.
 - **CLI & API** — Use via command line or import as a Python library.
@@ -178,6 +183,8 @@ Start with the command that matches how you want to publish docs:
 | Generate module docs | `pydoc2markdown src/my_package --recursive -o docs` |
 | Generate a docs index and API pages | `pydoc2markdown src/my_package --recursive --nav -o docs` |
 | Update the API section in README.md | `pydoc2markdown src/my_package --recursive --readme` |
+| Skip private/internal modules | `pydoc2markdown src/my_package --recursive --exclude "tests/*,*/internal/*,*_private.py"` |
+| Add GitHub source links | `pydoc2markdown src/my_package --recursive --source-repo user/repo -o docs` |
 | Check generated docs in CI | `pydoc2markdown src/my_package --recursive --nav --readme --check -o docs` |
 | Generate one combined Markdown file | `pydoc2markdown src/my_package --recursive --single-file -o docs/api.md` |
 | Watch source files while editing | `pydoc2markdown src/my_package --recursive --watch -o docs` |
@@ -198,8 +205,14 @@ pydoc2markdown my_module.py -o docs
 # Recursively process a package
 pydoc2markdown src/my_package --recursive -o docs
 
+# Skip internal and test modules
+pydoc2markdown src/my_package --recursive --exclude "tests/*,*/internal/*,*_test.py" -o docs
+
 # Generate a navigation-first docs layout
 pydoc2markdown src/my_package --recursive --nav -o docs
+
+# Add GitHub source links next to documented objects
+pydoc2markdown src/my_package --recursive --source-repo user/repo -o docs
 
 # Check whether generated docs are current without writing files
 pydoc2markdown src/my_package --recursive --nav --check -o docs
@@ -229,6 +242,8 @@ generator.generate(modules, output_dir=Path("docs"))
 | `--init` | `False` | Create or update `[tool.pydoc2markdown]` in `pyproject.toml` |
 | `-o`, `--output` | `docs` / value from `pyproject.toml` | Output directory (or file path when `--single-file` is used) |
 | `--recursive` | `False` / value from `pyproject.toml` | Recursively process subdirectories |
+| `--include` | `None` | Comma-separated glob patterns for files to include |
+| `--exclude` | `None` | Comma-separated glob patterns for files to exclude |
 | `--theme` | `default` / value from `pyproject.toml` | Built-in theme: `default` (detailed) or `minimal` |
 | `--template` | `None` | Path to a custom Jinja2 template for Markdown generation |
 | `--single-file` | `False` | Generate a single combined Markdown file; `--output` must be a `.md` or `.markdown` file path |
@@ -237,6 +252,8 @@ generator.generate(modules, output_dir=Path("docs"))
 | `--readme-path` | `README.md` | Path to the README file updated by `--readme` |
 | `--nav` | `False` | Generate a navigation-first docs layout with API pages under `api/` |
 | `--api-dir` | `api` | Directory for API pages when `--nav` is used |
+| `--source-link` | `None` | URL template for source links, using `{path}`, `{file}`, and `{line}` |
+| `--source-repo` | `None` | GitHub repository shorthand for source links, for example `user/repo` |
 | `--watch` | `False` | Watch source files and regenerate docs on change |
 | `--demo` | `False` | Create a small demo project and generate docs for it |
 | `--demo-output` | `pydoc2markdown-demo` | Directory created by `--demo` |
@@ -266,6 +283,55 @@ recursive = true
 ```
 
 Any values set here serve as defaults and can be overridden by CLI flags.
+
+## Module Filtering
+
+Use `--include` and `--exclude` with `--recursive` to control which Python files
+are documented:
+
+```bash
+pydoc2markdown src/my_package --recursive --exclude "tests/*,*/internal/*,*_private.py"
+```
+
+Patterns use standard shell-style globs and are matched against paths relative
+to the scanned source root. Patterns without a directory separator also match
+file names in any package directory, so `conftest.py` or `*_test.py` work as
+convenient basename filters.
+
+When both flags are used, PyDoc2Markdown applies `--include` first and then
+removes anything matched by `--exclude`:
+
+```bash
+pydoc2markdown src/my_package --recursive --include "api/*,core/*" --exclude "*/generated.py"
+```
+
+## Source Links
+
+Use `--source-repo` to add GitHub source links next to generated class,
+function, and method headings:
+
+```bash
+pydoc2markdown src/my_package --recursive --source-repo user/repo -o docs
+```
+
+This expands to a GitHub URL template using the `main` branch:
+
+```text
+https://github.com/user/repo/blob/main/{path}#L{line}
+```
+
+For GitLab, another branch, or a custom host, pass the full template with
+`--source-link`:
+
+```bash
+pydoc2markdown src/my_package --recursive \
+  --source-link "https://gitlab.com/user/repo/-/blob/develop/{path}#L{line}" \
+  -o docs
+```
+
+Available template variables are `{path}` for the source-root-relative Python
+file path, `{file}` for the filename, and `{line}` for the 1-indexed definition
+line.
 
 ## README API Sections
 

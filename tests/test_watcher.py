@@ -195,7 +195,13 @@ def test_watch_and_generate_debounces_file_events(
             pass
 
     class FakeParser:
-        def parse(self, source: Path, recursive: bool) -> list[object]:
+        def parse(
+            self,
+            source: Path,
+            recursive: bool,
+            include: list[str] | None = None,
+            exclude: list[str] | None = None,
+        ) -> list[object]:
             return [object()]
 
     class FakeGenerator:
