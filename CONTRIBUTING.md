@@ -60,6 +60,18 @@ This project uses [release-please](https://github.com/googleapis/release-please)
 
 Commits with prefixes `docs:`, `style:`, `refactor:`, `test:`, `chore:` do not trigger a release by themselves.
 
+**Project version policy:**
+- `x.1.x` is for a large feature or a fairly large update.
+- `x.x.1` is for a small feature, bug fix, minor improvement, or a collected set of microfixes.
+- `x.x.x.1` is for microfixes.
+- `1.x.x` is reserved for a major, user-visible milestone after at least four `x.1.x` releases.
+
+Because release-please follows conventional semver by default, small features
+may need their Release PR version adjusted from a minor bump to a patch bump.
+When adjusting a Release PR, edit the version files and PR title only. Do not
+replace the release-please PR body: release-please parses that body when it
+creates the GitHub Release, and a custom body can prevent PyPI publishing.
+
 ## Code Quality
 
 Before submitting a PR, ensure all checks pass:

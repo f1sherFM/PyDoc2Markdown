@@ -130,6 +130,107 @@ def test_cli_single_file(sample_package: Path, tmp_path: Path) -> None:
     assert "math_utils" in content
 
 
+def test_cli_check_passes_when_docs_are_current(sample_module: Path, tmp_path: Path) -> None:
+    output = tmp_path / "docs"
+    assert main([str(sample_module), "-o", str(output)]) == 0
+
+    result = main([str(sample_module), "-o", str(output), "--check"])
+
+    assert result == 0
+
+
+def test_cli_check_fails_when_docs_are_outdated(
+    sample_module: Path,
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    output = tmp_path / "docs"
+    assert main([str(sample_module), "-o", str(output)]) == 0
+    generated = output / "sample_module.md"
+    generated.write_text("stale docs\n", encoding="utf-8")
+
+    with caplog.at_level(logging.ERROR):
+        result = main([str(sample_module), "-o", str(output), "--check"])
+
+    assert result == 1
+    assert "Generated documentation is out of date." in caplog.text
+    assert str(generated) in caplog.text
+    assert generated.read_text(encoding="utf-8") == "stale docs\n"
+
+
+def test_cli_check_single_file(sample_package: Path, tmp_path: Path) -> None:
+    output = tmp_path / "combined.md"
+    assert main([str(sample_package), "--recursive", "--single-file", "-o", str(output)]) == 0
+
+    result = main(
+        [
+            str(sample_package),
+            "--recursive",
+            "--single-file",
+            "-o",
+            str(output),
+            "--check",
+        ]
+    )
+
+    assert result == 0
+
+
+def test_cli_check_navigation_layout(sample_package: Path, tmp_path: Path) -> None:
+    output = tmp_path / "docs"
+    assert main([str(sample_package), "--recursive", "--nav", "-o", str(output)]) == 0
+
+    result = main([str(sample_package), "--recursive", "--nav", "-o", str(output), "--check"])
+
+    assert result == 0
+
+
+def test_cli_check_readme_fails_when_api_section_is_outdated(
+    sample_module: Path,
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    output = tmp_path / "docs"
+    readme_path = tmp_path / "README.md"
+    assert (
+        main(
+            [
+                str(sample_module),
+                "-o",
+                str(output),
+                "--readme",
+                "--readme-path",
+                str(readme_path),
+            ]
+        )
+        == 0
+    )
+    readme_path.write_text("# Project\n\nOld API docs.\n", encoding="utf-8")
+
+    with caplog.at_level(logging.ERROR):
+        result = main(
+            [
+                str(sample_module),
+                "-o",
+                str(output),
+                "--readme",
+                "--readme-path",
+                str(readme_path),
+                "--check",
+            ]
+        )
+
+    assert result == 1
+    assert str(readme_path) in caplog.text
+    assert readme_path.read_text(encoding="utf-8") == "# Project\n\nOld API docs.\n"
+
+
+def test_cli_check_rejects_watch(sample_module: Path, tmp_path: Path) -> None:
+    result = main([str(sample_module), "-o", str(tmp_path / "docs"), "--watch", "--check"])
+
+    assert result == 1
+
+
 def test_cli_demo_creates_project(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],

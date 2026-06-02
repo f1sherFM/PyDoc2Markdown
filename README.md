@@ -34,6 +34,7 @@ remaining easy to publish on GitHub, GitLab, MkDocs, or any Markdown renderer.
 - [Configuration](#configuration)
 - [README API Sections](#readme-api-sections)
 - [Navigation Docs Layout](#navigation-docs-layout)
+- [CI Checks](#ci-checks)
 - [Library API](#library-api)
 - [Supported Docstring Formats](#supported-docstring-formats)
 - [Example Output](#example-output)
@@ -58,6 +59,7 @@ PyDoc2Markdown takes a different approach: **zero configuration, zero framework 
 - **README API sections** — Create or update a generated API reference block in README files.
 - **Auto-generated index & TOC** — Each module gets a Table of Contents; an `index.md` with package grouping is created automatically.
 - **Navigation layout** — Generate a docs entrypoint with package pages and API files under `api/`.
+- **CI-friendly checks** — Verify generated docs are up to date with `--check`.
 - **Package grouping** — Output files are organized into subdirectories matching the package structure.
 - **Built-in themes** — Choose between `default` (detailed) and `minimal` themes, or supply your own template.
 - **CLI & API** — Use via command line or import as a Python library.
@@ -176,6 +178,7 @@ Start with the command that matches how you want to publish docs:
 | Generate module docs | `pydoc2markdown src/my_package --recursive -o docs` |
 | Generate a docs index and API pages | `pydoc2markdown src/my_package --recursive --nav -o docs` |
 | Update the API section in README.md | `pydoc2markdown src/my_package --recursive --readme` |
+| Check generated docs in CI | `pydoc2markdown src/my_package --recursive --nav --readme --check -o docs` |
 | Generate one combined Markdown file | `pydoc2markdown src/my_package --recursive --single-file -o docs/api.md` |
 | Watch source files while editing | `pydoc2markdown src/my_package --recursive --watch -o docs` |
 | Create default pyproject config | `pydoc2markdown --init` |
@@ -197,6 +200,9 @@ pydoc2markdown src/my_package --recursive -o docs
 
 # Generate a navigation-first docs layout
 pydoc2markdown src/my_package --recursive --nav -o docs
+
+# Check whether generated docs are current without writing files
+pydoc2markdown src/my_package --recursive --nav --check -o docs
 
 # Initialize default configuration in pyproject.toml
 pydoc2markdown --init
@@ -226,6 +232,7 @@ generator.generate(modules, output_dir=Path("docs"))
 | `--theme` | `default` / value from `pyproject.toml` | Built-in theme: `default` (detailed) or `minimal` |
 | `--template` | `None` | Path to a custom Jinja2 template for Markdown generation |
 | `--single-file` | `False` | Generate a single combined Markdown file instead of separate files |
+| `--check` | `False` | Check whether generated docs are up to date without writing files |
 | `--readme` | `False` | Create or update an API reference section in README.md |
 | `--readme-path` | `README.md` | Path to the README file updated by `--readme` |
 | `--nav` | `False` | Generate a navigation-first docs layout with API pages under `api/` |
@@ -314,6 +321,21 @@ Use `--api-dir` to change where module pages are written:
 ```bash
 pydoc2markdown src/my_package --recursive --nav --api-dir reference -o docs
 ```
+
+## CI Checks
+
+Use `--check` in CI to fail when generated documentation is missing or stale:
+
+```bash
+pydoc2markdown src/my_package --recursive --nav --readme --check -o docs
+```
+
+The command compares the files PyDoc2Markdown would generate with the files
+already on disk. It exits with `0` when docs are current and `1` when any
+generated output needs to be updated. It does not write files in check mode.
+
+`--check` works with normal multi-file output, `--nav`, `--single-file`, and
+README API sections. It cannot be combined with `--watch`.
 
 ## Library API
 

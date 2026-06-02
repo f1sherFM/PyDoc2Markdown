@@ -4,11 +4,12 @@ import argparse
 import logging
 import sys
 from pathlib import Path
+from tempfile import TemporaryDirectory
 
 from pydoc2markdown import __version__
 from pydoc2markdown.core.config import load_config
 from pydoc2markdown.core.generator import MarkdownGenerator
-from pydoc2markdown.core.parser import DocstringParser
+from pydoc2markdown.core.parser import DocstringParser, ModuleDoc
 from pydoc2markdown.core.watcher import watch_and_generate
 
 logger = logging.getLogger(__name__)
@@ -245,6 +246,12 @@ def create_parser() -> argparse.ArgumentParser:
         help="Generate a navigation-first docs layout with API pages under api/.",
     )
     output_group.add_argument(
+        "--check",
+        action="store_true",
+        default=False,
+        help="Check whether generated docs are up to date without writing files.",
+    )
+    output_group.add_argument(
         "--api-dir",
         type=Path,
         default=Path("api"),
@@ -378,6 +385,102 @@ def run_demo(output_dir: Path) -> int:
     return 0
 
 
+def _different_files(
+    expected_dir: Path,
+    actual_dir: Path,
+    expected_paths: list[Path],
+) -> list[Path]:
+    """Return generated files whose current output is missing or outdated."""
+    different: list[Path] = []
+    for expected_path in expected_paths:
+        relative_path = expected_path.relative_to(expected_dir)
+        actual_path = actual_dir / relative_path
+        if not actual_path.exists():
+            different.append(actual_path)
+            continue
+        if expected_path.read_text(encoding="utf-8") != actual_path.read_text(encoding="utf-8"):
+            different.append(actual_path)
+    return different
+
+
+def _check_readme(
+    generator: MarkdownGenerator,
+    modules: list[ModuleDoc],
+    readme_path: Path,
+    temp_dir: Path,
+) -> list[Path]:
+    """Return README path when its generated API section is missing or outdated."""
+    expected_readme = temp_dir / "README.md"
+    if readme_path.exists():
+        expected_readme.write_text(readme_path.read_text(encoding="utf-8"), encoding="utf-8")
+
+    generator.update_readme(modules, expected_readme)
+    if not readme_path.exists():
+        return [readme_path]
+    if expected_readme.read_text(encoding="utf-8") != readme_path.read_text(encoding="utf-8"):
+        return [readme_path]
+    return []
+
+
+def check_generated_docs(
+    generator: MarkdownGenerator,
+    modules: list[ModuleDoc],
+    *,
+    output: Path,
+    single_file: bool,
+    readme: bool,
+    readme_path: Path,
+    navigation: bool,
+    api_dir: Path,
+) -> int:
+    """Check whether generated documentation matches the current files."""
+    with TemporaryDirectory() as temp_name:
+        temp_dir = Path(temp_name)
+        stale_paths: list[Path] = []
+
+        if single_file:
+            expected_output = temp_dir / output.name
+            generator.generate_single_file(modules, expected_output)
+            if not output.exists() or (
+                expected_output.read_text(encoding="utf-8") != output.read_text(encoding="utf-8")
+            ):
+                stale_paths.append(output)
+        elif navigation:
+            expected_output_dir = temp_dir / "docs"
+            expected_paths = generator.generate_navigation(
+                modules,
+                expected_output_dir,
+                api_dir=api_dir,
+            )
+            stale_paths.extend(_different_files(expected_output_dir, output, expected_paths))
+        else:
+            expected_output_dir = temp_dir / "docs"
+            expected_paths = generator.generate(modules, expected_output_dir)
+            stale_paths.extend(_different_files(expected_output_dir, output, expected_paths))
+
+        if readme:
+            try:
+                stale_paths.extend(_check_readme(generator, modules, readme_path, temp_dir))
+            except ValueError as exc:
+                return _log_cli_error(
+                    str(exc),
+                    hint=(
+                        "Keep both <!-- pydoc2markdown:start --> and "
+                        "<!-- pydoc2markdown:end --> in the README, or remove both markers."
+                    ),
+                )
+
+    if stale_paths:
+        logger.error("Generated documentation is out of date.")
+        for path in stale_paths:
+            logger.error("Outdated: %s", path)
+        logger.error("Run the same command without --check to update generated files.")
+        return 1
+
+    logger.info("Generated documentation is up to date.")
+    return 0
+
+
 def main(args: list[str] | None = None) -> int:
     """Main entry point for the CLI."""
     parser = create_parser()
@@ -416,6 +519,12 @@ def main(args: list[str] | None = None) -> int:
             hint="Use --nav for a docs directory, or --single-file for one combined Markdown file.",
         )
 
+    if parsed_args.check and parsed_args.watch:
+        return _log_cli_error(
+            "--check cannot be combined with --watch.",
+            hint="Use --check in CI, or --watch while editing locally.",
+        )
+
     if parsed_args.watch:
         return watch_and_generate(
             source=parsed_args.source,
@@ -442,6 +551,17 @@ def main(args: list[str] | None = None) -> int:
             recursive=parsed_args.recursive,
         )
         logger.info("Parsed %d module(s)", len(modules))
+        if parsed_args.check:
+            return check_generated_docs(
+                md_generator,
+                modules,
+                output=parsed_args.output,
+                single_file=parsed_args.single_file,
+                readme=parsed_args.readme,
+                readme_path=parsed_args.readme_path,
+                navigation=parsed_args.nav,
+                api_dir=parsed_args.api_dir,
+            )
         if parsed_args.single_file:
             single_path = md_generator.generate_single_file(
                 modules=modules,
