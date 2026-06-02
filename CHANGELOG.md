@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.6.0](https://github.com/f1sherFM/PyDoc2Markdown/compare/v0.5.6...v0.6.0) (2026-06-02)
+
+
+### Features
+
+0.6.0 focuses on making generated API docs more practical for real Python projects:
+users can now decide exactly which modules should be documented, generated
+parameter tables show whether arguments are required or optional, and Markdown
+output can link every documented class, function, and method back to source code.
+
+* add `--include` and `--exclude` glob filters for recursive documentation runs, with include patterns applied first and exclude patterns removing unwanted matches afterward ([0392582](https://github.com/f1sherFM/PyDoc2Markdown/commit/039258294edb89380a06f2f5c7e377e40de8c91f))
+* add parameter defaults to generated function and method tables, marking required arguments explicitly and showing defaults for optional positional and keyword-only parameters ([0392582](https://github.com/f1sherFM/PyDoc2Markdown/commit/039258294edb89380a06f2f5c7e377e40de8c91f))
+* add source links via `--source-repo` for GitHub projects and `--source-link` for custom URL templates using `{path}`, `{file}`, and `{line}` ([0392582](https://github.com/f1sherFM/PyDoc2Markdown/commit/039258294edb89380a06f2f5c7e377e40de8c91f))
+* document the new workflow in the README and update the sample project docs so users can see the new output format immediately ([0392582](https://github.com/f1sherFM/PyDoc2Markdown/commit/039258294edb89380a06f2f5c7e377e40de8c91f))
+
 ## [0.5.6](https://github.com/f1sherFM/PyDoc2Markdown/compare/v0.5.5...v0.5.6) (2026-06-02)
 
 
