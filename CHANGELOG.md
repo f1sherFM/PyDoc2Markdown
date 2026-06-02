@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.5](https://github.com/f1sherFM/PyDoc2Markdown/compare/v0.5.4...v0.5.5) (2026-06-02)
+
+
+### Bug Fixes
+
+* stabilize docs output edge cases ([7d45f7c](https://github.com/f1sherFM/PyDoc2Markdown/commit/7d45f7c8bae1505370c1057ab7b79ea4b1e858ce))
+
 ## [0.5.4](https://github.com/f1sherFM/PyDoc2Markdown/compare/v0.5.3...v0.5.4) (2026-06-02)
 
 
