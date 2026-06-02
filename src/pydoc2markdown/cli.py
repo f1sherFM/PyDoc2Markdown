@@ -237,7 +237,7 @@ def create_parser() -> argparse.ArgumentParser:
         "--single-file",
         action="store_true",
         default=False,
-        help="Generate a single combined Markdown file instead of separate files.",
+        help="Generate one combined Markdown file; --output must be a .md file path.",
     )
     output_group.add_argument(
         "--nav",
@@ -481,6 +481,21 @@ def check_generated_docs(
     return 0
 
 
+def _validate_single_file_output(output: Path) -> int:
+    """Return a CLI error when --single-file output is not an explicit file path."""
+    if output.exists() and output.is_dir():
+        return _log_cli_error(
+            f"--single-file output points to a directory: {output}",
+            hint="Pass a Markdown file path, for example: --single-file -o docs/api.md",
+        )
+    if output.suffix.lower() not in {".md", ".markdown"}:
+        return _log_cli_error(
+            "--single-file requires --output to be a Markdown file path.",
+            hint="Pass a file path such as -o docs/api.md instead of the default docs directory.",
+        )
+    return 0
+
+
 def main(args: list[str] | None = None) -> int:
     """Main entry point for the CLI."""
     parser = create_parser()
@@ -524,6 +539,11 @@ def main(args: list[str] | None = None) -> int:
             "--check cannot be combined with --watch.",
             hint="Use --check in CI, or --watch while editing locally.",
         )
+
+    if parsed_args.single_file:
+        single_file_error = _validate_single_file_output(parsed_args.output)
+        if single_file_error:
+            return single_file_error
 
     if parsed_args.watch:
         return watch_and_generate(

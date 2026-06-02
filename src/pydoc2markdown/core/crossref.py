@@ -59,6 +59,14 @@ class TypeIndex:
         if not type_str:
             return type_str
 
+        existing_links: list[str] = []
+
+        def _stash_link(match: re.Match[str]) -> str:
+            existing_links.append(match.group(0))
+            return f"@@PYDOC2MARKDOWN_LINK_{len(existing_links) - 1}@@"
+
+        type_str = re.sub(r"\[[^\]]+\]\([^)]+\)", _stash_link, type_str)
+
         # Sort by length descending to avoid partial replacements
         # e.g. replace "MyClass" before "My"
         for name, anchor in sorted(self.types.items(), key=lambda item: len(item[0]), reverse=True):
@@ -66,4 +74,7 @@ class TypeIndex:
             pattern = rf"\b{re.escape(name)}\b"
             replacement = rf"[{name}](#{anchor})"
             type_str = re.sub(pattern, replacement, type_str)
+
+        for index, link in enumerate(existing_links):
+            type_str = type_str.replace(f"@@PYDOC2MARKDOWN_LINK_{index}@@", link)
         return type_str

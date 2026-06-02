@@ -231,7 +231,7 @@ generator.generate(modules, output_dir=Path("docs"))
 | `--recursive` | `False` / value from `pyproject.toml` | Recursively process subdirectories |
 | `--theme` | `default` / value from `pyproject.toml` | Built-in theme: `default` (detailed) or `minimal` |
 | `--template` | `None` | Path to a custom Jinja2 template for Markdown generation |
-| `--single-file` | `False` | Generate a single combined Markdown file instead of separate files |
+| `--single-file` | `False` | Generate a single combined Markdown file; `--output` must be a `.md` or `.markdown` file path |
 | `--check` | `False` | Check whether generated docs are up to date without writing files |
 | `--readme` | `False` | Create or update an API reference section in README.md |
 | `--readme-path` | `README.md` | Path to the README file updated by `--readme` |

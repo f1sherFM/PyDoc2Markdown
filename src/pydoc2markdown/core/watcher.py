@@ -1,9 +1,12 @@
 """File watcher for auto-regenerating documentation."""
 
 import logging
+import time
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
+
+_DEBOUNCE_SECONDS = 0.25
 
 
 def watch_and_generate(
@@ -48,43 +51,10 @@ def watch_and_generate(
         template_path=template_path,
         theme=theme,
     )
+    parser = DocstringParser()
 
-    class _RebuildHandler(FileSystemEventHandler):
-        def __init__(self) -> None:
-            self._parser = DocstringParser()
-
-        def on_any_event(self, event: FileSystemEvent) -> None:
-            if event.is_directory:
-                return
-            src = getattr(event, "src_path", "")
-            if isinstance(src, str) and not src.endswith(".py"):
-                return
-            logger.info("Change detected, regenerating docs...")
-            try:
-                modules = self._parser.parse(source, recursive=recursive)
-                if single_file:
-                    generator.generate_single_file(modules, output_dir)
-                elif navigation:
-                    generator.generate_navigation(modules, output_dir, api_dir)
-                else:
-                    generator.generate(modules, output_dir)
-                if readme_path:
-                    generator.update_readme(modules, readme_path)
-                logger.info("Docs regenerated in %s", output_dir)
-            except Exception:
-                logger.exception("Regeneration failed")
-
-    handler = _RebuildHandler()
-    watch_path = source if source.is_dir() else source.parent
-    observer = Observer()
-    observer.schedule(handler, str(watch_path), recursive=True)
-    observer.start()
-
-    logger.info("Watching %s for changes. Press Ctrl+C to stop.", watch_path)
-
-    # Generate once before watching
-    try:
-        modules = handler._parser.parse(source, recursive=recursive)
+    def _generate_docs(message: str) -> None:
+        modules = parser.parse(source, recursive=recursive)
         if single_file:
             generator.generate_single_file(modules, output_dir)
         elif navigation:
@@ -93,13 +63,51 @@ def watch_and_generate(
             generator.generate(modules, output_dir)
         if readme_path:
             generator.update_readme(modules, readme_path)
-        logger.info("Initial docs generated in %s", output_dir)
+        logger.info(message, output_dir)
+
+    class _RebuildHandler(FileSystemEventHandler):
+        def __init__(self) -> None:
+            self._pending_since: float | None = None
+
+        def on_any_event(self, event: FileSystemEvent) -> None:
+            if event.is_directory:
+                return
+            src = getattr(event, "src_path", "")
+            if isinstance(src, str) and not src.endswith(".py"):
+                return
+            self._pending_since = time.monotonic()
+            logger.debug("Change detected, scheduling docs regeneration...")
+
+        def maybe_rebuild(self) -> None:
+            if self._pending_since is None:
+                return
+            if time.monotonic() - self._pending_since < _DEBOUNCE_SECONDS:
+                return
+            self._pending_since = None
+            logger.info("Change detected, regenerating docs...")
+            try:
+                _generate_docs("Docs regenerated in %s")
+            except Exception:
+                logger.exception("Regeneration failed")
+
+    handler = _RebuildHandler()
+    watch_path = source if source.is_dir() else source.parent
+    observer = Observer()
+    observer.schedule(handler, str(watch_path), recursive=recursive if source.is_dir() else False)
+    observer.start()
+
+    logger.info("Watching %s for changes. Press Ctrl+C to stop.", watch_path)
+
+    # Generate once before watching
+    try:
+        _generate_docs("Initial docs generated in %s")
     except Exception:
         logger.exception("Initial generation failed")
 
     try:
         while observer.is_alive():
-            observer.join(1)
+            observer.join(_DEBOUNCE_SECONDS)
+            handler.maybe_rebuild()
     except KeyboardInterrupt:
         logger.info("Stopping watcher...")
     finally:

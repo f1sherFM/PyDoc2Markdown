@@ -17,16 +17,31 @@ def _find_closing_bracket(s: str, start: int = 0) -> int:
 
 
 def _split_top_level(text: str, delimiter: str = ",") -> list[str]:
-    """Split text by delimiter respecting nested brackets."""
+    """Split text by delimiter respecting nested brackets and quoted strings."""
     parts: list[str] = []
     depth = 0
     current: list[str] = []
+    quote: str | None = None
+    escaped = False
     for ch in text:
-        if ch == "[":
+        if escaped:
+            current.append(ch)
+            escaped = False
+            continue
+        if ch == "\\" and quote:
+            current.append(ch)
+            escaped = True
+            continue
+        if ch in {"'", '"'}:
+            if quote == ch:
+                quote = None
+            elif quote is None:
+                quote = ch
+        elif quote is None and ch == "[":
             depth += 1
-        elif ch == "]":
+        elif quote is None and ch == "]":
             depth -= 1
-        elif ch == delimiter and depth == 0:
+        elif quote is None and ch == delimiter and depth == 0:
             parts.append("".join(current).strip())
             current = []
             continue

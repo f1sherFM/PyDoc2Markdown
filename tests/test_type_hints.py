@@ -26,6 +26,8 @@ from pydoc2markdown.core.type_hints import format_type_hint
         ("", ""),
         ("Optional[List[str]]", "list[str] | None"),
         ("Union[List[str], Dict[str, int]]", "list[str] | dict[str, int]"),
+        ('Optional[Literal["foo", "bar"]]', 'Literal["foo", "bar"] | None'),
+        ('Union[Literal["foo,bar"], Literal["baz"]]', 'Literal["foo,bar"] | Literal["baz"]'),
     ],
 )
 def test_format_type_hint(raw: str, expected: str) -> None:

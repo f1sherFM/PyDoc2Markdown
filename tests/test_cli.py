@@ -130,6 +130,60 @@ def test_cli_single_file(sample_package: Path, tmp_path: Path) -> None:
     assert "math_utils" in content
 
 
+def test_cli_single_file_requires_file_output(
+    sample_package: Path,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    with caplog.at_level(logging.ERROR):
+        result = main([str(sample_package), "--recursive", "--single-file"])
+
+    assert result == 1
+    assert "--single-file output points to a directory" in caplog.text
+
+
+def test_cli_single_file_rejects_output_without_markdown_suffix(
+    sample_package: Path,
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    with caplog.at_level(logging.ERROR):
+        result = main(
+            [
+                str(sample_package),
+                "--recursive",
+                "--single-file",
+                "-o",
+                str(tmp_path / "combined"),
+            ]
+        )
+
+    assert result == 1
+    assert "--single-file requires --output to be a Markdown file path." in caplog.text
+
+
+def test_cli_single_file_rejects_existing_output_dir(
+    sample_package: Path,
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    output = tmp_path / "docs"
+    output.mkdir()
+
+    with caplog.at_level(logging.ERROR):
+        result = main(
+            [
+                str(sample_package),
+                "--recursive",
+                "--single-file",
+                "-o",
+                str(output),
+            ]
+        )
+
+    assert result == 1
+    assert "--single-file output points to a directory" in caplog.text
+
+
 def test_cli_check_passes_when_docs_are_current(sample_module: Path, tmp_path: Path) -> None:
     output = tmp_path / "docs"
     assert main([str(sample_module), "-o", str(output)]) == 0
