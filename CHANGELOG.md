@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.4](https://github.com/f1sherFM/PyDoc2Markdown/compare/v0.5.3...v0.5.4) (2026-06-02)
+
+
+### Bug Fixes
+
+* add generated docs check mode ([03a02c9](https://github.com/f1sherFM/PyDoc2Markdown/commit/03a02c9325102052601db120902019d68a367239))
+
 ## [0.5.3](https://github.com/f1sherFM/PyDoc2Markdown/compare/v0.5.2...v0.5.3) (2026-06-01)
 
 
