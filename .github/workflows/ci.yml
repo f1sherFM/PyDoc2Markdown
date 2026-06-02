@@ -38,6 +38,14 @@ jobs:
       - name: Run tests
         run: pytest --cov=pydoc2markdown --cov-report=xml
 
+      - name: Check generated sample docs
+        if: matrix.python-version == '3.12'
+        run: |
+          pydoc2markdown examples/sample_project/src --recursive --nav --readme \
+            --readme-path examples/sample_project/README.md \
+            -o examples/sample_project/docs \
+            --check
+
       - name: Upload coverage
         if: matrix.python-version == '3.12'
         uses: codecov/codecov-action@v6

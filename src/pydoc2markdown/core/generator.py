@@ -14,6 +14,11 @@ README_START_MARKER = "<!-- pydoc2markdown:start -->"
 README_END_MARKER = "<!-- pydoc2markdown:end -->"
 
 
+def _write_markdown_lines(path: Path, lines: list[str]) -> None:
+    """Write Markdown lines with a final newline."""
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
 class MarkdownGenerator:
     """Generate Markdown files from parsed Python documentation."""
 
@@ -195,7 +200,7 @@ class MarkdownGenerator:
 
         index_path = output_dir / "index.md"
         logger.debug("Generating %s", index_path)
-        index_path.write_text("\n".join(lines), encoding="utf-8")
+        _write_markdown_lines(index_path, lines)
         return index_path
 
     def _generate_navigation_index(
@@ -240,7 +245,7 @@ class MarkdownGenerator:
 
         index_path = output_dir / "index.md"
         logger.debug("Generating %s", index_path)
-        index_path.write_text("\n".join(lines), encoding="utf-8")
+        _write_markdown_lines(index_path, lines)
         return index_path
 
     def _generate_package_pages(
@@ -284,7 +289,7 @@ class MarkdownGenerator:
 
             page_path = output_dir / page_name
             logger.debug("Generating %s", page_path)
-            page_path.write_text("\n".join(lines), encoding="utf-8")
+            _write_markdown_lines(page_path, lines)
             pages.append(page_path)
 
         return pages
@@ -422,7 +427,7 @@ class MarkdownGenerator:
             lines.append("---")
             lines.append("")
 
-        output_path.write_text("\n".join(lines), encoding="utf-8")
+        _write_markdown_lines(output_path, lines)
         logger.info("Generated single file: %s", output_path)
         return output_path
 
