@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.6](https://github.com/f1sherFM/PyDoc2Markdown/compare/v0.5.5...v0.5.6) (2026-06-02)
+
+
+### Bug Fixes
+
+* preserve final newline in generated docs ([cae4e24](https://github.com/f1sherFM/PyDoc2Markdown/commit/cae4e242973b9d61ed1b2d1ec1b34d37814c94e0))
+
 ## [0.5.5](https://github.com/f1sherFM/PyDoc2Markdown/compare/v0.5.4...v0.5.5) (2026-06-02)
 
 
