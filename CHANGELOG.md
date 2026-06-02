@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.0](https://github.com/f1sherFM/PyDoc2Markdown/compare/v0.5.6...v0.6.0) (2026-06-02)
+
+
+### Features
+
+* add filtering defaults and source links ([0392582](https://github.com/f1sherFM/PyDoc2Markdown/commit/039258294edb89380a06f2f5c7e377e40de8c91f))
+
 ## [0.5.6](https://github.com/f1sherFM/PyDoc2Markdown/compare/v0.5.5...v0.5.6) (2026-06-02)
 
 
