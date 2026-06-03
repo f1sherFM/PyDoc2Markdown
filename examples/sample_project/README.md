@@ -1,15 +1,28 @@
 # Sample Project
 
-Small example project used to demonstrate PyDoc2Markdown output.
+This example package is the quickest way to see what PyDoc2Markdown feels like
+on a small but realistic Python project.
 
-Generate documentation from this example:
+It includes:
+
+- typed models, enums, dataclasses, and helper functions
+- Google-style docstrings that render into clean Markdown
+- a generated docs directory and a generated README API section
+
+Generate the docs for this sample with:
 
 ```bash
 pydoc2markdown examples/sample_project/src --recursive --nav --readme --readme-path examples/sample_project/README.md -o examples/sample_project/docs
 ```
 
-The generated docs are written to `examples/sample_project/docs`, and the API
-summary below is maintained by PyDoc2Markdown.
+That command updates the API section below and writes a browsable docs layout to
+`examples/sample_project/docs`.
+
+Good places to inspect after running it:
+
+- [`src/shop_demo/`](src/shop_demo/) for the input code
+- [`docs/index.md`](docs/index.md) for the navigation entrypoint
+- [`docs/shop_demo.md`](docs/shop_demo.md) for the package landing page
 
 ## API Reference
 

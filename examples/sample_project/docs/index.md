@@ -8,7 +8,7 @@
 
 ## API Reference
 
-- [`shop_demo.inventory`](api/shop_demo/inventory.md) — 2 class(es)
+- [`shop_demo.inventory`](api/shop_demo/inventory.md) - 2 class(es)
   > Inventory models and helpers for the sample shop.
-- [`shop_demo.orders`](api/shop_demo/orders.md) — 2 class(es), 1 function(s)
+- [`shop_demo.orders`](api/shop_demo/orders.md) - 2 class(es), 1 function(s)
   > Order models and pricing helpers.
