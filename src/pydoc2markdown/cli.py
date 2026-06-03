@@ -1,6 +1,7 @@
 """Command-line interface for PyDoc2Markdown."""
 
 import argparse
+import json
 import logging
 import sys
 from pathlib import Path
@@ -13,6 +14,7 @@ from pydoc2markdown.core.parser import DocstringParser, ModuleDoc
 from pydoc2markdown.core.watcher import watch_and_generate
 
 logger = logging.getLogger(__name__)
+_MANIFEST_VERSION = 1
 
 _DEFAULT_CONFIG = """[tool.pydoc2markdown]
 output = "docs"
@@ -410,6 +412,7 @@ def run_demo(output_dir: Path) -> int:
     modules = DocstringParser().parse(source, recursive=True)
     generator = MarkdownGenerator()
     generated = generator.generate_navigation(modules, docs)
+    _write_manifest(docs, single_file=False, generated_paths=generated)
     generator.update_readme(modules, readme)
 
     print(f"Created demo project: {output_dir}")
@@ -467,6 +470,53 @@ def _check_readme(
     return []
 
 
+def _manifest_path(output: Path, *, single_file: bool) -> Path:
+    """Return the manifest path for generated Markdown files."""
+    if single_file:
+        return output.parent / f".{output.name}.pydoc2markdown.json"
+    return output / ".pydoc2markdown.json"
+
+
+def _write_manifest(output: Path, *, single_file: bool, generated_paths: list[Path]) -> None:
+    """Persist generated Markdown paths for future prune operations."""
+    manifest_path = _manifest_path(output, single_file=single_file)
+    base_dir = output.parent if single_file else output
+    payload = {
+        "version": _MANIFEST_VERSION,
+        "single_file": single_file,
+        "files": sorted(str(path.relative_to(base_dir).as_posix()) for path in generated_paths),
+    }
+    manifest_path.parent.mkdir(parents=True, exist_ok=True)
+    manifest_path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+
+
+def _read_manifest(output: Path, *, single_file: bool) -> set[Path]:
+    """Load previously generated Markdown paths from the prune manifest."""
+    manifest_path = _manifest_path(output, single_file=single_file)
+    if not manifest_path.exists():
+        return set()
+
+    try:
+        payload = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        logger.warning("Ignoring invalid prune manifest: %s", manifest_path)
+        return set()
+
+    if (
+        payload.get("version") != _MANIFEST_VERSION
+        or payload.get("single_file") is not single_file
+        or not isinstance(payload.get("files"), list)
+    ):
+        logger.warning("Ignoring incompatible prune manifest: %s", manifest_path)
+        return set()
+
+    managed_paths: set[Path] = set()
+    for value in payload["files"]:
+        if isinstance(value, str):
+            managed_paths.add(Path(value))
+    return managed_paths
+
+
 def prune_stale_files(
     generator: MarkdownGenerator,
     modules: list[ModuleDoc],
@@ -484,17 +534,12 @@ def prune_stale_files(
     with TemporaryDirectory() as temp_name:
         temp_dir = Path(temp_name)
         expected_paths: list[Path] = []
+        base_dir = output.parent if single_file else output
 
         if single_file:
             expected_output = temp_dir / output.name
             generator.generate_single_file(modules, expected_output)
-            if output.exists() and (
-                expected_output.read_text(encoding="utf-8") != output.read_text(encoding="utf-8")
-            ):
-                output.unlink()
-                logger.info("Removed outdated file: %s", output)
-                return 1
-            return 0
+            expected_paths = [expected_output]
         elif navigation:
             expected_output_dir = temp_dir / "docs"
             expected_paths = generator.generate_navigation(
@@ -506,18 +551,21 @@ def prune_stale_files(
             expected_output_dir = temp_dir / "docs"
             expected_paths = generator.generate(modules, expected_output_dir)
 
-        expected_relative_paths = {p.relative_to(expected_output_dir) for p in expected_paths}
+        if single_file:
+            expected_relative_paths = {path.relative_to(temp_dir) for path in expected_paths}
+        else:
+            expected_relative_paths = {
+                path.relative_to(expected_output_dir) for path in expected_paths
+            }
+        managed_relative_paths = _read_manifest(output, single_file=single_file)
 
         removed = 0
-        if output.exists():
-            for actual_path in sorted(output.rglob("*.md")):
-                relative_path = actual_path.relative_to(output)
-                if relative_path not in expected_relative_paths:
-                    if actual_path.name == "README.md":
-                        continue
-                    actual_path.unlink()
-                    logger.info("Removed stale file: %s", actual_path)
-                    removed += 1
+        for relative_path in sorted(managed_relative_paths - expected_relative_paths):
+            actual_path = base_dir / relative_path
+            if actual_path.exists():
+                actual_path.unlink()
+                logger.info("Removed stale file: %s", actual_path)
+                removed += 1
 
     return removed
 
@@ -738,12 +786,22 @@ def main(args: list[str] | None = None) -> int:
                 modules=modules,
                 output_path=parsed_args.output,
             )
+            _write_manifest(
+                parsed_args.output,
+                single_file=True,
+                generated_paths=[single_path],
+            )
             logger.info("Generated single Markdown file: %s", single_path)
         elif parsed_args.nav:
             generated = md_generator.generate_navigation(
                 modules=modules,
                 output_dir=parsed_args.output,
                 api_dir=parsed_args.api_dir,
+            )
+            _write_manifest(
+                parsed_args.output,
+                single_file=False,
+                generated_paths=generated,
             )
             logger.info(
                 "Generated %d navigation docs file(s) in %s",
@@ -754,6 +812,11 @@ def main(args: list[str] | None = None) -> int:
             generated = md_generator.generate(
                 modules=modules,
                 output_dir=parsed_args.output,
+            )
+            _write_manifest(
+                parsed_args.output,
+                single_file=False,
+                generated_paths=generated,
             )
             logger.info("Generated %d Markdown file(s) in %s", len(generated), parsed_args.output)
         if parsed_args.readme:

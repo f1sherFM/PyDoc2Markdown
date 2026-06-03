@@ -581,23 +581,31 @@ def test_cli_init_no_overwrite_existing_section(
 
 
 def test_cli_prune_removes_stale_files(
-    sample_module: Path,
     tmp_path: Path,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    output = tmp_path / "docs"
-    assert main([str(sample_module), "-o", str(output)]) == 0
+    source = tmp_path / "pkg"
+    source.mkdir()
+    initial = source / "sample_module.py"
+    initial.write_text('"""First module."""\n', encoding="utf-8")
 
-    stale = output / "old_module.md"
-    stale.write_text("# stale\n", encoding="utf-8")
+    output = tmp_path / "docs"
+    assert main([str(initial), "-o", str(output)]) == 0
+
+    renamed = source / "renamed_module.py"
+    initial.rename(renamed)
+    renamed.write_text('"""Renamed module."""\n', encoding="utf-8")
+
+    stale = output / "sample_module.md"
+    assert stale.exists()
 
     with caplog.at_level(logging.INFO):
-        result = main([str(sample_module), "-o", str(output), "--prune"])
+        result = main([str(renamed), "-o", str(output), "--prune"])
 
     assert result == 0
     assert not stale.exists()
     assert f"Removed stale file: {stale}" in caplog.text
-    assert (output / "sample_module.md").exists()
+    assert (output / "index.md").exists()
 
 
 def test_cli_prune_keeps_current_files(
@@ -616,7 +624,7 @@ def test_cli_prune_keeps_current_files(
     assert (output / "sample_module.md").exists()
 
 
-def test_cli_prune_protects_non_generated_files(
+def test_cli_prune_keeps_non_generated_markdown_files(
     sample_module: Path,
     tmp_path: Path,
     caplog: pytest.LogCaptureFixture,
@@ -624,17 +632,15 @@ def test_cli_prune_protects_non_generated_files(
     output = tmp_path / "docs"
     assert main([str(sample_module), "-o", str(output)]) == 0
 
-    readme = output / "README.md"
-    readme.write_text("# My Project\n", encoding="utf-8")
-    stale = output / "deleted_module.md"
-    stale.write_text("# stale\n", encoding="utf-8")
+    guide = output / "guide.md"
+    guide.write_text("# Manual guide\n", encoding="utf-8")
 
     with caplog.at_level(logging.INFO):
         result = main([str(sample_module), "-o", str(output), "--prune"])
 
     assert result == 0
-    assert not stale.exists()
-    assert readme.exists()
+    assert guide.exists()
+    assert "Removed stale file:" not in caplog.text
 
 
 def test_cli_prune_nav_layout(
@@ -645,9 +651,18 @@ def test_cli_prune_nav_layout(
     output = tmp_path / "docs"
     assert main([str(sample_package), "--recursive", "--nav", "-o", str(output)]) == 0
 
-    # Create a stale file in the api subdirectory
-    stale = output / "api" / "ghost.md"
-    stale.write_text("# ghost\n", encoding="utf-8")
+    stale = output / "api" / "math_utils.md"
+    assert stale.exists()
+    (sample_package / "math_utils.py").rename(sample_package / "helpers.py")
+    (sample_package / "helpers.py").write_text(
+        '''"""Math utilities."""
+
+def multiply(x: int, y: int) -> int:
+    """Multiply two numbers."""
+    return x * y
+''',
+        encoding="utf-8",
+    )
 
     with caplog.at_level(logging.INFO):
         result = main([str(sample_package), "--recursive", "--nav", "-o", str(output), "--prune"])
@@ -671,6 +686,33 @@ def test_cli_prune_on_empty_directory(
 
     assert result == 0
     assert "No stale files found." in caplog.text
+
+
+def test_cli_prune_single_file_keeps_outdated_current_output(
+    sample_package: Path,
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    output = tmp_path / "combined.md"
+    assert main([str(sample_package), "--recursive", "--single-file", "-o", str(output)]) == 0
+    output.write_text("# stale single file\n", encoding="utf-8")
+
+    with caplog.at_level(logging.INFO):
+        result = main(
+            [
+                str(sample_package),
+                "--recursive",
+                "--single-file",
+                "-o",
+                str(output),
+                "--prune",
+            ]
+        )
+
+    assert result == 0
+    assert output.exists()
+    assert output.read_text(encoding="utf-8") == "# stale single file\n"
+    assert "Removed stale file:" not in caplog.text
 
 
 def test_cli_prune_rejects_check(sample_module: Path, tmp_path: Path) -> None:
