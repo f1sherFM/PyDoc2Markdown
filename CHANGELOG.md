@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.1](https://github.com/f1sherFM/PyDoc2Markdown/compare/v0.6.0...v0.6.1) (2026-06-03)
+
+
+### Bug Fixes
+
+* tighten check output and method rendering ([400d7c2](https://github.com/f1sherFM/PyDoc2Markdown/commit/400d7c2dcdf3c966c3b6ce08a74309cfda554d78))
+
 ## [0.6.0](https://github.com/f1sherFM/PyDoc2Markdown/compare/v0.5.6...v0.6.0) (2026-06-02)
 
 
