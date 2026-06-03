@@ -41,6 +41,7 @@ GitHub, GitLab, MkDocs, and any other Markdown renderer.
 - [Sample Project](#sample-project)
 - [Before And After](#before-and-after)
 - [Common Commands](#common-commands)
+- [Recipes](#recipes)
 - [Quick Start](#quick-start)
   - [CLI Usage](#cli-usage)
   - [Library Usage](#library-usage)
@@ -218,6 +219,58 @@ Start with the command that matches how you want to publish docs:
 
 Use `--theme minimal` for shorter output, or `--template path/to/template.md.j2`
 when a project needs custom Markdown.
+
+## Recipes
+
+Here are a few practical ways teams tend to use PyDoc2Markdown.
+
+### Keep API docs in `docs/`
+
+Generate a navigation-ready docs tree for a package:
+
+```bash
+pydoc2markdown src/my_package --recursive --nav -o docs
+```
+
+This works well when you want browsable Markdown pages in the repository,
+MkDocs, or another lightweight docs site.
+
+### Keep a README API block in sync
+
+Update a generated API section without touching the rest of the README:
+
+```bash
+pydoc2markdown src/my_package --recursive --readme --readme-path README.md
+```
+
+This is a good fit for small libraries that want usage notes and API reference
+in one file.
+
+### Gate docs in CI
+
+Fail CI when generated docs are missing, stale, or no longer match the source
+tree:
+
+```bash
+pydoc2markdown src/my_package --recursive --nav --readme --check -o docs
+```
+
+Pair this with `--prune` in local development to keep generated docs tidy after
+renames and deletions.
+
+### Generate docs only for the public surface
+
+Focus on selected packages and skip internal modules:
+
+```bash
+pydoc2markdown src/my_package --recursive \
+  --include "api/*,models/*" \
+  --exclude "*/internal/*,*_test.py" \
+  -o docs
+```
+
+This is useful when your source tree is larger than the documentation surface
+you actually want to publish.
 
 ## Quick Start
 
