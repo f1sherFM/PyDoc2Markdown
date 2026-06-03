@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.6.3](https://github.com/f1sherFM/PyDoc2Markdown/compare/v0.6.2...v0.6.3) (2026-06-03)
+
+
+### Bug Fixes
+
+* normalize generated markdown output ([021a85f](https://github.com/f1sherFM/PyDoc2Markdown/commit/021a85f29db3a1e8de2561f972b0e8f877085e97))
+* normalize init config messages ([7250846](https://github.com/f1sherFM/PyDoc2Markdown/commit/7250846b22d9d233226e5d2989f1439992d503c5))
+
+
+### Documentation
+
+* add README visual assets ([543b043](https://github.com/f1sherFM/PyDoc2Markdown/commit/543b043c42c3cb7e5586b29c82bfcd371b14a42a))
+* improve onboarding guides ([83751b3](https://github.com/f1sherFM/PyDoc2Markdown/commit/83751b37e6405c712e9bb6358f8f5d2feac3857d))
+* polish project presentation ([7efe3bc](https://github.com/f1sherFM/PyDoc2Markdown/commit/7efe3bcb567db82a2a3dc1d44a44dcf49a195336))
+* polish showcase index ([7e0f951](https://github.com/f1sherFM/PyDoc2Markdown/commit/7e0f951ea191145523dcc96fc5275397888255c2))
+* tighten showcase markdown ([ac54f6c](https://github.com/f1sherFM/PyDoc2Markdown/commit/ac54f6cc4e47c1904a7274a35c8051f25a56f7e6))
+
 ## [0.7.0](https://github.com/f1sherFM/PyDoc2Markdown/compare/v0.6.1...v0.7.0) (2026-06-03)
 
 
