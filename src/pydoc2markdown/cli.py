@@ -371,23 +371,23 @@ def init_config() -> int:
         logger.info("Created pyproject.toml with [tool.pydoc2markdown] defaults.")
         return 0
 
-    # File exists — parse it
+    # File exists - parse it
     try:
         with pyproject.open("rb") as f:
             data = tomllib.load(f)
     except Exception:
-        logger.error("Failed to parse pyproject.toml — file exists but is not valid TOML.")
+        logger.error("Failed to parse pyproject.toml - file exists but is not valid TOML.")
         return 1
 
     # Check if section already exists
     if "tool" in data and "pydoc2markdown" in data["tool"]:
         logger.info(
-            "[tool.pydoc2markdown] already exists in pyproject.toml — nothing to change. "
+            "[tool.pydoc2markdown] already exists in pyproject.toml - nothing to change. "
             "Edit it manually if you want to override defaults."
         )
         return 0
 
-    # Section doesn't exist — append it
+    # Section doesn't exist - append it
     existing = pyproject.read_text(encoding="utf-8")
     if existing and not existing.endswith("\n"):
         existing += "\n"
