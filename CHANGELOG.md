@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.7.0](https://github.com/f1sherFM/PyDoc2Markdown/compare/v0.6.1...v0.7.0) (2026-06-03)
+
+
+### Features
+
+* **cli:** add --prune flag to remove stale generated files ([#36](https://github.com/f1sherFM/PyDoc2Markdown/issues/36)) ([fcdec44](https://github.com/f1sherFM/PyDoc2Markdown/commit/fcdec441cbb30c3f25a6fb0af0ef5ce9aa91127c))
+
+
+### Bug Fixes
+
+* improve prune cli feedback ([ebcbd39](https://github.com/f1sherFM/PyDoc2Markdown/commit/ebcbd39ad21ab8ea02fca7d00c3bdfcc80d6ea82))
+
 ## [0.6.1](https://github.com/f1sherFM/PyDoc2Markdown/compare/v0.6.0...v0.6.1) (2026-06-03)
 
 
