@@ -136,3 +136,4 @@ Thumbs.db
 # Temporary documentation output
 docs_output/
 pydoc2markdown-demo/
+**/.pydoc2markdown.json

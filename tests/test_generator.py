@@ -112,6 +112,33 @@ def test_generate_toc_in_module(sample_module: Path, tmp_path: Path) -> None:
     assert "[Functions](#functions)" in content
 
 
+def test_generate_string_normalizes_toc_links_and_spacing(tmp_path: Path) -> None:
+    module = tmp_path / "formatted.py"
+    module.write_text(
+        '''"""Formatting sample."""
+
+class Example:
+    """Example class."""
+
+    def run(self, value: int) -> None:
+        """Run the example.
+
+        Args:
+            value: Input value.
+        """
+''',
+        encoding="utf-8",
+    )
+
+    parsed = DocstringParser().parse(module)
+    content = MarkdownGenerator().generate_string(parsed[0])
+
+    assert "- [`run`](#example-run)" in content
+    assert "[\n" not in content
+    assert "\n\n\n" not in content
+    assert "| `value` | `int` | *required* | Input value. |" in content
+
+
 def test_generate_package_grouping(tmp_path: Path) -> None:
     pkg = tmp_path / "my_pkg"
     sub = pkg / "sub"
@@ -172,10 +199,12 @@ def helper() -> None:
     assert "[sub](sub.md)" in index_content
     assert "[`top`](api/top.md)" in index_content
     assert "[`sub.nested`](api/sub/nested.md)" in index_content
+    assert " - 1 function(s)" in index_content
 
     package_content = (output_dir / "sub.md").read_text(encoding="utf-8")
     assert "# sub" in package_content
     assert "[`sub.nested`](api/sub/nested.md)" in package_content
+    assert " — " not in package_content
 
 
 def test_generate_navigation_uses_custom_api_dir(

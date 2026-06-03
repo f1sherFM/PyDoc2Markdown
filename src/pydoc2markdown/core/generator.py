@@ -1,6 +1,7 @@
 """Markdown documentation generator."""
 
 import logging
+import re
 from collections.abc import Iterable
 from pathlib import Path
 
@@ -21,7 +22,33 @@ def _anchorize(value: str) -> str:
 
 def _write_markdown_lines(path: Path, lines: list[str]) -> None:
     """Write Markdown lines with a final newline."""
-    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8", newline="\n")
+
+
+def _normalize_markdown(content: str) -> str:
+    """Tighten rendered Markdown spacing without changing semantics."""
+    content = content.replace("\r\n", "\n").strip()
+    content = re.sub(r"- \[\s*`([^`]+)`\]\((#[^)]+)\)", r"- [`\1`](\2)", content)
+
+    previous = None
+    while previous != content:
+        previous = content
+        content = re.sub(r"\n{3,}", "\n\n", content)
+        content = re.sub(r"(^\s*[-*] [^\n]+\n)\n(?=\s*[-*] )", r"\1", content, flags=re.MULTILINE)
+        content = re.sub(
+            r"(^\s*[-*] [^\n]+\n)\n(?=\s{2,}[-*] )",
+            r"\1",
+            content,
+            flags=re.MULTILINE,
+        )
+        content = re.sub(r"(\|[^\n]+\|)\n\n(?=\|)", r"\1\n", content)
+
+    return content
+
+
+def _write_utf8_text(path: Path, content: str) -> None:
+    """Write UTF-8 text with LF newlines for stable generated output."""
+    path.write_text(content, encoding="utf-8", newline="\n")
 
 
 class MarkdownGenerator:
@@ -141,8 +168,8 @@ class MarkdownGenerator:
             output_path = self._module_output_path(module, output_dir)
             output_path.parent.mkdir(parents=True, exist_ok=True)
             logger.debug("Generating %s", output_path)
-            content = template.render(module=module, type_index=type_index)
-            output_path.write_text(content, encoding="utf-8")
+            content = _normalize_markdown(template.render(module=module, type_index=type_index))
+            _write_utf8_text(output_path, content + "\n")
             generated.append(output_path)
 
         return generated
@@ -215,7 +242,7 @@ class MarkdownGenerator:
                     stats_parts.append(f"{len(module.classes)} class(es)")
                 if module.functions:
                     stats_parts.append(f"{len(module.functions)} function(s)")
-                stats = f" — {', '.join(stats_parts)}" if stats_parts else ""
+                stats = f" - {', '.join(stats_parts)}" if stats_parts else ""
                 lines.append(f"- [{module.name}]({rel_path}){stats}")
                 if module.docstring:
                     first_line = module.docstring.strip().split("\n")[0]
@@ -339,7 +366,7 @@ class MarkdownGenerator:
             stats_parts.append(f"{len(module.classes)} class(es)")
         if module.functions:
             stats_parts.append(f"{len(module.functions)} function(s)")
-        return f" — {', '.join(stats_parts)}" if stats_parts else ""
+        return f" - {', '.join(stats_parts)}" if stats_parts else ""
 
     def _first_doc_line(self, module: ModuleDoc) -> str:
         """Return the first line of a module docstring."""
@@ -387,7 +414,7 @@ class MarkdownGenerator:
 
         if not readme_path.exists():
             readme_path.parent.mkdir(parents=True, exist_ok=True)
-            readme_path.write_text(f"# API Reference\n\n{generated}\n", encoding="utf-8")
+            _write_utf8_text(readme_path, f"# API Reference\n\n{generated}\n")
             logger.info("Created README API reference: %s", readme_path)
             return readme_path
 
@@ -409,7 +436,7 @@ class MarkdownGenerator:
             separator = "" if not content or content.endswith("\n") else "\n"
             updated = f"{content}{separator}\n{section}"
 
-        readme_path.write_text(updated, encoding="utf-8")
+        _write_utf8_text(readme_path, updated)
         logger.info("Updated README API reference: %s", readme_path)
         return readme_path
 
@@ -446,7 +473,7 @@ class MarkdownGenerator:
 
         # Render each module and concatenate
         for module in sorted(modules, key=lambda m: (m.package, m.name)):
-            content = template.render(module=module, type_index=type_index)
+            content = _normalize_markdown(template.render(module=module, type_index=type_index))
             lines.append(content)
             lines.append("---")
             lines.append("")
@@ -462,4 +489,4 @@ class MarkdownGenerator:
         template_name = self._resolve_template_name()
         template = self._env.get_template(template_name)
         type_index = TypeIndex.from_modules([module])
-        return template.render(module=module, type_index=type_index)
+        return _normalize_markdown(template.render(module=module, type_index=type_index))

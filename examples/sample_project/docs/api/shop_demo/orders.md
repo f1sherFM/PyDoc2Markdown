@@ -8,7 +8,6 @@ Order models and pricing helpers.
   - [`OrderStatus`](#orderstatus)
   - [`Order`](#order)
     - [`mark_paid`](#order-mark_paid)
-
 - [Functions](#functions)
   - [`calculate_total`](#calculate_total)
 
