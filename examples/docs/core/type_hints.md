@@ -1,13 +1,8 @@
 # type_hints
 
-
 Type hint formatting utilities.
 
-
-
 ## Table of Contents
-
-
 
 - [Functions](#functions)
 
@@ -17,73 +12,37 @@ Type hint formatting utilities.
 
   - [`format_type_hint`](#format_type_hint)
 
-
-
-
-
-
-
-
-
 ## Functions
-
 
 ### `_find_closing_bracket`
 
-
 Find the index of the closing bracket matching an opening bracket at start.
-
-
 
 **Parameters:**
 
 | Name | Type | Description |
 |------|------|-------------|
-
 | `s` | `str` | - |
 
 | `start` | `int` | - |
 
-
-
-
 **Returns:** `int`
-
-
-
-
-
-
 
 ### `_split_top_level`
 
-
 Split text by delimiter respecting nested brackets.
-
-
 
 **Parameters:**
 
 | Name | Type | Description |
 |------|------|-------------|
-
 | `text` | `str` | - |
 
 | `delimiter` | `str` | - |
 
-
-
-
 **Returns:** `list[str]`
 
-
-
-
-
-
-
 ### `format_type_hint`
-
 
 Format a type hint string using modern Python syntax.
 
@@ -103,17 +62,11 @@ Args:
 Returns:
     Formatted type hint string.
 
-
-
 **Parameters:**
 
 | Name | Type | Description |
 |------|------|-------------|
-
 | `type_str` | `str` | Raw type hint string. |
-
-
-
 
 **Returns:** `str`
 
