@@ -27,6 +27,7 @@ def test_cli_help_groups_options(capsys: pytest.CaptureFixture[str]) -> None:
     assert "README integration:" in help_text
     assert "Demo:" in help_text
     assert "Examples:" in help_text
+    assert "--dry-run" in help_text
     assert "--include" in help_text
     assert "--exclude" in help_text
     assert "pydoc2markdown --demo" in help_text
@@ -604,7 +605,8 @@ def test_cli_prune_removes_stale_files(
 
     assert result == 0
     assert not stale.exists()
-    assert f"Removed stale file: {stale}" in caplog.text
+    assert f"Removed stale generated file: {stale}" in caplog.text
+    assert "1 stale generated file(s) removed." in caplog.text
     assert (output / "index.md").exists()
 
 
@@ -620,7 +622,7 @@ def test_cli_prune_keeps_current_files(
         result = main([str(sample_module), "-o", str(output), "--prune"])
 
     assert result == 0
-    assert "No stale files found." in caplog.text
+    assert "No stale generated files found." in caplog.text
     assert (output / "sample_module.md").exists()
 
 
@@ -640,7 +642,7 @@ def test_cli_prune_keeps_non_generated_markdown_files(
 
     assert result == 0
     assert guide.exists()
-    assert "Removed stale file:" not in caplog.text
+    assert "Removed stale generated file:" not in caplog.text
 
 
 def test_cli_prune_nav_layout(
@@ -685,7 +687,7 @@ def test_cli_prune_on_empty_directory(
         result = main([str(sample_module), "-o", str(output), "--prune"])
 
     assert result == 0
-    assert "No stale files found." in caplog.text
+    assert "No stale generated files found." in caplog.text
 
 
 def test_cli_prune_single_file_keeps_outdated_current_output(
@@ -712,7 +714,45 @@ def test_cli_prune_single_file_keeps_outdated_current_output(
     assert result == 0
     assert output.exists()
     assert output.read_text(encoding="utf-8") == "# stale single file\n"
-    assert "Removed stale file:" not in caplog.text
+    assert "Removed stale generated file:" not in caplog.text
+
+
+def test_cli_prune_dry_run_reports_without_deleting(
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    source = tmp_path / "pkg"
+    source.mkdir()
+    initial = source / "sample_module.py"
+    initial.write_text('"""First module."""\n', encoding="utf-8")
+
+    output = tmp_path / "docs"
+    assert main([str(initial), "-o", str(output)]) == 0
+
+    renamed = source / "renamed_module.py"
+    initial.rename(renamed)
+    renamed.write_text('"""Renamed module."""\n', encoding="utf-8")
+    stale = output / "sample_module.md"
+
+    with caplog.at_level(logging.INFO):
+        result = main([str(renamed), "-o", str(output), "--prune", "--dry-run"])
+
+    assert result == 0
+    assert stale.exists()
+    assert f"Would remove stale generated file: {stale}" in caplog.text
+    assert "1 stale generated file(s) would be removed." in caplog.text
+
+
+def test_cli_dry_run_requires_prune(
+    sample_module: Path,
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    with caplog.at_level(logging.ERROR):
+        result = main([str(sample_module), "-o", str(tmp_path / "docs"), "--dry-run"])
+
+    assert result == 1
+    assert "--dry-run currently works only with --prune." in caplog.text
 
 
 def test_cli_prune_rejects_check(sample_module: Path, tmp_path: Path) -> None:

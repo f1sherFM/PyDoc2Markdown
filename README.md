@@ -186,6 +186,8 @@ Start with the command that matches how you want to publish docs:
 | Skip private/internal modules | `pydoc2markdown src/my_package --recursive --exclude "tests/*,*/internal/*,*_private.py"` |
 | Add GitHub source links | `pydoc2markdown src/my_package --recursive --source-repo user/repo -o docs` |
 | Check generated docs in CI | `pydoc2markdown src/my_package --recursive --nav --readme --check -o docs` |
+| Preview stale generated docs cleanup | `pydoc2markdown src/my_package --recursive --prune --dry-run -o docs` |
+| Remove stale generated docs | `pydoc2markdown src/my_package --recursive --prune -o docs` |
 | Generate one combined Markdown file | `pydoc2markdown src/my_package --recursive --single-file -o docs/api.md` |
 | Watch source files while editing | `pydoc2markdown src/my_package --recursive --watch -o docs` |
 | Create default pyproject config | `pydoc2markdown --init` |
@@ -216,6 +218,12 @@ pydoc2markdown src/my_package --recursive --source-repo user/repo -o docs
 
 # Check whether generated docs are current without writing files
 pydoc2markdown src/my_package --recursive --nav --check -o docs
+
+# Preview stale generated Markdown files before removing them
+pydoc2markdown src/my_package --recursive --prune --dry-run -o docs
+
+# Remove stale generated Markdown files tracked by PyDoc2Markdown
+pydoc2markdown src/my_package --recursive --prune -o docs
 
 # Initialize default configuration in pyproject.toml
 pydoc2markdown --init
@@ -248,6 +256,8 @@ generator.generate(modules, output_dir=Path("docs"))
 | `--template` | `None` | Path to a custom Jinja2 template for Markdown generation |
 | `--single-file` | `False` | Generate a single combined Markdown file; `--output` must be a `.md` or `.markdown` file path |
 | `--check` | `False` | Check whether generated docs are up to date without writing files |
+| `--prune` | `False` | Remove stale generated Markdown files tracked by PyDoc2Markdown |
+| `--dry-run` | `False` | Preview `--prune` results without deleting files |
 | `--readme` | `False` | Create or update an API reference section in README.md |
 | `--readme-path` | `README.md` | Path to the README file updated by `--readme` |
 | `--nav` | `False` | Generate a navigation-first docs layout with API pages under `api/` |
@@ -402,6 +412,26 @@ generated output needs to be updated. It does not write files in check mode.
 
 `--check` works with normal multi-file output, `--nav`, `--single-file`, and
 README API sections. It cannot be combined with `--watch`.
+
+## Prune Stale Docs
+
+Use `--prune` to remove stale generated Markdown files that were tracked by
+PyDoc2Markdown in a previous run but are no longer expected for the current
+source tree:
+
+```bash
+pydoc2markdown src/my_package --recursive --prune -o docs
+```
+
+To preview the cleanup first, add `--dry-run`:
+
+```bash
+pydoc2markdown src/my_package --recursive --prune --dry-run -o docs
+```
+
+`--prune` only affects generated Markdown files recorded in the PyDoc2Markdown
+manifest. It does not try to delete unrelated hand-written Markdown files that
+may live in the same docs directory.
 
 ## Library API
 

@@ -270,6 +270,12 @@ def create_parser() -> argparse.ArgumentParser:
         help="Remove stale generated Markdown files from the output directory.",
     )
     output_group.add_argument(
+        "--dry-run",
+        action="store_true",
+        default=False,
+        help="Preview prune actions without deleting files; use with --prune.",
+    )
+    output_group.add_argument(
         "--api-dir",
         type=Path,
         default=Path("api"),
@@ -517,7 +523,7 @@ def _read_manifest(output: Path, *, single_file: bool) -> set[Path]:
     return managed_paths
 
 
-def prune_stale_files(
+def _find_stale_managed_files(
     generator: MarkdownGenerator,
     modules: list[ModuleDoc],
     *,
@@ -525,12 +531,8 @@ def prune_stale_files(
     single_file: bool,
     navigation: bool,
     api_dir: Path,
-) -> int:
-    """Remove stale generated Markdown files from the output directory.
-
-    Returns:
-        Number of files removed, or negative exit code on error.
-    """
+) -> list[Path]:
+    """Return stale generated Markdown files tracked by the prune manifest."""
     with TemporaryDirectory() as temp_name:
         temp_dir = Path(temp_name)
         expected_paths: list[Path] = []
@@ -559,15 +561,42 @@ def prune_stale_files(
             }
         managed_relative_paths = _read_manifest(output, single_file=single_file)
 
-        removed = 0
+        stale_paths: list[Path] = []
         for relative_path in sorted(managed_relative_paths - expected_relative_paths):
             actual_path = base_dir / relative_path
             if actual_path.exists():
-                actual_path.unlink()
-                logger.info("Removed stale file: %s", actual_path)
-                removed += 1
+                stale_paths.append(actual_path)
 
-    return removed
+    return stale_paths
+
+
+def prune_stale_files(
+    generator: MarkdownGenerator,
+    modules: list[ModuleDoc],
+    *,
+    output: Path,
+    single_file: bool,
+    navigation: bool,
+    api_dir: Path,
+    dry_run: bool,
+) -> list[Path]:
+    """Remove or preview stale generated Markdown files from the output directory."""
+    stale_paths = _find_stale_managed_files(
+        generator,
+        modules,
+        output=output,
+        single_file=single_file,
+        navigation=navigation,
+        api_dir=api_dir,
+    )
+
+    if dry_run:
+        return stale_paths
+
+    for stale_path in stale_paths:
+        stale_path.unlink()
+
+    return stale_paths
 
 
 def check_generated_docs(
@@ -711,6 +740,12 @@ def main(args: list[str] | None = None) -> int:
             hint="Use --prune to clean stale files, or --watch for continuous regeneration.",
         )
 
+    if parsed_args.dry_run and not parsed_args.prune:
+        return _log_cli_error(
+            "--dry-run currently works only with --prune.",
+            hint="Use --prune --dry-run to preview stale generated files without deleting them.",
+        )
+
     try:
         source_link_template = _source_link_template(
             parsed_args.source_link,
@@ -757,18 +792,26 @@ def main(args: list[str] | None = None) -> int:
         )
         logger.info("Parsed %d module(s)", len(modules))
         if parsed_args.prune:
-            removed = prune_stale_files(
+            stale_paths = prune_stale_files(
                 md_generator,
                 modules,
                 output=parsed_args.output,
                 single_file=parsed_args.single_file,
                 navigation=parsed_args.nav,
                 api_dir=parsed_args.api_dir,
+                dry_run=parsed_args.dry_run,
             )
-            if removed == 0:
-                logger.info("No stale files found.")
+            if not stale_paths:
+                logger.info(
+                    "No stale generated files found. "
+                    "PyDoc2Markdown only prunes files tracked in its manifest."
+                )
             else:
-                logger.info("Removed %d stale file(s).", removed)
+                action = "Would remove" if parsed_args.dry_run else "Removed"
+                for stale_path in stale_paths:
+                    logger.info("%s stale generated file: %s", action, stale_path)
+                suffix = "would be removed" if parsed_args.dry_run else "removed"
+                logger.info("%d stale generated file(s) %s.", len(stale_paths), suffix)
             return 0
         if parsed_args.check:
             return check_generated_docs(
