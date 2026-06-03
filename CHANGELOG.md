@@ -17,7 +17,7 @@
 * polish showcase index ([7e0f951](https://github.com/f1sherFM/PyDoc2Markdown/commit/7e0f951ea191145523dcc96fc5275397888255c2))
 * tighten showcase markdown ([ac54f6c](https://github.com/f1sherFM/PyDoc2Markdown/commit/ac54f6cc4e47c1904a7274a35c8051f25a56f7e6))
 
-## [0.7.0](https://github.com/f1sherFM/PyDoc2Markdown/compare/v0.6.1...v0.7.0) (2026-06-03)
+## [0.6.2](https://github.com/f1sherFM/PyDoc2Markdown/compare/v0.6.1...v0.6.2) (2026-06-03)
 
 
 ### Features
