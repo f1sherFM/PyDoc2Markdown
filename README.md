@@ -198,10 +198,10 @@ Calculate the discounted order total.
 
 **Parameters:**
 
-| Name | Type | Description |
-|------|------|-------------|
-| `items` | `list[Product]` | Products to include in the total. |
-| `discount` | `float` | Discount ratio between 0 and 1. |
+| Name | Type | Default | Description |
+|------|------|---------|-------------|
+| `items` | `list[Product]` | *required* | Products to include in the total. |
+| `discount` | `float` | `0.0` | Discount ratio between 0 and 1. |
 
 **Returns:** `float`
 Total price after discount.

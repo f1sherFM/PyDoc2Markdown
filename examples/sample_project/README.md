@@ -12,7 +12,9 @@ It includes:
 Generate the docs for this sample with:
 
 ```bash
-pydoc2markdown examples/sample_project/src --recursive --nav --readme --readme-path examples/sample_project/README.md -o examples/sample_project/docs
+pydoc2markdown examples/sample_project/src --recursive --nav --readme \
+  --readme-path examples/sample_project/README.md \
+  -o examples/sample_project/docs
 ```
 
 That command updates the API section below and writes a browsable docs layout to
