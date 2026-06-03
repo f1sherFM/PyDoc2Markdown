@@ -37,6 +37,7 @@ GitHub, GitLab, MkDocs, and any other Markdown renderer.
 - [Features](#features)
 - [Requirements](#requirements)
 - [Installation](#installation)
+- [Visual Tour](#visual-tour)
 - [Try It In 30 Seconds](#try-it-in-30-seconds)
 - [Sample Project](#sample-project)
 - [Before And After](#before-and-after)
@@ -109,6 +110,13 @@ pip install pydoc2markdown
 pip install pydoc2markdown[watch]
 ```
 
+## Visual Tour
+
+Here is the kind of navigation-first Markdown output the project generates from
+the included sample package:
+
+![Generated docs showcase](docs/assets/readme-showcase.png)
+
 ## Try It In 30 Seconds
 
 Clone the repository and run PyDoc2Markdown against the included sample project:
@@ -157,6 +165,10 @@ By default this writes to `pydoc2markdown-demo/`. Use `--demo-output` to choose
 another directory. Existing non-empty directories are not overwritten.
 
 ## Before And After
+
+This is the same idea in a tighter `input -> output` view:
+
+![Input to output example](docs/assets/readme-input-output.png)
 
 Start with normal Python code and docstrings:
 
