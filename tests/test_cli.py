@@ -580,6 +580,109 @@ def test_cli_init_no_overwrite_existing_section(
     assert content == existing  # Not modified
 
 
+def test_cli_prune_removes_stale_files(
+    sample_module: Path,
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    output = tmp_path / "docs"
+    assert main([str(sample_module), "-o", str(output)]) == 0
+
+    stale = output / "old_module.md"
+    stale.write_text("# stale\n", encoding="utf-8")
+
+    with caplog.at_level(logging.INFO):
+        result = main([str(sample_module), "-o", str(output), "--prune"])
+
+    assert result == 0
+    assert not stale.exists()
+    assert f"Removed stale file: {stale}" in caplog.text
+    assert (output / "sample_module.md").exists()
+
+
+def test_cli_prune_keeps_current_files(
+    sample_module: Path,
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    output = tmp_path / "docs"
+    assert main([str(sample_module), "-o", str(output)]) == 0
+
+    with caplog.at_level(logging.INFO):
+        result = main([str(sample_module), "-o", str(output), "--prune"])
+
+    assert result == 0
+    assert "No stale files found." in caplog.text
+    assert (output / "sample_module.md").exists()
+
+
+def test_cli_prune_protects_non_generated_files(
+    sample_module: Path,
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    output = tmp_path / "docs"
+    assert main([str(sample_module), "-o", str(output)]) == 0
+
+    readme = output / "README.md"
+    readme.write_text("# My Project\n", encoding="utf-8")
+    stale = output / "deleted_module.md"
+    stale.write_text("# stale\n", encoding="utf-8")
+
+    with caplog.at_level(logging.INFO):
+        result = main([str(sample_module), "-o", str(output), "--prune"])
+
+    assert result == 0
+    assert not stale.exists()
+    assert readme.exists()
+
+
+def test_cli_prune_nav_layout(
+    sample_package: Path,
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    output = tmp_path / "docs"
+    assert main([str(sample_package), "--recursive", "--nav", "-o", str(output)]) == 0
+
+    # Create a stale file in the api subdirectory
+    stale = output / "api" / "ghost.md"
+    stale.write_text("# ghost\n", encoding="utf-8")
+
+    with caplog.at_level(logging.INFO):
+        result = main([str(sample_package), "--recursive", "--nav", "-o", str(output), "--prune"])
+
+    assert result == 0
+    assert not stale.exists()
+    assert (output / "index.md").exists()
+    assert (output / "api").exists()
+
+
+def test_cli_prune_on_empty_directory(
+    sample_module: Path,
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    output = tmp_path / "docs"
+    output.mkdir(parents=True, exist_ok=True)
+
+    with caplog.at_level(logging.INFO):
+        result = main([str(sample_module), "-o", str(output), "--prune"])
+
+    assert result == 0
+    assert "No stale files found." in caplog.text
+
+
+def test_cli_prune_rejects_check(sample_module: Path, tmp_path: Path) -> None:
+    result = main([str(sample_module), "-o", str(tmp_path / "docs"), "--prune", "--check"])
+    assert result == 1
+
+
+def test_cli_prune_rejects_watch(sample_module: Path, tmp_path: Path) -> None:
+    result = main([str(sample_module), "-o", str(tmp_path / "docs"), "--prune", "--watch"])
+    assert result == 1
+
+
 def test_cli_init_invalid_toml(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.chdir(tmp_path)
     (tmp_path / "pyproject.toml").write_text("not valid toml {{{", encoding="utf-8")
