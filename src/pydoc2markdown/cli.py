@@ -1,6 +1,7 @@
 """Command-line interface for PyDoc2Markdown."""
 
 import argparse
+import json
 import logging
 import sys
 from pathlib import Path
@@ -13,6 +14,7 @@ from pydoc2markdown.core.parser import DocstringParser, ModuleDoc
 from pydoc2markdown.core.watcher import watch_and_generate
 
 logger = logging.getLogger(__name__)
+_MANIFEST_VERSION = 1
 
 _DEFAULT_CONFIG = """[tool.pydoc2markdown]
 output = "docs"
@@ -262,6 +264,12 @@ def create_parser() -> argparse.ArgumentParser:
         help="Check whether generated docs are up to date without writing files.",
     )
     output_group.add_argument(
+        "--prune",
+        action="store_true",
+        default=False,
+        help="Remove stale generated Markdown files from the output directory.",
+    )
+    output_group.add_argument(
         "--api-dir",
         type=Path,
         default=Path("api"),
@@ -404,6 +412,7 @@ def run_demo(output_dir: Path) -> int:
     modules = DocstringParser().parse(source, recursive=True)
     generator = MarkdownGenerator()
     generated = generator.generate_navigation(modules, docs)
+    _write_manifest(docs, single_file=False, generated_paths=generated)
     generator.update_readme(modules, readme)
 
     print(f"Created demo project: {output_dir}")
@@ -459,6 +468,106 @@ def _check_readme(
     if expected_readme.read_text(encoding="utf-8") != readme_path.read_text(encoding="utf-8"):
         return [readme_path]
     return []
+
+
+def _manifest_path(output: Path, *, single_file: bool) -> Path:
+    """Return the manifest path for generated Markdown files."""
+    if single_file:
+        return output.parent / f".{output.name}.pydoc2markdown.json"
+    return output / ".pydoc2markdown.json"
+
+
+def _write_manifest(output: Path, *, single_file: bool, generated_paths: list[Path]) -> None:
+    """Persist generated Markdown paths for future prune operations."""
+    manifest_path = _manifest_path(output, single_file=single_file)
+    base_dir = output.parent if single_file else output
+    payload = {
+        "version": _MANIFEST_VERSION,
+        "single_file": single_file,
+        "files": sorted(str(path.relative_to(base_dir).as_posix()) for path in generated_paths),
+    }
+    manifest_path.parent.mkdir(parents=True, exist_ok=True)
+    manifest_path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+
+
+def _read_manifest(output: Path, *, single_file: bool) -> set[Path]:
+    """Load previously generated Markdown paths from the prune manifest."""
+    manifest_path = _manifest_path(output, single_file=single_file)
+    if not manifest_path.exists():
+        return set()
+
+    try:
+        payload = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        logger.warning("Ignoring invalid prune manifest: %s", manifest_path)
+        return set()
+
+    if (
+        payload.get("version") != _MANIFEST_VERSION
+        or payload.get("single_file") is not single_file
+        or not isinstance(payload.get("files"), list)
+    ):
+        logger.warning("Ignoring incompatible prune manifest: %s", manifest_path)
+        return set()
+
+    managed_paths: set[Path] = set()
+    for value in payload["files"]:
+        if isinstance(value, str):
+            managed_paths.add(Path(value))
+    return managed_paths
+
+
+def prune_stale_files(
+    generator: MarkdownGenerator,
+    modules: list[ModuleDoc],
+    *,
+    output: Path,
+    single_file: bool,
+    navigation: bool,
+    api_dir: Path,
+) -> int:
+    """Remove stale generated Markdown files from the output directory.
+
+    Returns:
+        Number of files removed, or negative exit code on error.
+    """
+    with TemporaryDirectory() as temp_name:
+        temp_dir = Path(temp_name)
+        expected_paths: list[Path] = []
+        base_dir = output.parent if single_file else output
+
+        if single_file:
+            expected_output = temp_dir / output.name
+            generator.generate_single_file(modules, expected_output)
+            expected_paths = [expected_output]
+        elif navigation:
+            expected_output_dir = temp_dir / "docs"
+            expected_paths = generator.generate_navigation(
+                modules,
+                expected_output_dir,
+                api_dir=api_dir,
+            )
+        else:
+            expected_output_dir = temp_dir / "docs"
+            expected_paths = generator.generate(modules, expected_output_dir)
+
+        if single_file:
+            expected_relative_paths = {path.relative_to(temp_dir) for path in expected_paths}
+        else:
+            expected_relative_paths = {
+                path.relative_to(expected_output_dir) for path in expected_paths
+            }
+        managed_relative_paths = _read_manifest(output, single_file=single_file)
+
+        removed = 0
+        for relative_path in sorted(managed_relative_paths - expected_relative_paths):
+            actual_path = base_dir / relative_path
+            if actual_path.exists():
+                actual_path.unlink()
+                logger.info("Removed stale file: %s", actual_path)
+                removed += 1
+
+    return removed
 
 
 def check_generated_docs(
@@ -590,6 +699,18 @@ def main(args: list[str] | None = None) -> int:
             hint="Use --check in CI, or --watch while editing locally.",
         )
 
+    if parsed_args.prune and parsed_args.check:
+        return _log_cli_error(
+            "--prune cannot be combined with --check.",
+            hint="Use --check to detect stale files, or --prune to remove them.",
+        )
+
+    if parsed_args.prune and parsed_args.watch:
+        return _log_cli_error(
+            "--prune cannot be combined with --watch.",
+            hint="Use --prune to clean stale files, or --watch for continuous regeneration.",
+        )
+
     try:
         source_link_template = _source_link_template(
             parsed_args.source_link,
@@ -635,6 +756,20 @@ def main(args: list[str] | None = None) -> int:
             exclude=_split_patterns(parsed_args.exclude),
         )
         logger.info("Parsed %d module(s)", len(modules))
+        if parsed_args.prune:
+            removed = prune_stale_files(
+                md_generator,
+                modules,
+                output=parsed_args.output,
+                single_file=parsed_args.single_file,
+                navigation=parsed_args.nav,
+                api_dir=parsed_args.api_dir,
+            )
+            if removed == 0:
+                logger.info("No stale files found.")
+            else:
+                logger.info("Removed %d stale file(s).", removed)
+            return 0
         if parsed_args.check:
             return check_generated_docs(
                 md_generator,
@@ -651,12 +786,22 @@ def main(args: list[str] | None = None) -> int:
                 modules=modules,
                 output_path=parsed_args.output,
             )
+            _write_manifest(
+                parsed_args.output,
+                single_file=True,
+                generated_paths=[single_path],
+            )
             logger.info("Generated single Markdown file: %s", single_path)
         elif parsed_args.nav:
             generated = md_generator.generate_navigation(
                 modules=modules,
                 output_dir=parsed_args.output,
                 api_dir=parsed_args.api_dir,
+            )
+            _write_manifest(
+                parsed_args.output,
+                single_file=False,
+                generated_paths=generated,
             )
             logger.info(
                 "Generated %d navigation docs file(s) in %s",
@@ -667,6 +812,11 @@ def main(args: list[str] | None = None) -> int:
             generated = md_generator.generate(
                 modules=modules,
                 output_dir=parsed_args.output,
+            )
+            _write_manifest(
+                parsed_args.output,
+                single_file=False,
+                generated_paths=generated,
             )
             logger.info("Generated %d Markdown file(s) in %s", len(generated), parsed_args.output)
         if parsed_args.readme:
