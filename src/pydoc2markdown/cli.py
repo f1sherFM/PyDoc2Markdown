@@ -418,8 +418,12 @@ def _different_files(
     actual_dir: Path,
     expected_paths: list[Path],
 ) -> list[Path]:
-    """Return generated files whose current output is missing or outdated."""
+    """Return generated files whose current output is missing, outdated, or stale."""
     different: list[Path] = []
+    expected_relative_paths = {
+        expected_path.relative_to(expected_dir) for expected_path in expected_paths
+    }
+
     for expected_path in expected_paths:
         relative_path = expected_path.relative_to(expected_dir)
         actual_path = actual_dir / relative_path
@@ -428,6 +432,13 @@ def _different_files(
             continue
         if expected_path.read_text(encoding="utf-8") != actual_path.read_text(encoding="utf-8"):
             different.append(actual_path)
+
+    if actual_dir.exists():
+        for actual_path in actual_dir.rglob("*.md"):
+            relative_path = actual_path.relative_to(actual_dir)
+            if relative_path not in expected_relative_paths:
+                different.append(actual_path)
+
     return different
 
 

@@ -7,7 +7,7 @@ Order models and pricing helpers.
 - [Classes](#classes)
   - [`OrderStatus`](#orderstatus)
   - [`Order`](#order)
-    - [`mark_paid`](#mark_paid)
+    - [`mark_paid`](#order-mark_paid)
 
 - [Functions](#functions)
   - [`calculate_total`](#calculate_total)
@@ -31,10 +31,11 @@ Args:
 
 #### Methods
 
+<a id="order-mark_paid"></a>
+
 ##### `mark_paid`
 Mark the order as paid.
 
-**Returns:** `None`
 ---
 
 ## Functions

@@ -10,9 +10,9 @@
 
 - [Classes](#classes)
 {% for class in module.classes %}
-  - [`{{ class.name }}`](#{{ class.name | lower | replace(' ', '-') }})
+  - [`{{ class.name }}`](#{{ anchorize(class.name) }})
 {% for method in class.methods %}
-    - [{% if method.is_property %}@property {% elif method.is_classmethod %}@classmethod {% elif method.is_staticmethod %}@staticmethod {% endif %}`{{ method.name }}`](#{{ method.name | lower | replace(' ', '-') }})
+    - [{% if method.is_property %}@property {% elif method.is_classmethod %}@classmethod {% elif method.is_staticmethod %}@staticmethod {% endif %}`{{ method.name }}`](#{{ method_anchor(class.name, method.name) }})
 {% endfor %}
 {% endfor %}
 {% endif %}
@@ -20,7 +20,7 @@
 
 - [Functions](#functions)
 {% for func in module.functions %}
-  - [`{{ func.name }}`](#{{ func.name | lower | replace(' ', '-') }})
+  - [`{{ func.name }}`](#{{ anchorize(func.name) }})
 {% endfor %}
 {% endif %}
 {% endif %}
@@ -69,6 +69,8 @@
 
 #### Methods
 {% for method in class.methods %}
+
+<a id="{{ method_anchor(class.name, method.name) }}"></a>
 
 ##### {% if method.is_property %}@property {% elif method.is_classmethod %}@classmethod {% elif method.is_staticmethod %}@staticmethod {% endif %}`{{ method.name }}`{% set method_source = source_url(method.source_path, method.line_number) %}{% if method_source %} [source]({{ method_source }}){% endif %}
 {% if method.docstring %}

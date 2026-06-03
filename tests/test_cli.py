@@ -294,6 +294,23 @@ def test_cli_check_fails_when_docs_are_outdated(
     assert generated.read_text(encoding="utf-8") == "stale docs\n"
 
 
+def test_cli_check_fails_when_stale_generated_file_remains(
+    sample_module: Path,
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    output = tmp_path / "docs"
+    assert main([str(sample_module), "-o", str(output)]) == 0
+    stale = output / "old_module.md"
+    stale.write_text("# stale\n", encoding="utf-8")
+
+    with caplog.at_level(logging.ERROR):
+        result = main([str(sample_module), "-o", str(output), "--check"])
+
+    assert result == 1
+    assert str(stale) in caplog.text
+
+
 def test_cli_check_single_file(sample_package: Path, tmp_path: Path) -> None:
     output = tmp_path / "combined.md"
     assert main([str(sample_package), "--recursive", "--single-file", "-o", str(output)]) == 0

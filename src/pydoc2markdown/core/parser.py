@@ -267,10 +267,12 @@ class DocstringParser:
 
         # Fallback to AST return annotation if docstring did not provide type
         ast_return_type = ast.unparse(node.returns) if node.returns else None
-        if returns is None:
+        if returns is None and ast_return_type and ast_return_type != "None":
             returns = ReturnsInfo(type_hint=ast_return_type)
-        elif ast_return_type and not returns.type_hint:
+        elif returns and ast_return_type and ast_return_type != "None" and not returns.type_hint:
             returns.type_hint = ast_return_type
+        if returns and returns.type_hint == "None" and not returns.description:
+            returns = None
 
         decorators = self._extract_decorator_names(node)
         is_property = any(d in ("property", "cached_property") for d in decorators)

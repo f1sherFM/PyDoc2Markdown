@@ -209,6 +209,22 @@ def test_parse_method_params_and_raises(sample_module: Path) -> None:
     assert add_method.raises[0].description == "If a or b is negative."
 
 
+def test_parse_function_without_return_info_has_no_returns(tmp_path: Path) -> None:
+    module = tmp_path / "no_returns.py"
+    module.write_text(
+        '''"""Module without return details."""
+
+def log(message: str) -> None:
+    """Log a message."""
+''',
+        encoding="utf-8",
+    )
+
+    func = DocstringParser().parse(module)[0].functions[0]
+
+    assert func.returns is None
+
+
 def test_parse_property(advanced_module: Path) -> None:
     parser = DocstringParser()
     modules = parser.parse(advanced_module)

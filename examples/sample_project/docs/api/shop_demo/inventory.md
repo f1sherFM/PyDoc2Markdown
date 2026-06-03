@@ -6,10 +6,10 @@ Inventory models and helpers for the sample shop.
 
 - [Classes](#classes)
   - [`Product`](#product)
-    - [@property `available`](#available)
+    - [@property `available`](#product-available)
   - [`Inventory`](#inventory)
-    - [`add`](#add)
-    - [`get`](#get)
+    - [`add`](#inventory-add)
+    - [`get`](#inventory-get)
 
 ## Classes
 
@@ -23,6 +23,8 @@ Args:
     stock: Number of available units.
 
 #### Methods
+
+<a id="product-available"></a>
 
 ##### @property `available`
 Whether the product can be purchased.
@@ -38,6 +40,8 @@ Args:
 
 #### Methods
 
+<a id="inventory-add"></a>
+
 ##### `add`
 Add or replace a product.
 
@@ -50,7 +54,8 @@ Args:
 |------|------|---------|-------------|
 | `product` | `[Product](#product)` | *required* | Product to store. |
 
-**Returns:** `None`
+<a id="inventory-get"></a>
+
 ##### `get`
 Return a product by SKU.
 

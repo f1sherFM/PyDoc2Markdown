@@ -265,6 +265,56 @@ def test_generate_source_links(sample_module: Path, tmp_path: Path) -> None:
     assert "[source](https://github.com/acme/app/blob/main/sample_module.py#L" in content
 
 
+def test_generate_skips_empty_returns_block(tmp_path: Path) -> None:
+    module = tmp_path / "no_returns.py"
+    module.write_text(
+        '''"""Module without return details."""
+
+def log(message: str) -> None:
+    """Log a message."""
+''',
+        encoding="utf-8",
+    )
+
+    modules = DocstringParser().parse(module)
+    output_dir = tmp_path / "docs"
+    MarkdownGenerator().generate(modules, output_dir)
+
+    content = (output_dir / "no_returns.md").read_text(encoding="utf-8")
+    assert "**Returns:**" not in content
+
+
+def test_generate_unique_method_anchors(tmp_path: Path) -> None:
+    module = tmp_path / "duplicate_methods.py"
+    module.write_text(
+        '''"""Module with duplicate method names."""
+
+class A:
+    """First class."""
+
+    def run(self) -> None:
+        """Run A."""
+
+class B:
+    """Second class."""
+
+    def run(self) -> None:
+        """Run B."""
+''',
+        encoding="utf-8",
+    )
+
+    modules = DocstringParser().parse(module)
+    output_dir = tmp_path / "docs"
+    MarkdownGenerator().generate(modules, output_dir)
+
+    content = (output_dir / "duplicate_methods.md").read_text(encoding="utf-8")
+    assert "(#a-run)" in content
+    assert "(#b-run)" in content
+    assert '<a id="a-run"></a>' in content
+    assert '<a id="b-run"></a>' in content
+
+
 def test_generate_cross_references(crossref_module: Path, tmp_path: Path) -> None:
     parser = DocstringParser()
     modules = parser.parse(crossref_module)

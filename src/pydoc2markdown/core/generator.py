@@ -14,6 +14,11 @@ README_START_MARKER = "<!-- pydoc2markdown:start -->"
 README_END_MARKER = "<!-- pydoc2markdown:end -->"
 
 
+def _anchorize(value: str) -> str:
+    """Return a Markdown heading-style anchor fragment."""
+    return value.lower().replace(" ", "-")
+
+
 def _write_markdown_lines(path: Path, lines: list[str]) -> None:
     """Write Markdown lines with a final newline."""
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
@@ -56,8 +61,14 @@ class MarkdownGenerator:
 
         env.filters["format_type_hint"] = format_type_hint
         env.filters["link_type"] = link_type_filter
+        env.globals["anchorize"] = _anchorize
+        env.globals["method_anchor"] = self._method_anchor
         env.globals["source_url"] = self._source_url
         return env
+
+    def _method_anchor(self, class_name: str, method_name: str) -> str:
+        """Return a unique anchor for a class method heading."""
+        return _anchorize(f"{class_name}-{method_name}")
 
     def _source_url(self, path: str | None, line: int | None) -> str | None:
         """Render a source URL for a documented object."""
