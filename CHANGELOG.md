@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.2](https://github.com/f1sherFM/PyDoc2Markdown/compare/v0.7.1...v0.7.2) (2026-06-04)
+
+
+### Bug Fixes
+
+* expand output toggles and report controls ([e7994f6](https://github.com/f1sherFM/PyDoc2Markdown/commit/e7994f6a35cee8af87422be24ec8629a078e2021))
+
 ## [0.7.1](https://github.com/f1sherFM/PyDoc2Markdown/compare/v0.7.0...v0.7.1) (2026-06-04)
 
 
