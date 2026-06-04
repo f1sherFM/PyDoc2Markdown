@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.7.0](https://github.com/f1sherFM/PyDoc2Markdown/compare/v0.6.3...v0.7.0) (2026-06-04)
+
+
+### Features
+
+* add configurable output and report mode ([c397242](https://github.com/f1sherFM/PyDoc2Markdown/commit/c39724246c642c13610844ee5420474936581dd4))
+
+
+### Documentation
+
+* align examples with current output ([48396d6](https://github.com/f1sherFM/PyDoc2Markdown/commit/48396d6bc479a31b303e9e6a40f66397e7df98dc))
+* correct release history ([2abe02a](https://github.com/f1sherFM/PyDoc2Markdown/commit/2abe02a40a41d39173d118c4d00d6ec95161c636))
+* refresh sample project snapshots ([1781384](https://github.com/f1sherFM/PyDoc2Markdown/commit/178138422424b43b2a5a11b41f55b0ff66c61d69))
+* remove duplicate changelog entry ([0679ab7](https://github.com/f1sherFM/PyDoc2Markdown/commit/0679ab757b52b933139698bcfb45760b70534dff))
+
 ## [0.6.3](https://github.com/f1sherFM/PyDoc2Markdown/compare/v0.6.2...v0.6.3) (2026-06-03)
 
 
