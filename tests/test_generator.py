@@ -338,6 +338,73 @@ def test_generate_hides_class_metadata(
     assert "*(Abstract)*" not in content
 
 
+def test_generate_hides_public_api_attributes_returns_and_raises(tmp_path: Path) -> None:
+    module = tmp_path / "toggle_sections.py"
+    module.write_text(
+        '''"""Module for section toggles."""
+
+__all__ = ["Widget", "helper"]
+
+class Widget:
+    """Example widget."""
+
+    def __init__(self, name: str) -> None:
+        """Create a widget.
+
+        Args:
+            name: Widget name.
+        """
+        self.name: str = name
+
+    def run(self, value: int) -> int:
+        """Run the widget.
+
+        Args:
+            value: Input value.
+
+        Returns:
+            Processed value.
+
+        Raises:
+            ValueError: If the input is invalid.
+        """
+        if value < 0:
+            raise ValueError("invalid")
+        return value
+
+def helper() -> int:
+    """Help the widget.
+
+    Returns:
+        Static result.
+
+    Raises:
+        RuntimeError: Never raised in practice.
+    """
+    return 1
+''',
+        encoding="utf-8",
+    )
+
+    modules = DocstringParser().parse(module)
+    output_dir = tmp_path / "docs"
+    MarkdownGenerator(
+        output_options=OutputOptions(
+            show_public_api=False,
+            show_attributes=False,
+            show_returns=False,
+            show_raises=False,
+        )
+    ).generate(modules, output_dir)
+
+    content = (output_dir / "toggle_sections.md").read_text(encoding="utf-8")
+    assert "**Public API:**" not in content
+    assert "#### Attributes" not in content
+    assert "**Attributes:**" not in content
+    assert "**Returns:**" not in content
+    assert "**Raises:**" not in content
+
+
 def test_generate_skips_empty_returns_block(tmp_path: Path) -> None:
     module = tmp_path / "no_returns.py"
     module.write_text(

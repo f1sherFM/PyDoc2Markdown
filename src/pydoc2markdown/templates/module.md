@@ -24,7 +24,7 @@
 {% endfor %}
 {% endif %}
 {% endif %}
-{% if module.public_api %}
+{% if render_options.show_public_api and module.public_api %}
 
 **Public API:**
 {% for name in module.public_api %}
@@ -45,7 +45,7 @@
 
 {{ class.docstring }}
 {% endif %}
-{% if class.attributes %}
+{% if render_options.show_attributes and class.attributes %}
 
 {% if render_options.compact_sections %}**Attributes:**{% else %}#### Attributes{% endif %}
 
@@ -55,7 +55,7 @@
 | `{{ attr.name }}` | {% if attr.type_hint %}`{{ attr.type_hint | format_type_hint | link_type }}`{% else %}-{% endif %} | {% if attr.description %}{{ attr.description }}{% else %}-{% endif %} |
 {% endfor %}
 {% endif %}
-{% if class.pydantic_fields %}
+{% if render_options.show_attributes and class.pydantic_fields %}
 
 {% if render_options.compact_sections %}**Pydantic Fields:**{% else %}#### Pydantic Fields{% endif %}
 
@@ -87,7 +87,7 @@
 | `{{ param.name }}` | {% if param.type_hint %}`{{ param.type_hint | format_type_hint | link_type }}`{% else %}-{% endif %} | {% if param.default %}`{{ param.default }}`{% else %}*required*{% endif %} | {% if param.description %}{{ param.description }}{% else %}-{% endif %} |
 {% endfor %}
 {% endif %}
-{% if method.returns %}
+{% if render_options.show_returns and method.returns %}
 
 **Returns:**{% if method.returns.type_hint %} `{{ method.returns.type_hint | format_type_hint | link_type }}`{% endif %}
 {% if method.returns.description %}
@@ -95,7 +95,7 @@
 {{ method.returns.description }}
 {% endif %}
 {% endif %}
-{% if method.raises %}
+{% if render_options.show_raises and method.raises %}
 
 **Raises:**
 {% for raise in method.raises %}
@@ -129,7 +129,7 @@
 | `{{ param.name }}` | {% if param.type_hint %}`{{ param.type_hint | format_type_hint | link_type }}`{% else %}-{% endif %} | {% if param.default %}`{{ param.default }}`{% else %}*required*{% endif %} | {% if param.description %}{{ param.description }}{% else %}-{% endif %} |
 {% endfor %}
 {% endif %}
-{% if func.returns %}
+{% if render_options.show_returns and func.returns %}
 
 **Returns:**{% if func.returns.type_hint %} `{{ func.returns.type_hint | format_type_hint | link_type }}`{% endif %}
 {% if func.returns.description %}
@@ -137,7 +137,7 @@
 {{ func.returns.description }}
 {% endif %}
 {% endif %}
-{% if func.raises %}
+{% if render_options.show_raises and func.raises %}
 
 **Raises:**
 {% for raise in func.raises %}

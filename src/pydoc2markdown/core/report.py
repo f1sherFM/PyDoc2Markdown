@@ -1,5 +1,6 @@
 """Documentation coverage analysis and terminal reporting."""
 
+import json
 from dataclasses import dataclass, field
 
 from pydoc2markdown.core.parser import FunctionDoc, ModuleDoc
@@ -17,6 +18,45 @@ class CoverageReport:
     undocumented_functions: list[str] = field(default_factory=list)
     undocumented_public_api: list[str] = field(default_factory=list)
     params_missing_descriptions: list[str] = field(default_factory=list)
+
+    def category_counts(self) -> dict[str, int]:
+        """Return finding counts keyed by report category."""
+        return {
+            "modules": len(self.undocumented_modules),
+            "classes": len(self.undocumented_classes),
+            "functions": len(self.undocumented_functions),
+            "public_api": len(self.undocumented_public_api),
+            "params": len(self.params_missing_descriptions),
+        }
+
+    def total_findings(self) -> int:
+        """Return the total number of report findings."""
+        return sum(self.category_counts().values())
+
+    def has_findings(self, categories: set[str] | None = None) -> bool:
+        """Return whether any findings exist in the selected categories."""
+        counts = self.category_counts()
+        keys = categories or set(counts)
+        return any(counts.get(key, 0) > 0 for key in keys)
+
+    def to_dict(self) -> dict[str, object]:
+        """Return a machine-readable representation of the report."""
+        return {
+            "summary": {
+                "module_count": self.module_count,
+                "class_count": self.class_count,
+                "function_count": self.function_count,
+                "total_findings": self.total_findings(),
+            },
+            "counts": self.category_counts(),
+            "findings": {
+                "modules": self.undocumented_modules,
+                "classes": self.undocumented_classes,
+                "functions": self.undocumented_functions,
+                "public_api": self.undocumented_public_api,
+                "params": self.params_missing_descriptions,
+            },
+        }
 
 
 def analyze_modules(modules: list[ModuleDoc]) -> CoverageReport:
@@ -104,6 +144,11 @@ def format_report(report: CoverageReport) -> str:
         report.params_missing_descriptions,
     )
     return "\n".join(lines) + "\n"
+
+
+def format_report_json(report: CoverageReport) -> str:
+    """Format a machine-readable JSON coverage report."""
+    return json.dumps(report.to_dict(), indent=2) + "\n"
 
 
 def _append_section(lines: list[str], title: str, values: list[str]) -> None:

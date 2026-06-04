@@ -16,11 +16,12 @@ from pydoc2markdown.core.generator import (
     OutputOptions,
 )
 from pydoc2markdown.core.parser import DocstringParser, ModuleDoc
-from pydoc2markdown.core.report import analyze_modules, format_report
+from pydoc2markdown.core.report import analyze_modules, format_report, format_report_json
 from pydoc2markdown.core.watcher import watch_and_generate
 
 logger = logging.getLogger(__name__)
 _MANIFEST_VERSION = 1
+_REPORT_CATEGORIES = ("modules", "classes", "functions", "public_api", "params")
 
 _DEFAULT_CONFIG = """[tool.pydoc2markdown]
 output = "docs"
@@ -257,6 +258,30 @@ def create_parser() -> argparse.ArgumentParser:
         default=_config_bool(defaults, "show_class_metadata", True),
         help="Show or hide built-in class metadata like bases and status markers.",
     )
+    config_group.add_argument(
+        "--show-public-api",
+        action=argparse.BooleanOptionalAction,
+        default=_config_bool(defaults, "show_public_api", True),
+        help="Show or hide the Public API block derived from __all__.",
+    )
+    config_group.add_argument(
+        "--show-attributes",
+        action=argparse.BooleanOptionalAction,
+        default=_config_bool(defaults, "show_attributes", True),
+        help="Show or hide built-in attribute and model field tables.",
+    )
+    config_group.add_argument(
+        "--show-returns",
+        action=argparse.BooleanOptionalAction,
+        default=_config_bool(defaults, "show_returns", True),
+        help="Show or hide Returns sections in built-in output.",
+    )
+    config_group.add_argument(
+        "--show-raises",
+        action=argparse.BooleanOptionalAction,
+        default=_config_bool(defaults, "show_raises", True),
+        help="Show or hide Raises sections in built-in output.",
+    )
     demo_group.add_argument(
         "--demo",
         action="store_true",
@@ -346,6 +371,20 @@ def create_parser() -> argparse.ArgumentParser:
         default=False,
         help="Print a documentation coverage report instead of generating Markdown files.",
     )
+    analysis_group.add_argument(
+        "--report-format",
+        choices=["text", "json"],
+        default="text",
+        help="Output format for --report (default: text).",
+    )
+    analysis_group.add_argument(
+        "--fail-on",
+        default=None,
+        help=(
+            "Comma-separated report categories that should return exit code 1 when findings "
+            "exist. Supported values: modules, classes, functions, public_api, params, any."
+        ),
+    )
     watch_group.add_argument(
         "--watch",
         action="store_true",
@@ -419,7 +458,32 @@ def _output_options_from_args(parsed_args: argparse.Namespace) -> OutputOptions:
         show_source_links=parsed_args.show_source_links,
         compact_sections=parsed_args.compact_sections,
         show_class_metadata=parsed_args.show_class_metadata,
+        show_public_api=parsed_args.show_public_api,
+        show_attributes=parsed_args.show_attributes,
+        show_returns=parsed_args.show_returns,
+        show_raises=parsed_args.show_raises,
     )
+
+
+def _parse_fail_on(raw: str | None) -> set[str] | None:
+    """Parse --fail-on into a validated category set."""
+    if raw is None:
+        return None
+
+    categories = {value.strip().lower() for value in raw.split(",") if value.strip()}
+    if not categories:
+        return None
+    if "any" in categories:
+        return set(_REPORT_CATEGORIES)
+
+    invalid = categories - set(_REPORT_CATEGORIES)
+    if invalid:
+        invalid_text = ", ".join(sorted(invalid))
+        valid_text = ", ".join((*_REPORT_CATEGORIES, "any"))
+        raise ValueError(
+            f"Unsupported --fail-on categories: {invalid_text}. Supported values: {valid_text}."
+        )
+    return categories
 
 
 def init_config() -> int:
@@ -852,6 +916,23 @@ def main(args: list[str] | None = None) -> int:
             hint="Use --report to inspect coverage, or --prune to remove stale generated files.",
         )
 
+    if parsed_args.fail_on and not parsed_args.report:
+        return _log_cli_error(
+            "--fail-on can be used only with --report.",
+            hint="Add --report to enable coverage analysis output and failure thresholds.",
+        )
+
+    if parsed_args.report_format != "text" and not parsed_args.report:
+        return _log_cli_error(
+            "--report-format can be used only with --report.",
+            hint="Add --report to print a coverage report in text or JSON format.",
+        )
+
+    try:
+        fail_on_categories = _parse_fail_on(parsed_args.fail_on)
+    except ValueError as exc:
+        return _log_cli_error(str(exc))
+
     try:
         source_link_template = _source_link_template(
             parsed_args.source_link,
@@ -902,7 +983,13 @@ def main(args: list[str] | None = None) -> int:
         )
         logger.info("Parsed %d module(s)", len(modules))
         if parsed_args.report:
-            sys.stdout.write(format_report(analyze_modules(modules)))
+            report = analyze_modules(modules)
+            if parsed_args.report_format == "json":
+                sys.stdout.write(format_report_json(report))
+            else:
+                sys.stdout.write(format_report(report))
+            if fail_on_categories and report.has_findings(fail_on_categories):
+                return 1
             return 0
         if parsed_args.prune:
             stale_paths = prune_stale_files(

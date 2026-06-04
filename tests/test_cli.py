@@ -1,5 +1,6 @@
 """Tests for CLI."""
 
+import json
 import logging
 from pathlib import Path
 from typing import cast
@@ -556,6 +557,7 @@ def test_cli_respects_configured_output_toggles(
         "[tool.pydoc2markdown]\n"
         "show_toc = false\n"
         "show_source_links = false\n"
+        "show_returns = false\n"
         'readme_mode = "detailed"\n',
         encoding="utf-8",
     )
@@ -567,8 +569,76 @@ def test_cli_respects_configured_output_toggles(
     assert result == 0
     module_content = (output / "sample_module.md").read_text(encoding="utf-8")
     assert "## Table of Contents" not in module_content
+    assert "**Returns:**" not in module_content
     readme_content = (tmp_path / "README.md").read_text(encoding="utf-8")
     assert "### sample_module" in readme_content
+
+
+def test_cli_hides_selected_sections_with_flags(tmp_path: Path) -> None:
+    source = tmp_path / "feature_module.py"
+    source.write_text(
+        '''"""Feature module."""
+
+__all__ = ["Gadget", "helper"]
+
+class Gadget:
+    """Example gadget."""
+
+    def __init__(self, name: str) -> None:
+        """Create a gadget.
+
+        Args:
+            name: Gadget name.
+        """
+        self.name: str = name
+
+    def run(self, value: int) -> int:
+        """Run the gadget.
+
+        Args:
+            value: Input value.
+
+        Returns:
+            Processed value.
+
+        Raises:
+            ValueError: If the input is invalid.
+        """
+        if value < 0:
+            raise ValueError("invalid")
+        return value
+
+def helper() -> int:
+    """Help the gadget.
+
+    Returns:
+        Static result.
+    """
+    return 1
+''',
+        encoding="utf-8",
+    )
+
+    output = tmp_path / "docs"
+    result = main(
+        [
+            str(source),
+            "-o",
+            str(output),
+            "--no-show-public-api",
+            "--no-show-attributes",
+            "--no-show-returns",
+            "--no-show-raises",
+        ]
+    )
+
+    assert result == 0
+    content = (output / "feature_module.md").read_text(encoding="utf-8")
+    assert "**Public API:**" not in content
+    assert "**Attributes:**" not in content
+    assert "#### Attributes" not in content
+    assert "**Returns:**" not in content
+    assert "**Raises:**" not in content
 
 
 def test_cli_readme_invalid_marker_block_returns_error(
@@ -864,6 +934,93 @@ __all__ = ["MissingDocs", "helper", "missing_export"]
     assert "Parameters missing descriptions: 2" in output
     assert "- coverage_sample.MissingDocs" in output
     assert "- coverage_sample.missing_export" in output
+
+
+def test_cli_report_json_output(
+    sample_module: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    result = main([str(sample_module), "--report", "--report-format", "json"])
+
+    assert result == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["summary"]["module_count"] == 1
+    assert payload["summary"]["class_count"] == 1
+    assert payload["counts"]["modules"] == 0
+    assert payload["counts"]["functions"] == 0
+
+
+def test_cli_report_fail_on_selected_categories(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    module = tmp_path / "coverage_fail.py"
+    module.write_text(
+        '''"""Coverage fail sample."""
+
+def helper(value: int, other: int) -> None:
+    """Help with something.
+
+    Args:
+        value: First value.
+    """
+''',
+        encoding="utf-8",
+    )
+
+    assert main([str(module), "--report", "--fail-on", "modules"]) == 0
+    capsys.readouterr()
+
+    result = main([str(module), "--report", "--fail-on", "params"])
+
+    assert result == 1
+    assert "Parameters missing descriptions: 1" in capsys.readouterr().out
+
+
+def test_cli_report_fail_on_any(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    module = tmp_path / "coverage_any.py"
+    module.write_text("def helper() -> None:\n    pass\n", encoding="utf-8")
+
+    result = main([str(module), "--report", "--fail-on", "any"])
+
+    assert result == 1
+    assert "Modules without docstrings: 1" in capsys.readouterr().out
+
+
+def test_cli_report_rejects_invalid_fail_on(
+    sample_module: Path,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    with caplog.at_level(logging.ERROR):
+        result = main([str(sample_module), "--report", "--fail-on", "widgets"])
+
+    assert result == 1
+    assert "Unsupported --fail-on categories" in caplog.text
+
+
+def test_cli_fail_on_requires_report(
+    sample_module: Path,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    with caplog.at_level(logging.ERROR):
+        result = main([str(sample_module), "--fail-on", "modules"])
+
+    assert result == 1
+    assert "--fail-on can be used only with --report." in caplog.text
+
+
+def test_cli_report_format_requires_report(
+    sample_module: Path,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    with caplog.at_level(logging.ERROR):
+        result = main([str(sample_module), "--report-format", "json"])
+
+    assert result == 1
+    assert "--report-format can be used only with --report." in caplog.text
 
 
 @pytest.mark.parametrize(

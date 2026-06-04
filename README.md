@@ -82,7 +82,7 @@ that work anywhere: GitHub, GitLab, MkDocs, or any Markdown renderer.
 - **README API sections** - Create or update a generated API reference block in README files, in `summary` or `detailed` mode.
 - **Auto-generated index & TOC** - Each module gets a Table of Contents; an `index.md` with package grouping is created automatically.
 - **Navigation layout** - Generate a docs entrypoint with package pages and API files under `api/`.
-- **Output toggles** - Control built-in TOC, source links, compact sections, and class metadata from CLI or `pyproject.toml`.
+- **Output toggles** - Control built-in TOC, source links, compact sections, class metadata, Public API, attributes, returns, and raises from CLI or `pyproject.toml`.
 - **CI-friendly checks** - Verify generated docs are up to date with `--check`.
 - **Coverage report mode** - Inspect undocumented modules, classes, functions, exports, and parameter docs with `--report`.
 - **Managed cleanup** - Preview or remove stale generated Markdown with `--prune` and `--dry-run`.
@@ -224,8 +224,11 @@ Start with the command that matches how you want to publish docs:
 | Skip private/internal modules | `pydoc2markdown src/my_package --recursive --exclude "tests/*,*/internal/*,*_private.py"` |
 | Add GitHub source links | `pydoc2markdown src/my_package --recursive --source-repo user/repo -o docs` |
 | Generate a compact docs layout | `pydoc2markdown src/my_package --recursive --compact-sections -o docs` |
+| Hide returns and raises in generated docs | `pydoc2markdown src/my_package --recursive --no-show-returns --no-show-raises -o docs` |
 | Check generated docs in CI | `pydoc2markdown src/my_package --recursive --nav --readme --check -o docs` |
 | Print a documentation coverage report | `pydoc2markdown src/my_package --recursive --report` |
+| Fail CI when selected report findings exist | `pydoc2markdown src/my_package --recursive --report --fail-on modules,params` |
+| Export the report as JSON | `pydoc2markdown src/my_package --recursive --report --report-format json` |
 | Preview stale generated docs cleanup | `pydoc2markdown src/my_package --recursive --prune --dry-run -o docs` |
 | Remove stale generated docs | `pydoc2markdown src/my_package --recursive --prune -o docs` |
 | Generate one combined Markdown file | `pydoc2markdown src/my_package --recursive --single-file -o docs/api.md` |
@@ -317,11 +320,25 @@ pydoc2markdown src/my_package --recursive --source-repo user/repo -o docs
 # Hide the module TOC and use a tighter built-in layout
 pydoc2markdown src/my_package --recursive --no-show-toc --compact-sections -o docs
 
+# Trim output sections you do not want in published docs
+pydoc2markdown src/my_package --recursive \
+  --no-show-public-api \
+  --no-show-attributes \
+  --no-show-returns \
+  --no-show-raises \
+  -o docs
+
 # Check whether generated docs are current without writing files
 pydoc2markdown src/my_package --recursive --nav --check -o docs
 
 # Print a documentation coverage report
 pydoc2markdown src/my_package --recursive --report
+
+# Fail when undocumented modules or missing param docs are found
+pydoc2markdown src/my_package --recursive --report --fail-on modules,params
+
+# Emit machine-readable JSON
+pydoc2markdown src/my_package --recursive --report --report-format json
 
 # Preview stale generated Markdown files before removing them
 pydoc2markdown src/my_package --recursive --prune --dry-run -o docs
@@ -365,11 +382,17 @@ generator.generate(modules, output_dir=Path("docs"))
 | `--show-source-links`, `--no-show-source-links` | `True` / value from `pyproject.toml` | Show or hide built-in source links |
 | `--compact-sections`, `--no-compact-sections` | `False` / value from `pyproject.toml` | Use a tighter built-in Markdown layout |
 | `--show-class-metadata`, `--no-show-class-metadata` | `True` / value from `pyproject.toml` | Show or hide built-in class metadata like bases and status markers |
+| `--show-public-api`, `--no-show-public-api` | `True` / value from `pyproject.toml` | Show or hide the Public API block derived from `__all__` |
+| `--show-attributes`, `--no-show-attributes` | `True` / value from `pyproject.toml` | Show or hide built-in attribute and model field tables |
+| `--show-returns`, `--no-show-returns` | `True` / value from `pyproject.toml` | Show or hide Returns sections in built-in output |
+| `--show-raises`, `--no-show-raises` | `True` / value from `pyproject.toml` | Show or hide Raises sections in built-in output |
 | `--single-file` | `False` | Generate a single combined Markdown file; `--output` must be a `.md` or `.markdown` file path |
 | `--check` | `False` | Check whether generated docs are up to date without writing files |
 | `--prune` | `False` | Remove stale generated Markdown files tracked by PyDoc2Markdown |
 | `--dry-run` | `False` | Preview `--prune` results without deleting files |
 | `--report` | `False` | Print a documentation coverage report instead of generating Markdown files |
+| `--report-format` | `text` | Output format for `--report`: `text` or `json` |
+| `--fail-on` | `None` | Comma-separated report categories that should return exit code `1`: `modules`, `classes`, `functions`, `public_api`, `params`, or `any` |
 | `--readme` | `False` | Create or update an API reference section in README.md |
 | `--readme-path` | `README.md` | Path to the README file updated by `--readme` |
 | `--readme-mode` | `summary` / value from `pyproject.toml` | README rendering mode: `summary` or `detailed` |
@@ -407,6 +430,10 @@ show_toc = true
 show_source_links = true
 compact_sections = false
 show_class_metadata = true
+show_public_api = true
+show_attributes = true
+show_returns = true
+show_raises = true
 readme_mode = "summary"
 ```
 
@@ -460,6 +487,32 @@ pydoc2markdown src/my_package --recursive \
 Available template variables are `{path}` for the source-root-relative Python
 file path, `{file}` for the filename, and `{line}` for the 1-indexed definition
 line.
+
+## Output Toggles
+
+PyDoc2Markdown's built-in renderer can be trimmed without writing a custom
+template. You can set these toggles per run or keep them in
+`[tool.pydoc2markdown]`.
+
+- `show_toc`
+- `show_source_links`
+- `compact_sections`
+- `show_class_metadata`
+- `show_public_api`
+- `show_attributes`
+- `show_returns`
+- `show_raises`
+
+For example, this keeps parameter tables but removes Public API, Returns, and
+Raises blocks from generated docs:
+
+```bash
+pydoc2markdown src/my_package --recursive \
+  --no-show-public-api \
+  --no-show-returns \
+  --no-show-raises \
+  -o docs
+```
 
 ## README API Sections
 
@@ -552,8 +605,20 @@ The report prints totals plus findings for:
 - undocumented `__all__` exports
 - parameters missing descriptions
 
-`--report` is analysis-only. It exits successfully when the report is produced
-and does not currently enforce thresholds or fail CI by itself.
+By default, `--report` is analysis-only and exits successfully when the report
+is produced. Use `--fail-on` when you want selected findings to fail CI:
+
+```bash
+pydoc2markdown src/my_package --recursive --report --fail-on modules,params
+```
+
+Use `--fail-on any` to fail on any non-zero finding category.
+
+For automation, JSON output is also available:
+
+```bash
+pydoc2markdown src/my_package --recursive --report --report-format json
+```
 
 ## Prune Stale Docs
 

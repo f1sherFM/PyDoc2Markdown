@@ -25,6 +25,10 @@ class OutputOptions:
     show_source_links: bool = True
     compact_sections: bool = False
     show_class_metadata: bool = True
+    show_public_api: bool = True
+    show_attributes: bool = True
+    show_returns: bool = True
+    show_raises: bool = True
 
 
 def _anchorize(value: str) -> str:

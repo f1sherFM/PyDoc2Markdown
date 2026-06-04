@@ -16,6 +16,8 @@ def test_load_config_reads_pyproject(tmp_path: Path) -> None:
         'theme = "minimal"\n'
         "show_toc = false\n"
         "compact_sections = true\n"
+        "show_public_api = false\n"
+        "show_returns = false\n"
         'readme_mode = "detailed"\n',
         encoding="utf-8",
     )
@@ -24,6 +26,8 @@ def test_load_config_reads_pyproject(tmp_path: Path) -> None:
     assert config["theme"] == "minimal"
     assert config["show_toc"] is False
     assert config["compact_sections"] is True
+    assert config["show_public_api"] is False
+    assert config["show_returns"] is False
     assert config["readme_mode"] == "detailed"
 
 
