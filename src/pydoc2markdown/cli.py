@@ -6,11 +6,17 @@ import logging
 import sys
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from typing import Any
 
 from pydoc2markdown import __version__
 from pydoc2markdown.core.config import load_config
-from pydoc2markdown.core.generator import MarkdownGenerator
+from pydoc2markdown.core.generator import (
+    README_RENDER_MODES,
+    MarkdownGenerator,
+    OutputOptions,
+)
 from pydoc2markdown.core.parser import DocstringParser, ModuleDoc
+from pydoc2markdown.core.report import analyze_modules, format_report
 from pydoc2markdown.core.watcher import watch_and_generate
 
 logger = logging.getLogger(__name__)
@@ -183,6 +189,7 @@ def create_parser() -> argparse.ArgumentParser:
     readme_group = parser.add_argument_group("README integration")
     config_group = parser.add_argument_group("Configuration")
     demo_group = parser.add_argument_group("Demo")
+    analysis_group = parser.add_argument_group("Analysis")
     watch_group = parser.add_argument_group("Watch mode")
     logging_group = parser.add_argument_group("Logging")
 
@@ -225,6 +232,30 @@ def create_parser() -> argparse.ArgumentParser:
         choices=["default", "minimal"],
         default=defaults.get("theme", "default"),
         help="Built-in theme/template to use (default: default).",
+    )
+    config_group.add_argument(
+        "--show-toc",
+        action=argparse.BooleanOptionalAction,
+        default=_config_bool(defaults, "show_toc", True),
+        help="Show or hide the module table of contents in built-in output.",
+    )
+    config_group.add_argument(
+        "--show-source-links",
+        action=argparse.BooleanOptionalAction,
+        default=_config_bool(defaults, "show_source_links", True),
+        help="Show or hide source links in built-in output.",
+    )
+    config_group.add_argument(
+        "--compact-sections",
+        action=argparse.BooleanOptionalAction,
+        default=_config_bool(defaults, "compact_sections", False),
+        help="Use a tighter built-in Markdown layout with less section chrome.",
+    )
+    config_group.add_argument(
+        "--show-class-metadata",
+        action=argparse.BooleanOptionalAction,
+        default=_config_bool(defaults, "show_class_metadata", True),
+        help="Show or hide built-in class metadata like bases and status markers.",
     )
     demo_group.add_argument(
         "--demo",
@@ -303,6 +334,18 @@ def create_parser() -> argparse.ArgumentParser:
         default=Path("README.md"),
         help="Path to the README file updated by --readme.",
     )
+    readme_group.add_argument(
+        "--readme-mode",
+        choices=README_RENDER_MODES,
+        default=_config_choice(defaults, "readme_mode", "summary", README_RENDER_MODES),
+        help="README rendering mode: summary (default) or detailed.",
+    )
+    analysis_group.add_argument(
+        "--report",
+        action="store_true",
+        default=False,
+        help="Print a documentation coverage report instead of generating Markdown files.",
+    )
     watch_group.add_argument(
         "--watch",
         action="store_true",
@@ -350,6 +393,33 @@ def _split_patterns(raw: str | None) -> list[str] | None:
         return None
     patterns = [pattern.strip() for pattern in raw.split(",") if pattern.strip()]
     return patterns or None
+
+
+def _config_bool(config: dict[str, Any], key: str, default: bool) -> bool:
+    """Return a boolean config value or a safe default."""
+    value = config.get(key, default)
+    return value if isinstance(value, bool) else default
+
+
+def _config_choice(
+    config: dict[str, Any],
+    key: str,
+    default: str,
+    choices: tuple[str, ...],
+) -> str:
+    """Return a validated string config choice or a safe default."""
+    value = config.get(key, default)
+    return value if isinstance(value, str) and value in choices else default
+
+
+def _output_options_from_args(parsed_args: argparse.Namespace) -> OutputOptions:
+    """Build generator output options from parsed CLI arguments."""
+    return OutputOptions(
+        show_toc=parsed_args.show_toc,
+        show_source_links=parsed_args.show_source_links,
+        compact_sections=parsed_args.compact_sections,
+        show_class_metadata=parsed_args.show_class_metadata,
+    )
 
 
 def init_config() -> int:
@@ -416,7 +486,7 @@ def run_demo(output_dir: Path) -> int:
     readme = output_dir / "README.md"
 
     modules = DocstringParser().parse(source, recursive=True)
-    generator = MarkdownGenerator()
+    generator = MarkdownGenerator(readme_mode="summary")
     generated = generator.generate_navigation(modules, docs)
     _write_manifest(docs, single_file=False, generated_paths=generated)
     generator.update_readme(modules, readme)
@@ -740,10 +810,46 @@ def main(args: list[str] | None = None) -> int:
             hint="Use --prune to clean stale files, or --watch for continuous regeneration.",
         )
 
+    if parsed_args.report and parsed_args.watch:
+        return _log_cli_error(
+            "--report cannot be combined with --watch.",
+            hint="Use --report to inspect coverage, or --watch to regenerate files continuously.",
+        )
+
     if parsed_args.dry_run and not parsed_args.prune:
         return _log_cli_error(
             "--dry-run currently works only with --prune.",
             hint="Use --prune --dry-run to preview stale generated files without deleting them.",
+        )
+
+    if parsed_args.report and parsed_args.readme:
+        return _log_cli_error(
+            "--report cannot be combined with --readme.",
+            hint="Use --report for analysis only, or remove it to update the README.",
+        )
+
+    if parsed_args.report and parsed_args.nav:
+        return _log_cli_error(
+            "--report cannot be combined with --nav.",
+            hint="Use --report for analysis only, or remove it to generate navigation docs.",
+        )
+
+    if parsed_args.report and parsed_args.single_file:
+        return _log_cli_error(
+            "--report cannot be combined with --single-file.",
+            hint="Use --report for analysis only, or remove it to generate one Markdown file.",
+        )
+
+    if parsed_args.report and parsed_args.check:
+        return _log_cli_error(
+            "--report cannot be combined with --check.",
+            hint="Use --report to inspect coverage, or --check to validate generated docs.",
+        )
+
+    if parsed_args.report and parsed_args.prune:
+        return _log_cli_error(
+            "--report cannot be combined with --prune.",
+            hint="Use --report to inspect coverage, or --prune to remove stale generated files.",
         )
 
     try:
@@ -768,11 +874,13 @@ def main(args: list[str] | None = None) -> int:
             template_path=parsed_args.template,
             single_file=parsed_args.single_file,
             readme_path=parsed_args.readme_path if parsed_args.readme else None,
+            readme_mode=parsed_args.readme_mode,
             navigation=parsed_args.nav,
             api_dir=parsed_args.api_dir,
             include=_split_patterns(parsed_args.include),
             exclude=_split_patterns(parsed_args.exclude),
             source_link_template=source_link_template,
+            output_options=_output_options_from_args(parsed_args),
         )
 
     logger.info("Parsing source: %s (recursive=%s)", parsed_args.source, parsed_args.recursive)
@@ -781,6 +889,8 @@ def main(args: list[str] | None = None) -> int:
         template_path=parsed_args.template,
         theme=parsed_args.theme,
         source_link_template=source_link_template,
+        output_options=_output_options_from_args(parsed_args),
+        readme_mode=parsed_args.readme_mode,
     )
 
     try:
@@ -791,6 +901,9 @@ def main(args: list[str] | None = None) -> int:
             exclude=_split_patterns(parsed_args.exclude),
         )
         logger.info("Parsed %d module(s)", len(modules))
+        if parsed_args.report:
+            sys.stdout.write(format_report(analyze_modules(modules)))
+            return 0
         if parsed_args.prune:
             stale_paths = prune_stale_files(
                 md_generator,

@@ -3,7 +3,7 @@
 
 {{ module.docstring }}
 {% endif %}
-{% if module.classes or module.functions %}
+{% if render_options.show_toc and (module.classes or module.functions) %}
 
 ## Table of Contents
 {% if module.classes %}
@@ -36,8 +36,8 @@
 ## Classes
 {% for class in module.classes %}
 
-### `{{ class.name }}`{% if class.class_type != "class" %} ({{ class.class_type }}){% endif %}{% if class.is_protocol %} *(Protocol)*{% endif %}{% if class.is_abstract %} *(Abstract)*{% endif %}{% if class.is_pydantic_model %} *(Pydantic)*{% endif %}{% set class_source = source_url(class.source_path, class.line_number) %}{% if class_source %} [source]({{ class_source }}){% endif %}
-{% if class.bases %}
+### `{{ class.name }}`{% if render_options.show_class_metadata and class.class_type != "class" %} ({{ class.class_type }}){% endif %}{% if render_options.show_class_metadata and class.is_protocol %} *(Protocol)*{% endif %}{% if render_options.show_class_metadata and class.is_abstract %} *(Abstract)*{% endif %}{% if render_options.show_class_metadata and class.is_pydantic_model %} *(Pydantic)*{% endif %}{% set class_source = source_url(class.source_path, class.line_number) %}{% if class_source %} [source]({{ class_source }}){% endif %}
+{% if render_options.show_class_metadata and class.bases %}
 
 **Bases:** `{{ class.bases | join(", ") }}`
 {% endif %}
@@ -47,7 +47,7 @@
 {% endif %}
 {% if class.attributes %}
 
-#### Attributes
+{% if render_options.compact_sections %}**Attributes:**{% else %}#### Attributes{% endif %}
 
 | Name | Type | Description |
 |------|------|-------------|
@@ -57,7 +57,7 @@
 {% endif %}
 {% if class.pydantic_fields %}
 
-#### Pydantic Fields
+{% if render_options.compact_sections %}**Pydantic Fields:**{% else %}#### Pydantic Fields{% endif %}
 
 | Name | Type | Default | Description |
 |------|------|---------|-------------|
@@ -67,7 +67,7 @@
 {% endif %}
 {% if class.methods %}
 
-#### Methods
+{% if render_options.compact_sections %}**Methods:**{% else %}#### Methods{% endif %}
 {% for method in class.methods %}
 
 <a id="{{ method_anchor(class.name, method.name) }}"></a>
@@ -106,7 +106,7 @@
 {% endfor %}
 {% endif %}
 
----
+{% if not render_options.compact_sections %}---{% endif %}
 {% endfor %}
 {% endif %}
 {% if module.functions %}

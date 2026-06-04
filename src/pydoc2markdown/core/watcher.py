@@ -4,6 +4,8 @@ import logging
 import time
 from pathlib import Path
 
+from pydoc2markdown.core.generator import OutputOptions
+
 logger = logging.getLogger(__name__)
 
 _DEBOUNCE_SECONDS = 0.25
@@ -17,11 +19,13 @@ def watch_and_generate(
     template_path: Path | None,
     single_file: bool = False,
     readme_path: Path | None = None,
+    readme_mode: str = "summary",
     navigation: bool = False,
     api_dir: Path = Path("api"),
     include: list[str] | None = None,
     exclude: list[str] | None = None,
     source_link_template: str | None = None,
+    output_options: OutputOptions | None = None,
 ) -> int:
     """Watch source files and regenerate docs on change.
 
@@ -32,11 +36,13 @@ def watch_and_generate(
         theme: Built-in theme name.
         template_path: Optional custom template path.
         readme_path: Optional README path to update with an API reference.
+        readme_mode: README rendering mode when readme_path is provided.
         navigation: Whether to generate the navigation-first docs layout.
         api_dir: Directory for API pages when navigation is enabled.
         include: Optional glob patterns for files to include.
         exclude: Optional glob patterns for files to exclude.
         source_link_template: Optional URL template for source links.
+        output_options: Optional built-in Markdown rendering toggles.
 
     Returns:
         Exit code (0 for success, 1 for error).
@@ -57,6 +63,8 @@ def watch_and_generate(
         template_path=template_path,
         theme=theme,
         source_link_template=source_link_template,
+        output_options=output_options,
+        readme_mode=readme_mode,
     )
     parser = DocstringParser()
 

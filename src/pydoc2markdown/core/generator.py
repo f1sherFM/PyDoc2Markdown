@@ -3,6 +3,7 @@
 import logging
 import re
 from collections.abc import Iterable
+from dataclasses import dataclass, replace
 from pathlib import Path
 
 from jinja2 import Environment, FileSystemLoader, PackageLoader, select_autoescape
@@ -13,6 +14,17 @@ logger = logging.getLogger(__name__)
 
 README_START_MARKER = "<!-- pydoc2markdown:start -->"
 README_END_MARKER = "<!-- pydoc2markdown:end -->"
+README_RENDER_MODES = ("summary", "detailed")
+
+
+@dataclass(frozen=True)
+class OutputOptions:
+    """Rendering options for built-in Markdown output."""
+
+    show_toc: bool = True
+    show_source_links: bool = True
+    compact_sections: bool = False
+    show_class_metadata: bool = True
 
 
 def _anchorize(value: str) -> str:
@@ -59,11 +71,19 @@ class MarkdownGenerator:
         template_path: Path | None = None,
         theme: str = "default",
         source_link_template: str | None = None,
+        output_options: OutputOptions | None = None,
+        readme_mode: str = "summary",
     ) -> None:
         """Initialize the generator with an optional custom template or theme."""
+        if readme_mode not in README_RENDER_MODES:
+            msg = f"Unsupported readme_mode: {readme_mode}"
+            raise ValueError(msg)
         self._template_path = template_path
         self._theme = theme
         self._source_link_template = source_link_template
+        self._output_options = output_options or OutputOptions()
+        self._active_output_options = self._output_options
+        self._readme_mode = readme_mode
         self._env = self._create_environment()
 
     def _create_environment(self) -> Environment:
@@ -99,13 +119,58 @@ class MarkdownGenerator:
 
     def _source_url(self, path: str | None, line: int | None) -> str | None:
         """Render a source URL for a documented object."""
-        if not (self._source_link_template and path and line):
+        if not (
+            self._active_output_options.show_source_links
+            and self._source_link_template
+            and path
+            and line
+        ):
             return None
         return self._source_link_template.format(
             path=path,
             file=Path(path).name,
             line=line,
         )
+
+    def _render_module_content(
+        self,
+        module: ModuleDoc,
+        *,
+        type_index: object,
+        output_options: OutputOptions | None = None,
+    ) -> str:
+        """Render a single module using the configured Jinja template."""
+        template_name = self._resolve_template_name()
+        template = self._env.get_template(template_name)
+        render_options = output_options or self._output_options
+        previous_options = self._active_output_options
+        self._active_output_options = render_options
+        try:
+            return _normalize_markdown(
+                template.render(
+                    module=module,
+                    type_index=type_index,
+                    render_options=render_options,
+                )
+            )
+        finally:
+            self._active_output_options = previous_options
+
+    def _readme_render_options(self) -> OutputOptions:
+        """Return rendering options for detailed README output."""
+        return replace(self._output_options, show_toc=False)
+
+    def _demote_headings(self, content: str, levels: int = 2) -> str:
+        """Shift Markdown heading levels down for README embedding."""
+        demoted_lines: list[str] = []
+        for line in content.splitlines():
+            if line.startswith("#"):
+                hashes, _, rest = line.partition(" ")
+                if rest:
+                    demoted_lines.append(f"{hashes}{'#' * levels} {rest}")
+                    continue
+            demoted_lines.append(line)
+        return "\n".join(demoted_lines)
 
     def _resolve_template_name(self) -> str:
         """Resolve the template file name based on theme or custom path."""
@@ -161,14 +226,13 @@ class MarkdownGenerator:
 
         template_name = self._resolve_template_name()
         logger.debug("Using template: %s", template_name)
-        template = self._env.get_template(template_name)
         type_index = TypeIndex.from_modules(modules)
 
         for module in modules:
             output_path = self._module_output_path(module, output_dir)
             output_path.parent.mkdir(parents=True, exist_ok=True)
             logger.debug("Generating %s", output_path)
-            content = _normalize_markdown(template.render(module=module, type_index=type_index))
+            content = self._render_module_content(module, type_index=type_index)
             _write_utf8_text(output_path, content + "\n")
             generated.append(output_path)
 
@@ -403,13 +467,42 @@ class MarkdownGenerator:
         lines.append(README_END_MARKER)
         return "\n".join(lines)
 
+    def _generate_detailed_readme(self, modules: list[ModuleDoc]) -> str:
+        """Generate a richer README API section using detailed module rendering."""
+        from pydoc2markdown.core.crossref import TypeIndex
+
+        lines = [README_START_MARKER, "", "_Generated by PyDoc2Markdown._", ""]
+        type_index = TypeIndex.from_modules(modules)
+        rendered_modules: list[str] = []
+
+        for module in sorted(modules, key=lambda m: (m.package, m.name)):
+            if module.name == "__init__":
+                continue
+            content = self._render_module_content(
+                module,
+                type_index=type_index,
+                output_options=self._readme_render_options(),
+            )
+            rendered_modules.append(self._demote_headings(content))
+
+        for index, content in enumerate(rendered_modules):
+            if index:
+                lines.extend(["", "---", ""])
+            lines.append(content)
+
+        lines.extend(["", README_END_MARKER])
+        return "\n".join(lines)
+
     def update_readme(
         self,
         modules: list[ModuleDoc],
         readme_path: Path,
     ) -> Path:
         """Create or update the generated API section in a README file."""
-        generated = self._generate_api_summary(modules)
+        if self._readme_mode == "detailed":
+            generated = self._generate_detailed_readme(modules)
+        else:
+            generated = self._generate_api_summary(modules)
         section = f"## API Reference\n\n{generated}\n"
 
         if not readme_path.exists():
@@ -458,8 +551,6 @@ class MarkdownGenerator:
 
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
-        template_name = self._resolve_template_name()
-        template = self._env.get_template(template_name)
         type_index = TypeIndex.from_modules(modules)
 
         lines: list[str] = ["# Documentation", ""]
@@ -473,7 +564,7 @@ class MarkdownGenerator:
 
         # Render each module and concatenate
         for module in sorted(modules, key=lambda m: (m.package, m.name)):
-            content = _normalize_markdown(template.render(module=module, type_index=type_index))
+            content = self._render_module_content(module, type_index=type_index)
             lines.append(content)
             lines.append("---")
             lines.append("")
@@ -486,7 +577,5 @@ class MarkdownGenerator:
         """Generate Markdown content as a string for a single module."""
         from pydoc2markdown.core.crossref import TypeIndex
 
-        template_name = self._resolve_template_name()
-        template = self._env.get_template(template_name)
         type_index = TypeIndex.from_modules([module])
-        return _normalize_markdown(template.render(module=module, type_index=type_index))
+        return self._render_module_content(module, type_index=type_index)

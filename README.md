@@ -22,7 +22,7 @@ GitHub, GitLab, MkDocs, and any other Markdown renderer.
 - Plain `.md` files instead of a custom docs runtime
 - Useful output with almost no setup
 - A CLI for day-to-day use and a small library API for automation
-- Features that help docs stay current: `--check`, `--prune`, README sync, and navigation pages
+- Features that help docs stay current: `--check`, `--prune`, README sync, navigation pages, and `--report`
 
 **A good fit for:**
 
@@ -79,10 +79,12 @@ that work anywhere: GitHub, GitLab, MkDocs, or any Markdown renderer.
 
 - **Docstring parsing** - Extract Google and NumPy style docstrings, with basic reStructuredText field support via `docstring-parser`.
 - **Markdown generation** - Produce clean Markdown files with customizable Jinja2 templates.
-- **README API sections** - Create or update a generated API reference block in README files.
+- **README API sections** - Create or update a generated API reference block in README files, in `summary` or `detailed` mode.
 - **Auto-generated index & TOC** - Each module gets a Table of Contents; an `index.md` with package grouping is created automatically.
 - **Navigation layout** - Generate a docs entrypoint with package pages and API files under `api/`.
+- **Output toggles** - Control built-in TOC, source links, compact sections, and class metadata from CLI or `pyproject.toml`.
 - **CI-friendly checks** - Verify generated docs are up to date with `--check`.
+- **Coverage report mode** - Inspect undocumented modules, classes, functions, exports, and parameter docs with `--report`.
 - **Managed cleanup** - Preview or remove stale generated Markdown with `--prune` and `--dry-run`.
 - **Module filtering** - Include or exclude source files with glob patterns.
 - **Parameter defaults** - Show which function arguments are required or optional.
@@ -221,7 +223,9 @@ Start with the command that matches how you want to publish docs:
 | Update the API section in README.md | `pydoc2markdown src/my_package --recursive --readme` |
 | Skip private/internal modules | `pydoc2markdown src/my_package --recursive --exclude "tests/*,*/internal/*,*_private.py"` |
 | Add GitHub source links | `pydoc2markdown src/my_package --recursive --source-repo user/repo -o docs` |
+| Generate a compact docs layout | `pydoc2markdown src/my_package --recursive --compact-sections -o docs` |
 | Check generated docs in CI | `pydoc2markdown src/my_package --recursive --nav --readme --check -o docs` |
+| Print a documentation coverage report | `pydoc2markdown src/my_package --recursive --report` |
 | Preview stale generated docs cleanup | `pydoc2markdown src/my_package --recursive --prune --dry-run -o docs` |
 | Remove stale generated docs | `pydoc2markdown src/my_package --recursive --prune -o docs` |
 | Generate one combined Markdown file | `pydoc2markdown src/my_package --recursive --single-file -o docs/api.md` |
@@ -257,6 +261,12 @@ pydoc2markdown src/my_package --recursive --readme --readme-path README.md
 
 This is a good fit for small libraries that want usage notes and API reference
 in one file.
+
+Use `--readme-mode detailed` when you want a richer embedded API section:
+
+```bash
+pydoc2markdown src/my_package --recursive --readme --readme-mode detailed
+```
 
 ### Gate docs in CI
 
@@ -304,8 +314,14 @@ pydoc2markdown src/my_package --recursive --nav -o docs
 # Add GitHub source links next to documented objects
 pydoc2markdown src/my_package --recursive --source-repo user/repo -o docs
 
+# Hide the module TOC and use a tighter built-in layout
+pydoc2markdown src/my_package --recursive --no-show-toc --compact-sections -o docs
+
 # Check whether generated docs are current without writing files
 pydoc2markdown src/my_package --recursive --nav --check -o docs
+
+# Print a documentation coverage report
+pydoc2markdown src/my_package --recursive --report
 
 # Preview stale generated Markdown files before removing them
 pydoc2markdown src/my_package --recursive --prune --dry-run -o docs
@@ -321,12 +337,15 @@ pydoc2markdown --init
 
 ```python
 from pathlib import Path
-from pydoc2markdown import DocstringParser, MarkdownGenerator
+from pydoc2markdown import DocstringParser, MarkdownGenerator, OutputOptions
 
 parser = DocstringParser()
 modules = parser.parse(Path("src/my_package"), recursive=True)
 
-generator = MarkdownGenerator(theme="default")
+generator = MarkdownGenerator(
+    theme="default",
+    output_options=OutputOptions(show_toc=False, compact_sections=True),
+)
 generator.generate(modules, output_dir=Path("docs"))
 ```
 
@@ -342,12 +361,18 @@ generator.generate(modules, output_dir=Path("docs"))
 | `--exclude` | `None` | Comma-separated glob patterns for files to exclude |
 | `--theme` | `default` / value from `pyproject.toml` | Built-in theme: `default` (detailed) or `minimal` |
 | `--template` | `None` | Path to a custom Jinja2 template for Markdown generation |
+| `--show-toc`, `--no-show-toc` | `True` / value from `pyproject.toml` | Show or hide the module table of contents in built-in output |
+| `--show-source-links`, `--no-show-source-links` | `True` / value from `pyproject.toml` | Show or hide built-in source links |
+| `--compact-sections`, `--no-compact-sections` | `False` / value from `pyproject.toml` | Use a tighter built-in Markdown layout |
+| `--show-class-metadata`, `--no-show-class-metadata` | `True` / value from `pyproject.toml` | Show or hide built-in class metadata like bases and status markers |
 | `--single-file` | `False` | Generate a single combined Markdown file; `--output` must be a `.md` or `.markdown` file path |
 | `--check` | `False` | Check whether generated docs are up to date without writing files |
 | `--prune` | `False` | Remove stale generated Markdown files tracked by PyDoc2Markdown |
 | `--dry-run` | `False` | Preview `--prune` results without deleting files |
+| `--report` | `False` | Print a documentation coverage report instead of generating Markdown files |
 | `--readme` | `False` | Create or update an API reference section in README.md |
 | `--readme-path` | `README.md` | Path to the README file updated by `--readme` |
+| `--readme-mode` | `summary` / value from `pyproject.toml` | README rendering mode: `summary` or `detailed` |
 | `--nav` | `False` | Generate a navigation-first docs layout with API pages under `api/` |
 | `--api-dir` | `api` | Directory for API pages when `--nav` is used |
 | `--source-link` | `None` | URL template for source links, using `{path}`, `{file}`, and `{line}` |
@@ -378,6 +403,11 @@ You can also set default values manually in your `pyproject.toml`:
 output = "docs"
 theme = "default"
 recursive = true
+show_toc = true
+show_source_links = true
+compact_sections = false
+show_class_metadata = true
+readme_mode = "summary"
 ```
 
 Any values set here serve as defaults and can be overridden by CLI flags.
@@ -433,7 +463,7 @@ line.
 
 ## README API Sections
 
-Use `--readme` to create or update a compact API reference in your README:
+Use `--readme` to create or update a generated API reference in your README:
 
 ```bash
 pydoc2markdown src/my_package --recursive --readme
@@ -445,6 +475,10 @@ different file:
 ```bash
 pydoc2markdown src/my_package --recursive --readme --readme-path docs/index.md
 ```
+
+`summary` is the default README mode and is optimized for a lightweight module
+overview. Use `--readme-mode detailed` for a richer embedded API section that
+reuses the built-in Markdown renderer without per-module TOCs.
 
 When the file already contains PyDoc2Markdown markers, only the generated block
 between the markers is replaced:
@@ -501,6 +535,26 @@ generated output needs to be updated. It does not write files in check mode.
 `--check` works with normal multi-file output, `--nav`, `--single-file`, and
 README API sections. It cannot be combined with `--watch`.
 
+## Documentation Coverage Report
+
+Use `--report` when you want a quick documentation audit without writing any
+Markdown files:
+
+```bash
+pydoc2markdown src/my_package --recursive --report
+```
+
+The report prints totals plus findings for:
+
+- modules without docstrings
+- classes without docstrings
+- functions without docstrings
+- undocumented `__all__` exports
+- parameters missing descriptions
+
+`--report` is analysis-only. It exits successfully when the report is produced
+and does not currently enforce thresholds or fail CI by itself.
+
 ## Prune Stale Docs
 
 Use `--prune` to remove stale generated Markdown files that were tracked by
@@ -537,7 +591,7 @@ modules = parser.parse(Path("src/my_package"), recursive=True)
 
 ```python
 from pathlib import Path
-from pydoc2markdown import DocstringParser, MarkdownGenerator
+from pydoc2markdown import DocstringParser, MarkdownGenerator, OutputOptions
 
 # Parse modules
 parser = DocstringParser()
@@ -546,6 +600,13 @@ modules = parser.parse(Path("src/my_package"), recursive=True)
 # Default theme, separate files
 gen = MarkdownGenerator(theme="default")
 gen.generate(modules, output_dir=Path("docs"))
+
+# Built-in output toggles
+gen_tuned = MarkdownGenerator(
+    theme="default",
+    output_options=OutputOptions(show_toc=False, compact_sections=True),
+)
+gen_tuned.generate(modules, output_dir=Path("docs_compact"))
 
 # Minimal theme
 gen_min = MarkdownGenerator(theme="minimal")

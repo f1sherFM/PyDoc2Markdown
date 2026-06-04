@@ -2,11 +2,13 @@
 
 import logging
 from pathlib import Path
+from typing import cast
 
 import pytest
 
 from pydoc2markdown import __version__
 from pydoc2markdown.cli import main
+from pydoc2markdown.core.generator import OutputOptions
 
 
 def test_cli_version(capsys: pytest.CaptureFixture[str]) -> None:
@@ -25,6 +27,7 @@ def test_cli_help_groups_options(capsys: pytest.CaptureFixture[str]) -> None:
     assert "Input:" in help_text
     assert "Output:" in help_text
     assert "README integration:" in help_text
+    assert "Analysis:" in help_text
     assert "Demo:" in help_text
     assert "Examples:" in help_text
     assert "--dry-run" in help_text
@@ -201,6 +204,9 @@ def test_cli_watch_passes_navigation_options(
         calls[0]["source_link_template"] == "https://github.com/acme/app/blob/main/{path}#L{line}"
     )
     assert calls[0]["readme_path"] == tmp_path / "README.md"
+    assert calls[0]["readme_mode"] == "summary"
+    output_options = cast(OutputOptions, calls[0]["output_options"])
+    assert output_options.show_toc is True
 
 
 def test_cli_single_file(sample_package: Path, tmp_path: Path) -> None:
@@ -517,6 +523,54 @@ def test_cli_readme_updates_custom_readme(sample_module: Path, tmp_path: Path) -
     assert "greet" in content
 
 
+def test_cli_readme_detailed_mode(sample_module: Path, tmp_path: Path) -> None:
+    output = tmp_path / "docs"
+    readme_path = tmp_path / "README.md"
+
+    result = main(
+        [
+            str(sample_module),
+            "-o",
+            str(output),
+            "--readme",
+            "--readme-mode",
+            "detailed",
+            "--readme-path",
+            str(readme_path),
+        ]
+    )
+
+    assert result == 0
+    content = readme_path.read_text(encoding="utf-8")
+    assert "### sample_module" in content
+    assert "##### `Calculator`" in content
+
+
+def test_cli_respects_configured_output_toggles(
+    sample_module: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    pyproject = tmp_path / "pyproject.toml"
+    pyproject.write_text(
+        "[tool.pydoc2markdown]\n"
+        "show_toc = false\n"
+        "show_source_links = false\n"
+        'readme_mode = "detailed"\n',
+        encoding="utf-8",
+    )
+    monkeypatch.chdir(tmp_path)
+    output = tmp_path / "docs"
+
+    result = main([str(sample_module), "-o", str(output), "--readme"])
+
+    assert result == 0
+    module_content = (output / "sample_module.md").read_text(encoding="utf-8")
+    assert "## Table of Contents" not in module_content
+    readme_content = (tmp_path / "README.md").read_text(encoding="utf-8")
+    assert "### sample_module" in readme_content
+
+
 def test_cli_readme_invalid_marker_block_returns_error(
     sample_module: Path,
     tmp_path: Path,
@@ -762,6 +816,75 @@ def test_cli_prune_rejects_check(sample_module: Path, tmp_path: Path) -> None:
 
 def test_cli_prune_rejects_watch(sample_module: Path, tmp_path: Path) -> None:
     result = main([str(sample_module), "-o", str(tmp_path / "docs"), "--prune", "--watch"])
+    assert result == 1
+
+
+def test_cli_report_prints_summary(
+    sample_module: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    result = main([str(sample_module), "--report"])
+
+    assert result == 0
+    output = capsys.readouterr().out
+    assert "Documentation Coverage Report" in output
+    assert "Scanned 1 module(s), 1 class(es), and 1 function(s)." in output
+    assert "Modules without docstrings: 0" in output
+
+
+def test_cli_report_finds_coverage_gaps(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    module = tmp_path / "coverage_sample.py"
+    module.write_text(
+        '''class MissingDocs:
+    def run(self, value: int) -> None:
+        """Run something."""
+
+def helper(value: int, other: int) -> None:
+    """Help with something.
+
+    Args:
+        value: First value.
+    """
+
+__all__ = ["MissingDocs", "helper", "missing_export"]
+''',
+        encoding="utf-8",
+    )
+
+    result = main([str(module), "--report"])
+
+    assert result == 0
+    output = capsys.readouterr().out
+    assert "Modules without docstrings: 1" in output
+    assert "Classes without docstrings: 1" in output
+    assert "Undocumented public API exports: 2" in output
+    assert "Parameters missing descriptions: 2" in output
+    assert "- coverage_sample.MissingDocs" in output
+    assert "- coverage_sample.missing_export" in output
+
+
+@pytest.mark.parametrize(
+    "flag",
+    ["--watch", "--readme", "--nav", "--single-file", "--check", "--prune"],
+)
+def test_cli_report_rejects_incompatible_flags(
+    sample_module: Path,
+    tmp_path: Path,
+    flag: str,
+) -> None:
+    args = [str(sample_module), "--report", flag]
+    if flag == "--readme":
+        args.extend(["--readme-path", str(tmp_path / "README.md")])
+    if flag == "--single-file":
+        args.extend(["-o", str(tmp_path / "combined.md")])
+    elif flag in {"--nav", "--prune"}:
+        args.extend(["-o", str(tmp_path / "docs")])
+
+    result = main(args)
+
     assert result == 1
 
 

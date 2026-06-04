@@ -4,7 +4,12 @@ from pathlib import Path
 
 import pytest
 
-from pydoc2markdown.core.generator import README_END_MARKER, README_START_MARKER, MarkdownGenerator
+from pydoc2markdown.core.generator import (
+    README_END_MARKER,
+    README_START_MARKER,
+    MarkdownGenerator,
+    OutputOptions,
+)
 from pydoc2markdown.core.parser import DocstringParser
 
 
@@ -294,6 +299,45 @@ def test_generate_source_links(sample_module: Path, tmp_path: Path) -> None:
     assert "[source](https://github.com/acme/app/blob/main/sample_module.py#L" in content
 
 
+def test_generate_respects_output_toggles(sample_module: Path, tmp_path: Path) -> None:
+    modules = DocstringParser().parse(sample_module)
+    output_dir = tmp_path / "docs"
+    generator = MarkdownGenerator(
+        source_link_template="https://github.com/acme/app/blob/main/{path}#L{line}",
+        output_options=OutputOptions(
+            show_toc=False,
+            show_source_links=False,
+            compact_sections=True,
+            show_class_metadata=False,
+        ),
+    )
+
+    generator.generate(modules, output_dir)
+
+    content = (output_dir / "sample_module.md").read_text(encoding="utf-8")
+    assert "## Table of Contents" not in content
+    assert "[source](" not in content
+    assert "**Bases:**" not in content
+    assert "#### Methods" not in content
+    assert "**Methods:**" in content
+
+
+def test_generate_hides_class_metadata(
+    protocol_abc_module: Path,
+    tmp_path: Path,
+) -> None:
+    modules = DocstringParser().parse(protocol_abc_module)
+    output_dir = tmp_path / "docs"
+
+    MarkdownGenerator(
+        output_options=OutputOptions(show_class_metadata=False),
+    ).generate(modules, output_dir)
+
+    content = (output_dir / "protocol_abc_module.md").read_text(encoding="utf-8")
+    assert "*(Protocol)*" not in content
+    assert "*(Abstract)*" not in content
+
+
 def test_generate_skips_empty_returns_block(tmp_path: Path) -> None:
     module = tmp_path / "no_returns.py"
     module.write_text(
@@ -444,6 +488,22 @@ def test_update_readme_replaces_marked_section(sample_module: Path, tmp_path: Pa
     assert "After" in content
     assert "old content" not in content
     assert "Calculator" in content
+
+
+def test_update_readme_detailed_mode_uses_rendered_module_content(
+    sample_module: Path,
+    tmp_path: Path,
+) -> None:
+    modules = DocstringParser().parse(sample_module)
+    readme_path = tmp_path / "README.md"
+
+    MarkdownGenerator(readme_mode="detailed").update_readme(modules, readme_path)
+
+    content = readme_path.read_text(encoding="utf-8")
+    assert "### sample_module" in content
+    assert "#### Classes" in content
+    assert "##### `Calculator`" in content
+    assert "## Table of Contents" not in content
 
 
 def test_update_readme_appends_section_when_markers_missing(
