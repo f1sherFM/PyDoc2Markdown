@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.7.2](https://github.com/f1sherFM/PyDoc2Markdown/compare/v0.7.1...v0.7.2) (2026-06-04)
+
+
+### Bug Fixes
+
+0.7.2 expands the built-in output controls and makes the documentation
+coverage report much more useful in real CI workflows.
+
+* add toggles for `Public API`, attribute tables, `Returns`, and `Raises`, so built-in output can be trimmed without switching to a custom template
+* extend `--report` with `--report-format json` for machine-readable output and `--fail-on` for selective CI failures across undocumented modules, classes, functions, exports, and parameter docs
+* document the new toggle and report workflows in the README so the new behavior is easy to discover from the CLI and config examples
+
 ## [0.7.1](https://github.com/f1sherFM/PyDoc2Markdown/compare/v0.7.0...v0.7.1) (2026-06-04)
 
 
