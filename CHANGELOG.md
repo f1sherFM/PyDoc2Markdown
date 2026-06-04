@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.1](https://github.com/f1sherFM/PyDoc2Markdown/compare/v0.7.0...v0.7.1) (2026-06-04)
+
+
+### Bug Fixes
+
+* tolerate existing PyPI artifacts on publish ([007265d](https://github.com/f1sherFM/PyDoc2Markdown/commit/007265d7b042bd33d0d0b303bbc85b6c1f65b317))
+
 ## [0.7.0](https://github.com/f1sherFM/PyDoc2Markdown/compare/v0.6.3...v0.7.0) (2026-06-04)
 
 
