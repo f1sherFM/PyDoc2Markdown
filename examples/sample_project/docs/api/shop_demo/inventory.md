@@ -23,7 +23,6 @@ Args:
     stock: Number of available units.
 
 #### Methods
-
 <a id="product-available"></a>
 
 ##### @property `available`
@@ -31,7 +30,6 @@ Whether the product can be purchased.
 
 **Returns:** `bool`
 ---
-
 ### `Inventory`
 In-memory product inventory.
 
@@ -39,7 +37,6 @@ Args:
     products: Initial products keyed by SKU.
 
 #### Methods
-
 <a id="inventory-add"></a>
 
 ##### `add`

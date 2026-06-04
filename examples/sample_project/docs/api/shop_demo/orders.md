@@ -19,7 +19,6 @@ Order models and pricing helpers.
 Lifecycle status for an order.
 
 ---
-
 ### `Order` (dataclass)
 A customer order.
 
@@ -29,14 +28,12 @@ Args:
     status: Current order status.
 
 #### Methods
-
 <a id="order-mark_paid"></a>
 
 ##### `mark_paid`
 Mark the order as paid.
 
 ---
-
 ## Functions
 
 ### `calculate_total`
