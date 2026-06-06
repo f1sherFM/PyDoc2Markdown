@@ -3,6 +3,7 @@
 import argparse
 import json
 import logging
+import os
 import sys
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -570,6 +571,37 @@ def _write_report_output(output_path: Path | None, content: str) -> None:
     output_path.write_text(content, encoding="utf-8")
 
 
+def _readme_module_links(
+    modules: list[ModuleDoc],
+    *,
+    output: Path,
+    readme_path: Path,
+    single_file: bool,
+    navigation: bool,
+    api_dir: Path,
+) -> dict[str, str]:
+    """Build README links to generated module docs for the current run."""
+    if single_file:
+        return {}
+
+    links: dict[str, str] = {}
+    readme_dir = readme_path.resolve().parent
+    docs_root = output / api_dir if navigation else output
+    for module in modules:
+        if module.name == "__init__":
+            continue
+        module_name = f"{module.package}.{module.name}" if module.package else module.name
+        module_path = (
+            docs_root / module.package.replace(".", "/") / f"{module.name}.md"
+            if module.package
+            else docs_root / f"{module.name}.md"
+        )
+        links[module_name] = Path(
+            os.path.relpath(module_path.resolve(), start=readme_dir)
+        ).as_posix()
+    return links
+
+
 def init_config() -> int:
     """Create or update [tool.pydoc2markdown] in pyproject.toml.
 
@@ -1077,14 +1109,6 @@ def main(args: list[str] | None = None) -> int:
 
     logger.info("Parsing source: %s (recursive=%s)", parsed_args.source, parsed_args.recursive)
     doc_parser = DocstringParser()
-    md_generator = MarkdownGenerator(
-        template_path=parsed_args.template,
-        theme=parsed_args.theme,
-        source_link_template=source_link_template,
-        output_options=_output_options_from_args(parsed_args),
-        readme_mode=parsed_args.readme_mode,
-        readme_title=parsed_args.readme_title,
-    )
 
     try:
         modules = doc_parser.parse(
@@ -1094,6 +1118,26 @@ def main(args: list[str] | None = None) -> int:
             exclude=_split_patterns(parsed_args.exclude),
         )
         logger.info("Parsed %d module(s)", len(modules))
+        md_generator = MarkdownGenerator(
+            template_path=parsed_args.template,
+            theme=parsed_args.theme,
+            source_link_template=source_link_template,
+            output_options=_output_options_from_args(parsed_args),
+            readme_mode=parsed_args.readme_mode,
+            readme_title=parsed_args.readme_title,
+            readme_module_links=(
+                _readme_module_links(
+                    modules,
+                    output=parsed_args.output,
+                    readme_path=parsed_args.readme_path,
+                    single_file=parsed_args.single_file,
+                    navigation=parsed_args.nav,
+                    api_dir=parsed_args.api_dir,
+                )
+                if parsed_args.readme
+                else None
+            ),
+        )
         if parsed_args.report:
             report = analyze_modules(modules)
             content = (

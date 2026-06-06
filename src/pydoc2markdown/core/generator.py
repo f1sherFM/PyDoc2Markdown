@@ -83,6 +83,7 @@ class MarkdownGenerator:
         output_options: OutputOptions | None = None,
         readme_mode: str = "summary",
         readme_title: str = DEFAULT_README_TITLE,
+        readme_module_links: dict[str, str] | None = None,
     ) -> None:
         """Initialize the generator with an optional custom template or theme."""
         if readme_mode not in README_RENDER_MODES:
@@ -95,6 +96,7 @@ class MarkdownGenerator:
         self._active_output_options = self._output_options
         self._readme_mode = readme_mode
         self._readme_title = readme_title.strip() or DEFAULT_README_TITLE
+        self._readme_module_links = readme_module_links or {}
         self._env = self._create_environment()
 
     def _create_environment(self) -> Environment:
@@ -456,7 +458,7 @@ class MarkdownGenerator:
                 continue
 
             module_name = f"{module.package}.{module.name}" if module.package else module.name
-            lines.append(f"### `{module_name}`")
+            lines.append(self._readme_module_heading(module_name))
             lines.append("")
 
             if module.docstring:
@@ -573,6 +575,13 @@ class MarkdownGenerator:
         if not docstring:
             return ""
         return docstring.strip().split("\n")[0]
+
+    def _readme_module_heading(self, module_name: str) -> str:
+        """Return a README heading for one module, with a link when available."""
+        target = self._readme_module_links.get(module_name)
+        if target:
+            return f"### [`{module_name}`]({target})"
+        return f"### `{module_name}`"
 
     def _readme_object_line(self, name: str, docstring: str | None) -> str:
         """Return one compact README bullet for a documented object."""

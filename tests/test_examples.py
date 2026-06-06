@@ -45,5 +45,5 @@ def test_sample_project_command_generates_expected_docs(tmp_path: Path) -> None:
     assert "[`shop_demo.orders`](api/shop_demo/orders.md)" in index_content
 
     readme_content = readme.read_text(encoding="utf-8")
-    assert "### `shop_demo.inventory`" in readme_content
-    assert "### `shop_demo.orders`" in readme_content
+    assert "### [`shop_demo.inventory`](docs/api/shop_demo/inventory.md)" in readme_content
+    assert "### [`shop_demo.orders`](docs/api/shop_demo/orders.md)" in readme_content

@@ -521,6 +521,7 @@ def test_cli_readme_updates_custom_readme(sample_module: Path, tmp_path: Path) -
     assert (output / "sample_module.md").exists()
     content = readme_path.read_text(encoding="utf-8")
     assert "# API Reference" in content
+    assert "### [`sample_module`](docs/sample_module.md)" in content
     assert "_Includes: 1 class(es), 1 function(s)._" in content
     assert "- `Calculator`: A simple calculator class." in content
     assert "- `greet`: Greet a person." in content
@@ -572,6 +573,28 @@ def test_cli_readme_uses_custom_title(sample_module: Path, tmp_path: Path) -> No
     content = readme_path.read_text(encoding="utf-8")
     assert "# Developer API" in content
     assert "# API Reference" not in content
+
+
+def test_cli_readme_links_to_navigation_docs(sample_package: Path, tmp_path: Path) -> None:
+    output = tmp_path / "docs"
+    readme_path = tmp_path / "README.md"
+
+    result = main(
+        [
+            str(sample_package),
+            "--recursive",
+            "--nav",
+            "--readme",
+            "--readme-path",
+            str(readme_path),
+            "-o",
+            str(output),
+        ]
+    )
+
+    assert result == 0
+    content = readme_path.read_text(encoding="utf-8")
+    assert "### [`math_utils`](docs/api/math_utils.md)" in content
 
 
 def test_cli_respects_configured_output_toggles(
