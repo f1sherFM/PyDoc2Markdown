@@ -5,6 +5,22 @@ from dataclasses import dataclass, field
 
 from pydoc2markdown.core.parser import FunctionDoc, ModuleDoc
 
+REPORT_CATEGORY_TITLES = {
+    "modules": "Modules without docstrings",
+    "classes": "Classes without docstrings",
+    "functions": "Functions without docstrings",
+    "public_api": "Undocumented public API exports",
+    "params": "Parameters missing descriptions",
+}
+REPORT_COVERAGE_LABELS = {
+    "modules": "Modules",
+    "classes": "Classes",
+    "functions": "Functions",
+    "public_api": "Public API exports",
+    "params": "Parameter descriptions",
+}
+REPORT_CATEGORY_ORDER = ("modules", "classes", "functions", "public_api", "params")
+
 
 @dataclass
 class CoverageReport:
@@ -81,8 +97,24 @@ class CoverageReport:
         keys = categories or set(counts)
         return any(counts.get(key, 0) > 0 for key in keys)
 
-    def to_dict(self) -> dict[str, object]:
+    def findings_by_category(self) -> dict[str, list[str]]:
+        """Return findings keyed by report category."""
+        return {
+            "modules": self.undocumented_modules,
+            "classes": self.undocumented_classes,
+            "functions": self.undocumented_functions,
+            "public_api": self.undocumented_public_api,
+            "params": self.params_missing_descriptions,
+        }
+
+    def to_dict(self, categories: tuple[str, ...] | None = None) -> dict[str, object]:
         """Return a machine-readable representation of the report."""
+        selected_categories = categories or REPORT_CATEGORY_ORDER
+        all_counts = self.category_counts()
+        all_totals = self.category_totals()
+        all_documented = self.category_documented()
+        all_percentages = self.category_percentages()
+        all_findings = self.findings_by_category()
         return {
             "summary": {
                 "module_count": self.module_count,
@@ -93,18 +125,13 @@ class CoverageReport:
                 "total_checks": self.total_checks(),
                 "total_findings": self.total_findings(),
                 "overall_percentage": self.overall_percentage(),
+                "selected_categories": list(selected_categories),
             },
-            "counts": self.category_counts(),
-            "totals": self.category_totals(),
-            "documented": self.category_documented(),
-            "percentages": self.category_percentages(),
-            "findings": {
-                "modules": self.undocumented_modules,
-                "classes": self.undocumented_classes,
-                "functions": self.undocumented_functions,
-                "public_api": self.undocumented_public_api,
-                "params": self.params_missing_descriptions,
-            },
+            "counts": {key: all_counts[key] for key in selected_categories},
+            "totals": {key: all_totals[key] for key in selected_categories},
+            "documented": {key: all_documented[key] for key in selected_categories},
+            "percentages": {key: all_percentages[key] for key in selected_categories},
+            "findings": {key: all_findings[key] for key in selected_categories},
         }
 
 
@@ -174,8 +201,14 @@ def _collect_missing_param_descriptions(
             report.params_missing_descriptions.append(f"{qualified_name}({param.name})")
 
 
-def format_report(report: CoverageReport) -> str:
+def format_report(
+    report: CoverageReport,
+    *,
+    categories: tuple[str, ...] | None = None,
+    summary_only: bool = False,
+) -> str:
     """Format a human-readable terminal report."""
+    selected_categories = categories or REPORT_CATEGORY_ORDER
     passed_checks = report.total_checks() - report.total_findings()
     lines = [
         "Documentation Coverage Report",
@@ -192,31 +225,35 @@ def format_report(report: CoverageReport) -> str:
         "",
         "Coverage by category:",
     ]
-    _append_coverage_line(lines, "Modules", report, "modules")
-    _append_coverage_line(lines, "Classes", report, "classes")
-    _append_coverage_line(lines, "Functions", report, "functions")
-    _append_coverage_line(lines, "Public API exports", report, "public_api")
-    _append_coverage_line(lines, "Parameter descriptions", report, "params")
-    _append_section(lines, "Modules without docstrings", report.undocumented_modules)
-    _append_section(lines, "Classes without docstrings", report.undocumented_classes)
-    _append_section(lines, "Functions without docstrings", report.undocumented_functions)
-    _append_section(lines, "Undocumented public API exports", report.undocumented_public_api)
-    _append_section(
-        lines,
-        "Parameters missing descriptions",
-        report.params_missing_descriptions,
-    )
+    findings = report.findings_by_category()
+    for key in selected_categories:
+        _append_coverage_line(lines, REPORT_COVERAGE_LABELS[key], report, key)
+    for key in selected_categories:
+        _append_section(
+            lines,
+            REPORT_CATEGORY_TITLES[key],
+            findings[key],
+            summary_only=summary_only,
+        )
     return "\n".join(lines) + "\n"
 
 
-def format_report_json(report: CoverageReport) -> str:
+def format_report_json(report: CoverageReport, *, categories: tuple[str, ...] | None = None) -> str:
     """Format a machine-readable JSON coverage report."""
-    return json.dumps(report.to_dict(), indent=2) + "\n"
+    return json.dumps(report.to_dict(categories=categories), indent=2) + "\n"
 
 
-def _append_section(lines: list[str], title: str, values: list[str]) -> None:
+def _append_section(
+    lines: list[str],
+    title: str,
+    values: list[str],
+    *,
+    summary_only: bool,
+) -> None:
     """Append a findings section to the terminal report."""
     lines.extend(["", f"{title}: {len(values)}"])
+    if summary_only:
+        return
     for value in values:
         lines.append(f"- {value}")
 

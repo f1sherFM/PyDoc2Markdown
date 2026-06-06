@@ -938,6 +938,67 @@ __all__ = ["MissingDocs", "helper", "missing_export"]
     assert "- coverage_sample.missing_export" in output
 
 
+def test_cli_report_summary_only_hides_individual_findings(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    module = tmp_path / "coverage_summary.py"
+    module.write_text(
+        '''class MissingDocs:
+    def run(self, value: int) -> None:
+        """Run something."""
+
+def helper(value: int, other: int) -> None:
+    """Help with something.
+
+    Args:
+        value: First value.
+    """
+''',
+        encoding="utf-8",
+    )
+
+    result = main([str(module), "--report", "--report-summary-only"])
+
+    assert result == 0
+    output = capsys.readouterr().out
+    assert "Parameters missing descriptions: 2" in output
+    assert "- coverage_summary.MissingDocs" not in output
+    assert "- coverage_summary.helper(other)" not in output
+
+
+def test_cli_report_categories_filters_text_output(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    module = tmp_path / "coverage_categories.py"
+    module.write_text(
+        '''class MissingDocs:
+    def run(self, value: int) -> None:
+        """Run something."""
+
+def helper(value: int, other: int) -> None:
+    """Help with something.
+
+    Args:
+        value: First value.
+    """
+
+__all__ = ["MissingDocs", "helper", "missing_export"]
+''',
+        encoding="utf-8",
+    )
+
+    result = main([str(module), "--report", "--report-categories", "modules,params"])
+
+    assert result == 0
+    output = capsys.readouterr().out
+    assert "Modules without docstrings:" in output
+    assert "Parameters missing descriptions:" in output
+    assert "Classes without docstrings:" not in output
+    assert "Undocumented public API exports:" not in output
+
+
 def test_cli_report_json_output(
     sample_module: Path,
     capsys: pytest.CaptureFixture[str],
@@ -952,6 +1013,28 @@ def test_cli_report_json_output(
     assert payload["counts"]["modules"] == 0
     assert payload["counts"]["functions"] == 0
     assert payload["percentages"]["params"] == 60.0
+
+
+def test_cli_report_json_output_respects_selected_categories(
+    sample_module: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    result = main(
+        [
+            str(sample_module),
+            "--report",
+            "--report-format",
+            "json",
+            "--report-categories",
+            "modules,params",
+        ]
+    )
+
+    assert result == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["summary"]["selected_categories"] == ["modules", "params"]
+    assert sorted(payload["counts"]) == ["modules", "params"]
+    assert sorted(payload["findings"]) == ["modules", "params"]
 
 
 def test_cli_report_fail_on_selected_categories(
@@ -1057,6 +1140,17 @@ def test_cli_report_rejects_invalid_fail_on(
     assert "Unsupported --fail-on categories" in caplog.text
 
 
+def test_cli_report_rejects_invalid_report_categories(
+    sample_module: Path,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    with caplog.at_level(logging.ERROR):
+        result = main([str(sample_module), "--report", "--report-categories", "widgets"])
+
+    assert result == 1
+    assert "Unsupported --report-categories values" in caplog.text
+
+
 def test_cli_fail_on_requires_report(
     sample_module: Path,
     caplog: pytest.LogCaptureFixture,
@@ -1100,6 +1194,28 @@ def test_cli_fail_under_requires_report(
 
     assert result == 1
     assert "--fail-under can be used only with --report." in caplog.text
+
+
+def test_cli_report_categories_requires_report(
+    sample_module: Path,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    with caplog.at_level(logging.ERROR):
+        result = main([str(sample_module), "--report-categories", "modules,params"])
+
+    assert result == 1
+    assert "--report-categories can be used only with --report." in caplog.text
+
+
+def test_cli_report_summary_only_requires_report(
+    sample_module: Path,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    with caplog.at_level(logging.ERROR):
+        result = main([str(sample_module), "--report-summary-only"])
+
+    assert result == 1
+    assert "--report-summary-only can be used only with --report." in caplog.text
 
 
 def test_cli_report_rejects_invalid_fail_under(

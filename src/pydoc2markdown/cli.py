@@ -16,12 +16,17 @@ from pydoc2markdown.core.generator import (
     OutputOptions,
 )
 from pydoc2markdown.core.parser import DocstringParser, ModuleDoc
-from pydoc2markdown.core.report import analyze_modules, format_report, format_report_json
+from pydoc2markdown.core.report import (
+    REPORT_CATEGORY_ORDER,
+    analyze_modules,
+    format_report,
+    format_report_json,
+)
 from pydoc2markdown.core.watcher import watch_and_generate
 
 logger = logging.getLogger(__name__)
 _MANIFEST_VERSION = 1
-_REPORT_CATEGORIES = ("modules", "classes", "functions", "public_api", "params")
+_REPORT_CATEGORIES = REPORT_CATEGORY_ORDER
 
 _DEFAULT_CONFIG = """[tool.pydoc2markdown]
 output = "docs"
@@ -372,6 +377,14 @@ def create_parser() -> argparse.ArgumentParser:
         help="Print a documentation coverage report instead of generating Markdown files.",
     )
     analysis_group.add_argument(
+        "--report-categories",
+        default=None,
+        help=(
+            "Comma-separated report categories to include in output: "
+            "modules, classes, functions, public_api, params."
+        ),
+    )
+    analysis_group.add_argument(
         "--report-format",
         choices=["text", "json"],
         default="text",
@@ -396,6 +409,12 @@ def create_parser() -> argparse.ArgumentParser:
         type=float,
         default=None,
         help="Return exit code 1 when overall report coverage falls below this percentage.",
+    )
+    analysis_group.add_argument(
+        "--report-summary-only",
+        action="store_true",
+        default=False,
+        help="Print report totals and counts without listing every finding.",
     )
     watch_group.add_argument(
         "--watch",
@@ -505,6 +524,26 @@ def _validate_fail_under(value: float | None) -> float | None:
     if 0 <= value <= 100:
         return value
     raise ValueError("--fail-under must be between 0 and 100.")
+
+
+def _parse_report_categories(raw: str | None) -> tuple[str, ...] | None:
+    """Parse --report-categories into a validated ordered category tuple."""
+    if raw is None:
+        return None
+
+    selected = {value.strip().lower() for value in raw.split(",") if value.strip()}
+    if not selected:
+        return None
+
+    invalid = selected - set(_REPORT_CATEGORIES)
+    if invalid:
+        invalid_text = ", ".join(sorted(invalid))
+        valid_text = ", ".join(_REPORT_CATEGORIES)
+        raise ValueError(
+            "Unsupported --report-categories values: "
+            f"{invalid_text}. Supported values: {valid_text}."
+        )
+    return tuple(category for category in _REPORT_CATEGORIES if category in selected)
 
 
 def _write_report_output(output_path: Path | None, content: str) -> None:
@@ -969,9 +1008,22 @@ def main(args: list[str] | None = None) -> int:
             hint="Add --report to enforce a minimum documentation coverage percentage.",
         )
 
+    if parsed_args.report_categories and not parsed_args.report:
+        return _log_cli_error(
+            "--report-categories can be used only with --report.",
+            hint="Add --report to filter coverage output categories.",
+        )
+
+    if parsed_args.report_summary_only and not parsed_args.report:
+        return _log_cli_error(
+            "--report-summary-only can be used only with --report.",
+            hint="Add --report to print a summary-only coverage report.",
+        )
+
     try:
         fail_on_categories = _parse_fail_on(parsed_args.fail_on)
         fail_under = _validate_fail_under(parsed_args.fail_under)
+        report_categories = _parse_report_categories(parsed_args.report_categories)
     except ValueError as exc:
         return _log_cli_error(str(exc))
 
@@ -1027,9 +1079,13 @@ def main(args: list[str] | None = None) -> int:
         if parsed_args.report:
             report = analyze_modules(modules)
             content = (
-                format_report_json(report)
+                format_report_json(report, categories=report_categories)
                 if parsed_args.report_format == "json"
-                else format_report(report)
+                else format_report(
+                    report,
+                    categories=report_categories,
+                    summary_only=parsed_args.report_summary_only,
+                )
             )
             sys.stdout.write(content)
             _write_report_output(parsed_args.report_output, content)

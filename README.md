@@ -231,6 +231,8 @@ Start with the command that matches how you want to publish docs:
 | Fail CI when overall report coverage drops below a target | `pydoc2markdown src/my_package --recursive --report --fail-under 95` |
 | Export the report as JSON | `pydoc2markdown src/my_package --recursive --report --report-format json` |
 | Save the report as a CI artifact | `pydoc2markdown src/my_package --recursive --report --report-format json --report-output reports/doc-coverage.json` |
+| Print only the report summary in CI logs | `pydoc2markdown src/my_package --recursive --report --report-summary-only` |
+| Focus the report on selected categories | `pydoc2markdown src/my_package --recursive --report --report-categories modules,params` |
 | Preview stale generated docs cleanup | `pydoc2markdown src/my_package --recursive --prune --dry-run -o docs` |
 | Remove stale generated docs | `pydoc2markdown src/my_package --recursive --prune -o docs` |
 | Generate one combined Markdown file | `pydoc2markdown src/my_package --recursive --single-file -o docs/api.md` |
@@ -342,6 +344,12 @@ pydoc2markdown src/my_package --recursive --report --fail-on modules,params
 # Fail when overall coverage falls below a target percentage
 pydoc2markdown src/my_package --recursive --report --fail-under 95
 
+# Keep CI logs compact while still showing totals and counts
+pydoc2markdown src/my_package --recursive --report --report-summary-only
+
+# Focus the report on the categories you care about
+pydoc2markdown src/my_package --recursive --report --report-categories modules,params
+
 # Emit machine-readable JSON
 pydoc2markdown src/my_package --recursive --report --report-format json
 
@@ -401,10 +409,12 @@ generator.generate(modules, output_dir=Path("docs"))
 | `--prune` | `False` | Remove stale generated Markdown files tracked by PyDoc2Markdown |
 | `--dry-run` | `False` | Preview `--prune` results without deleting files |
 | `--report` | `False` | Print a documentation coverage report instead of generating Markdown files |
+| `--report-categories` | `None` | Comma-separated report categories to include in output: `modules`, `classes`, `functions`, `public_api`, `params` |
 | `--report-format` | `text` | Output format for `--report`: `text` or `json` |
 | `--fail-on` | `None` | Comma-separated report categories that should return exit code `1`: `modules`, `classes`, `functions`, `public_api`, `params`, or `any` |
 | `--fail-under` | `None` | Return exit code `1` when overall report coverage falls below this percentage |
 | `--report-output` | `None` | Also write the report output to a file |
+| `--report-summary-only` | `False` | Print report totals and counts without listing every finding |
 | `--readme` | `False` | Create or update an API reference section in README.md |
 | `--readme-path` | `README.md` | Path to the README file updated by `--readme` |
 | `--readme-mode` | `summary` / value from `pyproject.toml` | README rendering mode: `summary` or `detailed` |
@@ -633,6 +643,20 @@ Use `--fail-under` when you want to enforce a minimum overall coverage target:
 
 ```bash
 pydoc2markdown src/my_package --recursive --report --fail-under 95
+```
+
+Use `--report-summary-only` when you want compact CI logs that still show
+coverage totals and category counts:
+
+```bash
+pydoc2markdown src/my_package --recursive --report --report-summary-only
+```
+
+Use `--report-categories` when you want to focus the report on a smaller slice
+of documentation debt:
+
+```bash
+pydoc2markdown src/my_package --recursive --report --report-categories modules,params
 ```
 
 For automation, JSON output is also available:
