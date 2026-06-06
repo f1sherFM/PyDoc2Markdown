@@ -899,6 +899,8 @@ def test_cli_report_prints_summary(
     output = capsys.readouterr().out
     assert "Documentation Coverage Report" in output
     assert "Scanned 1 module(s), 1 class(es), and 1 function(s)." in output
+    assert "Overall coverage:" in output
+    assert "Coverage by category:" in output
     assert "Modules without docstrings: 0" in output
 
 
@@ -946,8 +948,10 @@ def test_cli_report_json_output(
     payload = json.loads(capsys.readouterr().out)
     assert payload["summary"]["module_count"] == 1
     assert payload["summary"]["class_count"] == 1
+    assert payload["summary"]["overall_percentage"] == 75.0
     assert payload["counts"]["modules"] == 0
     assert payload["counts"]["functions"] == 0
+    assert payload["percentages"]["params"] == 60.0
 
 
 def test_cli_report_fail_on_selected_categories(
@@ -990,6 +994,58 @@ def test_cli_report_fail_on_any(
     assert "Modules without docstrings: 1" in capsys.readouterr().out
 
 
+def test_cli_report_fail_under(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    module = tmp_path / "coverage_threshold.py"
+    module.write_text(
+        '''"""Coverage threshold sample."""
+
+def helper(value: int, other: int) -> None:
+    """Help with something.
+
+    Args:
+        value: First value.
+    """
+''',
+        encoding="utf-8",
+    )
+
+    assert main([str(module), "--report", "--fail-under", "70"]) == 0
+    capsys.readouterr()
+
+    result = main([str(module), "--report", "--fail-under", "80"])
+
+    assert result == 1
+    assert "Overall coverage:" in capsys.readouterr().out
+
+
+def test_cli_report_writes_output_file(
+    sample_module: Path,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    report_path = tmp_path / "reports" / "coverage.json"
+
+    result = main(
+        [
+            str(sample_module),
+            "--report",
+            "--report-format",
+            "json",
+            "--report-output",
+            str(report_path),
+        ]
+    )
+
+    assert result == 0
+    stdout_payload = json.loads(capsys.readouterr().out)
+    file_payload = json.loads(report_path.read_text(encoding="utf-8"))
+    assert stdout_payload == file_payload
+    assert file_payload["summary"]["overall_percentage"] == 75.0
+
+
 def test_cli_report_rejects_invalid_fail_on(
     sample_module: Path,
     caplog: pytest.LogCaptureFixture,
@@ -1021,6 +1077,40 @@ def test_cli_report_format_requires_report(
 
     assert result == 1
     assert "--report-format can be used only with --report." in caplog.text
+
+
+def test_cli_report_output_requires_report(
+    sample_module: Path,
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    with caplog.at_level(logging.ERROR):
+        result = main([str(sample_module), "--report-output", str(tmp_path / "report.txt")])
+
+    assert result == 1
+    assert "--report-output can be used only with --report." in caplog.text
+
+
+def test_cli_fail_under_requires_report(
+    sample_module: Path,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    with caplog.at_level(logging.ERROR):
+        result = main([str(sample_module), "--fail-under", "90"])
+
+    assert result == 1
+    assert "--fail-under can be used only with --report." in caplog.text
+
+
+def test_cli_report_rejects_invalid_fail_under(
+    sample_module: Path,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    with caplog.at_level(logging.ERROR):
+        result = main([str(sample_module), "--report", "--fail-under", "120"])
+
+    assert result == 1
+    assert "--fail-under must be between 0 and 100." in caplog.text
 
 
 @pytest.mark.parametrize(

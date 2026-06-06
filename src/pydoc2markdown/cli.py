@@ -378,12 +378,24 @@ def create_parser() -> argparse.ArgumentParser:
         help="Output format for --report (default: text).",
     )
     analysis_group.add_argument(
+        "--report-output",
+        type=Path,
+        default=None,
+        help="Also write the report output to a file.",
+    )
+    analysis_group.add_argument(
         "--fail-on",
         default=None,
         help=(
             "Comma-separated report categories that should return exit code 1 when findings "
             "exist. Supported values: modules, classes, functions, public_api, params, any."
         ),
+    )
+    analysis_group.add_argument(
+        "--fail-under",
+        type=float,
+        default=None,
+        help="Return exit code 1 when overall report coverage falls below this percentage.",
     )
     watch_group.add_argument(
         "--watch",
@@ -484,6 +496,23 @@ def _parse_fail_on(raw: str | None) -> set[str] | None:
             f"Unsupported --fail-on categories: {invalid_text}. Supported values: {valid_text}."
         )
     return categories
+
+
+def _validate_fail_under(value: float | None) -> float | None:
+    """Validate --fail-under percentage."""
+    if value is None:
+        return None
+    if 0 <= value <= 100:
+        return value
+    raise ValueError("--fail-under must be between 0 and 100.")
+
+
+def _write_report_output(output_path: Path | None, content: str) -> None:
+    """Write report output to a file when requested."""
+    if output_path is None:
+        return
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(content, encoding="utf-8")
 
 
 def init_config() -> int:
@@ -928,8 +957,21 @@ def main(args: list[str] | None = None) -> int:
             hint="Add --report to print a coverage report in text or JSON format.",
         )
 
+    if parsed_args.report_output is not None and not parsed_args.report:
+        return _log_cli_error(
+            "--report-output can be used only with --report.",
+            hint="Add --report to write a coverage report to a file.",
+        )
+
+    if parsed_args.fail_under is not None and not parsed_args.report:
+        return _log_cli_error(
+            "--fail-under can be used only with --report.",
+            hint="Add --report to enforce a minimum documentation coverage percentage.",
+        )
+
     try:
         fail_on_categories = _parse_fail_on(parsed_args.fail_on)
+        fail_under = _validate_fail_under(parsed_args.fail_under)
     except ValueError as exc:
         return _log_cli_error(str(exc))
 
@@ -984,11 +1026,26 @@ def main(args: list[str] | None = None) -> int:
         logger.info("Parsed %d module(s)", len(modules))
         if parsed_args.report:
             report = analyze_modules(modules)
+            content = (
+                format_report_json(report)
+                if parsed_args.report_format == "json"
+                else format_report(report)
+            )
+            sys.stdout.write(content)
+            _write_report_output(parsed_args.report_output, content)
             if parsed_args.report_format == "json":
-                sys.stdout.write(format_report_json(report))
-            else:
-                sys.stdout.write(format_report(report))
+                logger.info("Generated JSON coverage report.")
+            if parsed_args.report_output is not None:
+                logger.info("Wrote coverage report to %s", parsed_args.report_output)
             if fail_on_categories and report.has_findings(fail_on_categories):
+                logger.error("Coverage report failed due to --fail-on conditions.")
+                return 1
+            if fail_under is not None and report.overall_percentage() < fail_under:
+                logger.error(
+                    "Coverage report failed: overall coverage %.1f%% is below %.1f%%.",
+                    report.overall_percentage(),
+                    fail_under,
+                )
                 return 1
             return 0
         if parsed_args.prune:

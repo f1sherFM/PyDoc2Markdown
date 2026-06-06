@@ -18,6 +18,8 @@ class CoverageReport:
     undocumented_functions: list[str] = field(default_factory=list)
     undocumented_public_api: list[str] = field(default_factory=list)
     params_missing_descriptions: list[str] = field(default_factory=list)
+    public_api_count: int = 0
+    parameter_count: int = 0
 
     def category_counts(self) -> dict[str, int]:
         """Return finding counts keyed by report category."""
@@ -29,9 +31,49 @@ class CoverageReport:
             "params": len(self.params_missing_descriptions),
         }
 
+    def category_totals(self) -> dict[str, int]:
+        """Return total documentable items keyed by report category."""
+        return {
+            "modules": self.module_count,
+            "classes": self.class_count,
+            "functions": self.function_count,
+            "public_api": self.public_api_count,
+            "params": self.parameter_count,
+        }
+
+    def category_documented(self) -> dict[str, int]:
+        """Return documented counts keyed by report category."""
+        totals = self.category_totals()
+        findings = self.category_counts()
+        return {key: max(totals.get(key, 0) - findings.get(key, 0), 0) for key in totals}
+
+    def category_percentages(self) -> dict[str, float]:
+        """Return coverage percentages keyed by report category."""
+        totals = self.category_totals()
+        documented = self.category_documented()
+        percentages: dict[str, float] = {}
+        for key, total in totals.items():
+            if total == 0:
+                percentages[key] = 100.0
+            else:
+                percentages[key] = (documented[key] / total) * 100
+        return percentages
+
     def total_findings(self) -> int:
         """Return the total number of report findings."""
         return sum(self.category_counts().values())
+
+    def total_checks(self) -> int:
+        """Return the total number of documentable checks in the report."""
+        return sum(self.category_totals().values())
+
+    def overall_percentage(self) -> float:
+        """Return overall documentation coverage as a percentage."""
+        total_checks = self.total_checks()
+        if total_checks == 0:
+            return 100.0
+        documented = total_checks - self.total_findings()
+        return (documented / total_checks) * 100
 
     def has_findings(self, categories: set[str] | None = None) -> bool:
         """Return whether any findings exist in the selected categories."""
@@ -46,9 +88,16 @@ class CoverageReport:
                 "module_count": self.module_count,
                 "class_count": self.class_count,
                 "function_count": self.function_count,
+                "public_api_count": self.public_api_count,
+                "parameter_count": self.parameter_count,
+                "total_checks": self.total_checks(),
                 "total_findings": self.total_findings(),
+                "overall_percentage": self.overall_percentage(),
             },
             "counts": self.category_counts(),
+            "totals": self.category_totals(),
+            "documented": self.category_documented(),
+            "percentages": self.category_percentages(),
             "findings": {
                 "modules": self.undocumented_modules,
                 "classes": self.undocumented_classes,
@@ -71,6 +120,7 @@ def analyze_modules(modules: list[ModuleDoc]) -> CoverageReport:
         module_name = f"{module.package}.{module.name}" if module.package else module.name
         if not module.docstring:
             report.undocumented_modules.append(module_name)
+        report.public_api_count += len(module.public_api)
 
         documented_top_level: dict[str, bool] = {}
 
@@ -115,6 +165,7 @@ def _collect_missing_param_descriptions(
         if not function_doc.docstring:
             continue
         for param in function_doc.params:
+            report.parameter_count += 1
             if param.description:
                 continue
             qualified_name = f"{module_name}.{function_doc.name}"
@@ -125,6 +176,7 @@ def _collect_missing_param_descriptions(
 
 def format_report(report: CoverageReport) -> str:
     """Format a human-readable terminal report."""
+    passed_checks = report.total_checks() - report.total_findings()
     lines = [
         "Documentation Coverage Report",
         "",
@@ -133,7 +185,18 @@ def format_report(report: CoverageReport) -> str:
             f"{report.class_count} class(es), "
             f"and {report.function_count} function(s)."
         ),
+        (
+            f"Overall coverage: {report.overall_percentage():.1f}% "
+            f"({passed_checks}/{report.total_checks()} checks passed)"
+        ),
+        "",
+        "Coverage by category:",
     ]
+    _append_coverage_line(lines, "Modules", report, "modules")
+    _append_coverage_line(lines, "Classes", report, "classes")
+    _append_coverage_line(lines, "Functions", report, "functions")
+    _append_coverage_line(lines, "Public API exports", report, "public_api")
+    _append_coverage_line(lines, "Parameter descriptions", report, "params")
     _append_section(lines, "Modules without docstrings", report.undocumented_modules)
     _append_section(lines, "Classes without docstrings", report.undocumented_classes)
     _append_section(lines, "Functions without docstrings", report.undocumented_functions)
@@ -156,3 +219,16 @@ def _append_section(lines: list[str], title: str, values: list[str]) -> None:
     lines.extend(["", f"{title}: {len(values)}"])
     for value in values:
         lines.append(f"- {value}")
+
+
+def _append_coverage_line(
+    lines: list[str],
+    title: str,
+    report: CoverageReport,
+    key: str,
+) -> None:
+    """Append one coverage summary line for a report category."""
+    totals = report.category_totals()
+    documented = report.category_documented()
+    percentages = report.category_percentages()
+    lines.append(f"- {title}: {percentages[key]:.1f}% ({documented[key]}/{totals[key]})")

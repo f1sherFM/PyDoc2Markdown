@@ -228,7 +228,9 @@ Start with the command that matches how you want to publish docs:
 | Check generated docs in CI | `pydoc2markdown src/my_package --recursive --nav --readme --check -o docs` |
 | Print a documentation coverage report | `pydoc2markdown src/my_package --recursive --report` |
 | Fail CI when selected report findings exist | `pydoc2markdown src/my_package --recursive --report --fail-on modules,params` |
+| Fail CI when overall report coverage drops below a target | `pydoc2markdown src/my_package --recursive --report --fail-under 95` |
 | Export the report as JSON | `pydoc2markdown src/my_package --recursive --report --report-format json` |
+| Save the report as a CI artifact | `pydoc2markdown src/my_package --recursive --report --report-format json --report-output reports/doc-coverage.json` |
 | Preview stale generated docs cleanup | `pydoc2markdown src/my_package --recursive --prune --dry-run -o docs` |
 | Remove stale generated docs | `pydoc2markdown src/my_package --recursive --prune -o docs` |
 | Generate one combined Markdown file | `pydoc2markdown src/my_package --recursive --single-file -o docs/api.md` |
@@ -337,8 +339,16 @@ pydoc2markdown src/my_package --recursive --report
 # Fail when undocumented modules or missing param docs are found
 pydoc2markdown src/my_package --recursive --report --fail-on modules,params
 
+# Fail when overall coverage falls below a target percentage
+pydoc2markdown src/my_package --recursive --report --fail-under 95
+
 # Emit machine-readable JSON
 pydoc2markdown src/my_package --recursive --report --report-format json
+
+# Save the report as a CI artifact while still printing it to stdout
+pydoc2markdown src/my_package --recursive --report \
+  --report-format json \
+  --report-output reports/doc-coverage.json
 
 # Preview stale generated Markdown files before removing them
 pydoc2markdown src/my_package --recursive --prune --dry-run -o docs
@@ -393,6 +403,8 @@ generator.generate(modules, output_dir=Path("docs"))
 | `--report` | `False` | Print a documentation coverage report instead of generating Markdown files |
 | `--report-format` | `text` | Output format for `--report`: `text` or `json` |
 | `--fail-on` | `None` | Comma-separated report categories that should return exit code `1`: `modules`, `classes`, `functions`, `public_api`, `params`, or `any` |
+| `--fail-under` | `None` | Return exit code `1` when overall report coverage falls below this percentage |
+| `--report-output` | `None` | Also write the report output to a file |
 | `--readme` | `False` | Create or update an API reference section in README.md |
 | `--readme-path` | `README.md` | Path to the README file updated by `--readme` |
 | `--readme-mode` | `summary` / value from `pyproject.toml` | README rendering mode: `summary` or `detailed` |
@@ -605,6 +617,9 @@ The report prints totals plus findings for:
 - undocumented `__all__` exports
 - parameters missing descriptions
 
+The text report also includes an overall coverage percentage and per-category
+coverage breakdown so you can see where gaps are concentrated.
+
 By default, `--report` is analysis-only and exits successfully when the report
 is produced. Use `--fail-on` when you want selected findings to fail CI:
 
@@ -614,10 +629,24 @@ pydoc2markdown src/my_package --recursive --report --fail-on modules,params
 
 Use `--fail-on any` to fail on any non-zero finding category.
 
+Use `--fail-under` when you want to enforce a minimum overall coverage target:
+
+```bash
+pydoc2markdown src/my_package --recursive --report --fail-under 95
+```
+
 For automation, JSON output is also available:
 
 ```bash
 pydoc2markdown src/my_package --recursive --report --report-format json
+```
+
+To keep the report as a build artifact, add `--report-output`:
+
+```bash
+pydoc2markdown src/my_package --recursive --report \
+  --report-format json \
+  --report-output reports/doc-coverage.json
 ```
 
 ## Prune Stale Docs
