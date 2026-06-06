@@ -551,6 +551,48 @@ def test_update_readme_summary_includes_stats_and_item_summaries(
     assert "- `greet`: Greet a person." in content
 
 
+def test_update_readme_summary_prioritizes_public_api_order(tmp_path: Path) -> None:
+    module = tmp_path / "public_api_module.py"
+    module.write_text(
+        '''"""Public API module."""
+
+__all__ = ["helper", "Widget", "missing_export"]
+
+class Widget:
+    """Primary widget."""
+
+class InternalThing:
+    """Internal helper."""
+
+def helper() -> None:
+    """Helpful entrypoint."""
+
+def internal_helper() -> None:
+    """Internal function."""
+''',
+        encoding="utf-8",
+    )
+
+    modules = DocstringParser().parse(module)
+    readme_path = tmp_path / "README.md"
+
+    MarkdownGenerator().update_readme(modules, readme_path)
+
+    content = readme_path.read_text(encoding="utf-8")
+    public_api_index = content.index("**Public API:**")
+    helper_index = content.index("- `helper`: Helpful entrypoint.")
+    widget_index = content.index("- `Widget`: Primary widget.")
+    additional_exports_index = content.index("**Additional exports:**")
+    other_classes_index = content.index("**Other classes:**")
+    other_functions_index = content.index("**Other functions:**")
+
+    assert public_api_index < helper_index < widget_index
+    assert widget_index < additional_exports_index < other_classes_index < other_functions_index
+    assert "- `missing_export`" in content
+    assert "- `InternalThing`: Internal helper." in content
+    assert "- `internal_helper`: Internal function." in content
+
+
 def test_update_readme_replaces_marked_section(sample_module: Path, tmp_path: Path) -> None:
     parser = DocstringParser()
     modules = parser.parse(sample_module)

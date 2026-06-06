@@ -5,10 +5,14 @@ import re
 from collections.abc import Iterable
 from dataclasses import dataclass, replace
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from jinja2 import Environment, FileSystemLoader, PackageLoader, select_autoescape
 
 from pydoc2markdown.core.parser import ModuleDoc
+
+if TYPE_CHECKING:
+    from pydoc2markdown.core.parser import ClassDoc, FunctionDoc
 
 logger = logging.getLogger(__name__)
 
@@ -470,24 +474,29 @@ class MarkdownGenerator:
                 lines.append(f"_Includes: {', '.join(stats_parts)}._")
                 lines.append("")
 
-            if module.classes:
-                lines.append("**Classes:**")
-                for class_doc in module.classes:
-                    class_summary = self._short_doc_line(class_doc.docstring)
-                    class_line = f"- `{class_doc.name}`"
-                    if class_summary:
-                        class_line += f": {class_summary}"
-                    lines.append(class_line)
+            public_entries, remaining_classes, remaining_functions, undocumented_exports = (
+                self._readme_public_api_sections(module)
+            )
+            if public_entries:
+                lines.append("**Public API:**")
+                lines.extend(public_entries)
                 lines.append("")
 
-            if module.functions:
-                lines.append("**Functions:**")
-                for func_doc in module.functions:
-                    func_summary = self._short_doc_line(func_doc.docstring)
-                    func_line = f"- `{func_doc.name}`"
-                    if func_summary:
-                        func_line += f": {func_summary}"
-                    lines.append(func_line)
+            if undocumented_exports:
+                lines.append("**Additional exports:**")
+                lines.extend(f"- `{name}`" for name in undocumented_exports)
+                lines.append("")
+
+            if remaining_classes:
+                lines.append("**Other classes:**")
+                for class_doc in remaining_classes:
+                    lines.append(self._readme_object_line(class_doc.name, class_doc.docstring))
+                lines.append("")
+
+            if remaining_functions:
+                lines.append("**Other functions:**")
+                for func_doc in remaining_functions:
+                    lines.append(self._readme_object_line(func_doc.name, func_doc.docstring))
                 lines.append("")
 
         lines.append(README_END_MARKER)
@@ -564,6 +573,47 @@ class MarkdownGenerator:
         if not docstring:
             return ""
         return docstring.strip().split("\n")[0]
+
+    def _readme_object_line(self, name: str, docstring: str | None) -> str:
+        """Return one compact README bullet for a documented object."""
+        summary = self._short_doc_line(docstring)
+        if summary:
+            return f"- `{name}`: {summary}"
+        return f"- `{name}`"
+
+    def _readme_public_api_sections(
+        self,
+        module: ModuleDoc,
+    ) -> tuple[list[str], list["ClassDoc"], list["FunctionDoc"], list[str]]:
+        """Split module objects into public API and remaining README summary buckets."""
+        class_map = {class_doc.name: class_doc for class_doc in module.classes}
+        function_map = {func_doc.name: func_doc for func_doc in module.functions}
+        public_entries: list[str] = []
+        public_class_names: set[str] = set()
+        public_function_names: set[str] = set()
+        undocumented_exports: list[str] = []
+
+        for export_name in module.public_api:
+            if export_name in class_map:
+                public_entries.append(
+                    self._readme_object_line(export_name, class_map[export_name].docstring)
+                )
+                public_class_names.add(export_name)
+            elif export_name in function_map:
+                public_entries.append(
+                    self._readme_object_line(export_name, function_map[export_name].docstring)
+                )
+                public_function_names.add(export_name)
+            else:
+                undocumented_exports.append(export_name)
+
+        remaining_classes = [
+            class_doc for class_doc in module.classes if class_doc.name not in public_class_names
+        ]
+        remaining_functions = [
+            func_doc for func_doc in module.functions if func_doc.name not in public_function_names
+        ]
+        return public_entries, remaining_classes, remaining_functions, undocumented_exports
 
     def generate_single_file(
         self,
