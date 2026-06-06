@@ -559,7 +559,9 @@ overview. It now includes short module summaries, compact counts, and one-line
 class/function previews. When a module defines `__all__`, the summary also
 prioritizes those exported names as the README-facing public API. When README
 generation runs alongside docs generation, module headings also link back to
-the generated Markdown pages automatically. Use
+the generated Markdown pages automatically. For projects with multiple package
+groups, summary mode also adds lightweight package sections and uses package
+`__init__` docstrings as short intros when available. Use
 `--readme-mode detailed` for a richer embedded API section that reuses the
 built-in Markdown renderer without per-module TOCs.
 

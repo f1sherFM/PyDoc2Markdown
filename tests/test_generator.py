@@ -593,6 +593,35 @@ def internal_helper() -> None:
     assert "- `internal_helper`: Internal function." in content
 
 
+def test_update_readme_summary_groups_modules_by_package(tmp_path: Path) -> None:
+    pkg = tmp_path / "my_pkg"
+    sub = pkg / "sub"
+    sub.mkdir(parents=True)
+    (pkg / "__init__.py").write_text('"""Top-level package."""\n', encoding="utf-8")
+    (pkg / "top.py").write_text('"""Top module."""\n', encoding="utf-8")
+    (sub / "__init__.py").write_text('"""Subpackage docs."""\n', encoding="utf-8")
+    (sub / "nested.py").write_text(
+        '''"""Nested module."""
+
+def helper() -> None:
+    """Help from nested."""
+''',
+        encoding="utf-8",
+    )
+
+    modules = DocstringParser().parse(pkg, recursive=True)
+    readme_path = tmp_path / "README.md"
+
+    MarkdownGenerator().update_readme(modules, readme_path)
+
+    content = readme_path.read_text(encoding="utf-8")
+    assert "### Modules" in content
+    assert "### Package `sub`" in content
+    assert "Subpackage docs." in content
+    assert "#### `top`" in content
+    assert "#### [`sub.nested`](sub/nested.md)" in content or "#### `sub.nested`" in content
+
+
 def test_update_readme_replaces_marked_section(sample_module: Path, tmp_path: Path) -> None:
     parser = DocstringParser()
     modules = parser.parse(sample_module)
