@@ -20,6 +20,7 @@ def watch_and_generate(
     single_file: bool = False,
     readme_path: Path | None = None,
     readme_mode: str = "summary",
+    readme_title: str = "API Reference",
     navigation: bool = False,
     api_dir: Path = Path("api"),
     include: list[str] | None = None,
@@ -37,6 +38,7 @@ def watch_and_generate(
         template_path: Optional custom template path.
         readme_path: Optional README path to update with an API reference.
         readme_mode: README rendering mode when readme_path is provided.
+        readme_title: Section title used for generated README content.
         navigation: Whether to generate the navigation-first docs layout.
         api_dir: Directory for API pages when navigation is enabled.
         include: Optional glob patterns for files to include.
@@ -65,6 +67,7 @@ def watch_and_generate(
         source_link_template=source_link_template,
         output_options=output_options,
         readme_mode=readme_mode,
+        readme_title=readme_title,
     )
     parser = DocstringParser()
 

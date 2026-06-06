@@ -18,7 +18,8 @@ def test_load_config_reads_pyproject(tmp_path: Path) -> None:
         "compact_sections = true\n"
         "show_public_api = false\n"
         "show_returns = false\n"
-        'readme_mode = "detailed"\n',
+        'readme_mode = "detailed"\n'
+        'readme_title = "Developer API"\n',
         encoding="utf-8",
     )
     config = load_config(cwd=tmp_path)
@@ -29,6 +30,7 @@ def test_load_config_reads_pyproject(tmp_path: Path) -> None:
     assert config["show_public_api"] is False
     assert config["show_returns"] is False
     assert config["readme_mode"] == "detailed"
+    assert config["readme_title"] == "Developer API"
 
 
 def test_load_config_missing_file(tmp_path: Path) -> None:

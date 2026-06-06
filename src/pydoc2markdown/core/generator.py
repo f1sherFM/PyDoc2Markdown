@@ -15,6 +15,7 @@ logger = logging.getLogger(__name__)
 README_START_MARKER = "<!-- pydoc2markdown:start -->"
 README_END_MARKER = "<!-- pydoc2markdown:end -->"
 README_RENDER_MODES = ("summary", "detailed")
+DEFAULT_README_TITLE = "API Reference"
 
 
 @dataclass(frozen=True)
@@ -77,6 +78,7 @@ class MarkdownGenerator:
         source_link_template: str | None = None,
         output_options: OutputOptions | None = None,
         readme_mode: str = "summary",
+        readme_title: str = DEFAULT_README_TITLE,
     ) -> None:
         """Initialize the generator with an optional custom template or theme."""
         if readme_mode not in README_RENDER_MODES:
@@ -88,6 +90,7 @@ class MarkdownGenerator:
         self._output_options = output_options or OutputOptions()
         self._active_output_options = self._output_options
         self._readme_mode = readme_mode
+        self._readme_title = readme_title.strip() or DEFAULT_README_TITLE
         self._env = self._create_environment()
 
     def _create_environment(self) -> Environment:
@@ -453,19 +456,38 @@ class MarkdownGenerator:
             lines.append("")
 
             if module.docstring:
-                lines.append(module.docstring.strip().split("\n")[0])
+                lines.append(self._first_doc_line(module))
+                lines.append("")
+
+            stats_parts: list[str] = []
+            if module.classes:
+                stats_parts.append(f"{len(module.classes)} class(es)")
+            if module.functions:
+                stats_parts.append(f"{len(module.functions)} function(s)")
+            if module.public_api:
+                stats_parts.append(f"{len(module.public_api)} export(s)")
+            if stats_parts:
+                lines.append(f"_Includes: {', '.join(stats_parts)}._")
                 lines.append("")
 
             if module.classes:
                 lines.append("**Classes:**")
                 for class_doc in module.classes:
-                    lines.append(f"- `{class_doc.name}`")
+                    class_summary = self._short_doc_line(class_doc.docstring)
+                    class_line = f"- `{class_doc.name}`"
+                    if class_summary:
+                        class_line += f": {class_summary}"
+                    lines.append(class_line)
                 lines.append("")
 
             if module.functions:
                 lines.append("**Functions:**")
                 for func_doc in module.functions:
-                    lines.append(f"- `{func_doc.name}`")
+                    func_summary = self._short_doc_line(func_doc.docstring)
+                    func_line = f"- `{func_doc.name}`"
+                    if func_summary:
+                        func_line += f": {func_summary}"
+                    lines.append(func_line)
                 lines.append("")
 
         lines.append(README_END_MARKER)
@@ -507,11 +529,11 @@ class MarkdownGenerator:
             generated = self._generate_detailed_readme(modules)
         else:
             generated = self._generate_api_summary(modules)
-        section = f"## API Reference\n\n{generated}\n"
+        section = f"## {self._readme_title}\n\n{generated}\n"
 
         if not readme_path.exists():
             readme_path.parent.mkdir(parents=True, exist_ok=True)
-            _write_utf8_text(readme_path, f"# API Reference\n\n{generated}\n")
+            _write_utf8_text(readme_path, f"# {self._readme_title}\n\n{generated}\n")
             logger.info("Created README API reference: %s", readme_path)
             return readme_path
 
@@ -536,6 +558,12 @@ class MarkdownGenerator:
         _write_utf8_text(readme_path, updated)
         logger.info("Updated README API reference: %s", readme_path)
         return readme_path
+
+    def _short_doc_line(self, docstring: str | None) -> str:
+        """Return the first non-empty docstring line, if any."""
+        if not docstring:
+            return ""
+        return docstring.strip().split("\n")[0]
 
     def generate_single_file(
         self,

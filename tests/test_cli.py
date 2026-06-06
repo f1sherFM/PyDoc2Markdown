@@ -206,6 +206,7 @@ def test_cli_watch_passes_navigation_options(
     )
     assert calls[0]["readme_path"] == tmp_path / "README.md"
     assert calls[0]["readme_mode"] == "summary"
+    assert calls[0]["readme_title"] == "API Reference"
     output_options = cast(OutputOptions, calls[0]["output_options"])
     assert output_options.show_toc is True
 
@@ -520,6 +521,9 @@ def test_cli_readme_updates_custom_readme(sample_module: Path, tmp_path: Path) -
     assert (output / "sample_module.md").exists()
     content = readme_path.read_text(encoding="utf-8")
     assert "# API Reference" in content
+    assert "_Includes: 1 class(es), 1 function(s)._" in content
+    assert "- `Calculator`: A simple calculator class." in content
+    assert "- `greet`: Greet a person." in content
     assert "Calculator" in content
     assert "greet" in content
 
@@ -547,6 +551,29 @@ def test_cli_readme_detailed_mode(sample_module: Path, tmp_path: Path) -> None:
     assert "##### `Calculator`" in content
 
 
+def test_cli_readme_uses_custom_title(sample_module: Path, tmp_path: Path) -> None:
+    output = tmp_path / "docs"
+    readme_path = tmp_path / "README.md"
+
+    result = main(
+        [
+            str(sample_module),
+            "-o",
+            str(output),
+            "--readme",
+            "--readme-title",
+            "Developer API",
+            "--readme-path",
+            str(readme_path),
+        ]
+    )
+
+    assert result == 0
+    content = readme_path.read_text(encoding="utf-8")
+    assert "# Developer API" in content
+    assert "# API Reference" not in content
+
+
 def test_cli_respects_configured_output_toggles(
     sample_module: Path,
     tmp_path: Path,
@@ -558,7 +585,8 @@ def test_cli_respects_configured_output_toggles(
         "show_toc = false\n"
         "show_source_links = false\n"
         "show_returns = false\n"
-        'readme_mode = "detailed"\n',
+        'readme_mode = "detailed"\n'
+        'readme_title = "Developer API"\n',
         encoding="utf-8",
     )
     monkeypatch.chdir(tmp_path)
@@ -571,6 +599,7 @@ def test_cli_respects_configured_output_toggles(
     assert "## Table of Contents" not in module_content
     assert "**Returns:**" not in module_content
     readme_content = (tmp_path / "README.md").read_text(encoding="utf-8")
+    assert "# Developer API" in readme_content
     assert "### sample_module" in readme_content
 
 

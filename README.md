@@ -221,6 +221,7 @@ Start with the command that matches how you want to publish docs:
 | Generate module docs | `pydoc2markdown src/my_package --recursive -o docs` |
 | Generate a docs index and API pages | `pydoc2markdown src/my_package --recursive --nav -o docs` |
 | Update the API section in README.md | `pydoc2markdown src/my_package --recursive --readme` |
+| Use a custom README section title | `pydoc2markdown src/my_package --recursive --readme --readme-title "Developer API"` |
 | Skip private/internal modules | `pydoc2markdown src/my_package --recursive --exclude "tests/*,*/internal/*,*_private.py"` |
 | Add GitHub source links | `pydoc2markdown src/my_package --recursive --source-repo user/repo -o docs` |
 | Generate a compact docs layout | `pydoc2markdown src/my_package --recursive --compact-sections -o docs` |
@@ -418,6 +419,7 @@ generator.generate(modules, output_dir=Path("docs"))
 | `--readme` | `False` | Create or update an API reference section in README.md |
 | `--readme-path` | `README.md` | Path to the README file updated by `--readme` |
 | `--readme-mode` | `summary` / value from `pyproject.toml` | README rendering mode: `summary` or `detailed` |
+| `--readme-title` | `API Reference` / value from `pyproject.toml` | Section title used for generated README content |
 | `--nav` | `False` | Generate a navigation-first docs layout with API pages under `api/` |
 | `--api-dir` | `api` | Directory for API pages when `--nav` is used |
 | `--source-link` | `None` | URL template for source links, using `{path}`, `{file}`, and `{line}` |
@@ -457,6 +459,7 @@ show_attributes = true
 show_returns = true
 show_raises = true
 readme_mode = "summary"
+readme_title = "API Reference"
 ```
 
 Any values set here serve as defaults and can be overridden by CLI flags.
@@ -552,8 +555,16 @@ pydoc2markdown src/my_package --recursive --readme --readme-path docs/index.md
 ```
 
 `summary` is the default README mode and is optimized for a lightweight module
-overview. Use `--readme-mode detailed` for a richer embedded API section that
-reuses the built-in Markdown renderer without per-module TOCs.
+overview. It now includes short module summaries, compact counts, and one-line
+class/function previews. Use `--readme-mode detailed` for a richer embedded API
+section that reuses the built-in Markdown renderer without per-module TOCs.
+
+Use `--readme-title` when the generated section should appear under a different
+heading:
+
+```bash
+pydoc2markdown src/my_package --recursive --readme --readme-title "Developer API"
+```
 
 When the file already contains PyDoc2Markdown markers, only the generated block
 between the markers is replaced:

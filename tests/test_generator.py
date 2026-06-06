@@ -536,6 +536,21 @@ def test_update_readme_creates_file(sample_module: Path, tmp_path: Path) -> None
     assert "greet" in content
 
 
+def test_update_readme_summary_includes_stats_and_item_summaries(
+    sample_module: Path,
+    tmp_path: Path,
+) -> None:
+    modules = DocstringParser().parse(sample_module)
+    readme_path = tmp_path / "README.md"
+
+    MarkdownGenerator().update_readme(modules, readme_path)
+
+    content = readme_path.read_text(encoding="utf-8")
+    assert "_Includes: 1 class(es), 1 function(s)._" in content
+    assert "- `Calculator`: A simple calculator class." in content
+    assert "- `greet`: Greet a person." in content
+
+
 def test_update_readme_replaces_marked_section(sample_module: Path, tmp_path: Path) -> None:
     parser = DocstringParser()
     modules = parser.parse(sample_module)
@@ -571,6 +586,17 @@ def test_update_readme_detailed_mode_uses_rendered_module_content(
     assert "#### Classes" in content
     assert "##### `Calculator`" in content
     assert "## Table of Contents" not in content
+
+
+def test_update_readme_uses_custom_title(sample_module: Path, tmp_path: Path) -> None:
+    modules = DocstringParser().parse(sample_module)
+    readme_path = tmp_path / "README.md"
+
+    MarkdownGenerator(readme_title="Developer API").update_readme(modules, readme_path)
+
+    content = readme_path.read_text(encoding="utf-8")
+    assert "# Developer API" in content
+    assert "# API Reference" not in content
 
 
 def test_update_readme_appends_section_when_markers_missing(

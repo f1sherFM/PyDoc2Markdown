@@ -11,6 +11,7 @@ from typing import Any
 from pydoc2markdown import __version__
 from pydoc2markdown.core.config import load_config
 from pydoc2markdown.core.generator import (
+    DEFAULT_README_TITLE,
     README_RENDER_MODES,
     MarkdownGenerator,
     OutputOptions,
@@ -370,6 +371,11 @@ def create_parser() -> argparse.ArgumentParser:
         default=_config_choice(defaults, "readme_mode", "summary", README_RENDER_MODES),
         help="README rendering mode: summary (default) or detailed.",
     )
+    readme_group.add_argument(
+        "--readme-title",
+        default=_config_string(defaults, "readme_title", DEFAULT_README_TITLE),
+        help="Section title used for generated README content.",
+    )
     analysis_group.add_argument(
         "--report",
         action="store_true",
@@ -480,6 +486,16 @@ def _config_choice(
     """Return a validated string config choice or a safe default."""
     value = config.get(key, default)
     return value if isinstance(value, str) and value in choices else default
+
+
+def _config_string(
+    config: dict[str, Any],
+    key: str,
+    default: str,
+) -> str:
+    """Return a validated non-empty string config value or a safe default."""
+    value = config.get(key, default)
+    return value.strip() if isinstance(value, str) and value.strip() else default
 
 
 def _output_options_from_args(parsed_args: argparse.Namespace) -> OutputOptions:
@@ -1050,6 +1066,7 @@ def main(args: list[str] | None = None) -> int:
             single_file=parsed_args.single_file,
             readme_path=parsed_args.readme_path if parsed_args.readme else None,
             readme_mode=parsed_args.readme_mode,
+            readme_title=parsed_args.readme_title,
             navigation=parsed_args.nav,
             api_dir=parsed_args.api_dir,
             include=_split_patterns(parsed_args.include),
@@ -1066,6 +1083,7 @@ def main(args: list[str] | None = None) -> int:
         source_link_template=source_link_template,
         output_options=_output_options_from_args(parsed_args),
         readme_mode=parsed_args.readme_mode,
+        readme_title=parsed_args.readme_title,
     )
 
     try:
