@@ -561,7 +561,8 @@ prioritizes those exported names as the README-facing public API. When README
 generation runs alongside docs generation, module headings also link back to
 the generated Markdown pages automatically. For projects with multiple package
 groups, summary mode also adds lightweight package sections and uses package
-`__init__` docstrings as short intros when available. Use
+`__init__` docstrings as short intros when available. It also adds an overview
+line and quick links for the generated module set. Use
 `--readme-mode detailed` for a richer embedded API section that reuses the
 built-in Markdown renderer without per-module TOCs.
 
