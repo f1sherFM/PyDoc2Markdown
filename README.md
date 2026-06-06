@@ -562,7 +562,9 @@ generation runs alongside docs generation, module headings also link back to
 the generated Markdown pages automatically. For projects with multiple package
 groups, summary mode also adds lightweight package sections and uses package
 `__init__` docstrings as short intros when available. It also adds an overview
-line and quick links for the generated module set. Use
+line and quick links for the generated module set. Those quick links point to
+generated docs when available, and otherwise fall back to internal README
+anchors. Use
 `--readme-mode detailed` for a richer embedded API section that reuses the
 built-in Markdown renderer without per-module TOCs.
 

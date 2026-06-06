@@ -47,5 +47,7 @@ def test_sample_project_command_generates_expected_docs(tmp_path: Path) -> None:
     readme_content = readme.read_text(encoding="utf-8")
     assert "**Overview:** 2 modules, 4 classes, 1 functions." in readme_content
     assert "**Quick links:**" in readme_content
+    assert "- [`shop_demo.inventory`](docs/api/shop_demo/inventory.md)" in readme_content
+    assert "- [`shop_demo.orders`](docs/api/shop_demo/orders.md)" in readme_content
     assert "### [`shop_demo.inventory`](docs/api/shop_demo/inventory.md)" in readme_content
     assert "### [`shop_demo.orders`](docs/api/shop_demo/orders.md)" in readme_content

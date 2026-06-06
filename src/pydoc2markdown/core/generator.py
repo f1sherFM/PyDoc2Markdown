@@ -470,21 +470,21 @@ class MarkdownGenerator:
                 lines.append("**Packages:**")
                 for group_name, _, group_modules in summary_groups:
                     label = f"`{group_name}`" if group_name else "`Modules`"
-                    lines.append(f"- {label} ({len(group_modules)} module(s))")
+                    lines.append(
+                        f"- [{label}](#{self._readme_package_anchor(group_name)}) "
+                        f"({len(group_modules)} module(s))"
+                    )
                 lines.append("")
 
             lines.append("**Quick links:**")
             for module in public_modules:
                 module_name = f"{module.package}.{module.name}" if module.package else module.name
-                module_link = self._readme_module_links.get(module_name)
-                if module_link:
-                    lines.append(f"- [`{module_name}`]({module_link})")
-                else:
-                    lines.append(f"- `{module_name}`")
+                lines.append(f"- [`{module_name}`]({self._readme_module_target(module_name)})")
             lines.append("")
 
         for group_name, group_summary, group_modules in summary_groups:
             if use_package_headings:
+                lines.append(f'<a id="{self._readme_package_anchor(group_name)}"></a>')
                 lines.append(f"### Package `{group_name}`" if group_name else "### Modules")
                 lines.append("")
                 if group_summary:
@@ -493,6 +493,7 @@ class MarkdownGenerator:
 
             for module in group_modules:
                 module_name = f"{module.package}.{module.name}" if module.package else module.name
+                lines.append(f'<a id="{self._readme_module_anchor(module_name)}"></a>')
                 module_heading = self._readme_module_heading(module_name)
                 if use_package_headings:
                     module_heading = module_heading.replace("### ", "#### ", 1)
@@ -620,6 +621,22 @@ class MarkdownGenerator:
         if target:
             return f"### [`{module_name}`]({target})"
         return f"### `{module_name}`"
+
+    def _readme_module_anchor(self, module_name: str) -> str:
+        """Return a stable local anchor id for a README summary module section."""
+        return f"readme-{_anchorize(module_name.replace('.', '-'))}"
+
+    def _readme_package_anchor(self, package_name: str) -> str:
+        """Return a stable local anchor id for a README summary package section."""
+        label = package_name or "modules"
+        return f"readme-package-{_anchorize(label)}"
+
+    def _readme_module_target(self, module_name: str) -> str:
+        """Return the best available README quick-link target for a module."""
+        return self._readme_module_links.get(
+            module_name,
+            f"#{self._readme_module_anchor(module_name)}",
+        )
 
     def _readme_object_line(self, name: str, docstring: str | None) -> str:
         """Return one compact README bullet for a documented object."""

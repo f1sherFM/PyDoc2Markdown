@@ -548,7 +548,8 @@ def test_update_readme_summary_includes_stats_and_item_summaries(
     content = readme_path.read_text(encoding="utf-8")
     assert "**Overview:** 1 modules, 1 classes, 1 functions." in content
     assert "**Quick links:**" in content
-    assert "- `sample_module`" in content
+    assert "- [`sample_module`](#readme-sample_module)" in content
+    assert '<a id="readme-sample_module"></a>' in content
     assert "_Includes: 1 class(es), 1 function(s)._" in content
     assert "- `Calculator`: A simple calculator class." in content
     assert "- `greet`: Greet a person." in content
@@ -620,11 +621,15 @@ def helper() -> None:
     content = readme_path.read_text(encoding="utf-8")
     assert "**Overview:** 2 modules, 0 classes, 1 functions." in content
     assert "**Packages:**" in content
-    assert "- `Modules` (1 module(s))" in content
-    assert "- `sub` (1 module(s))" in content
+    assert "- [`Modules`](#readme-package-modules) (1 module(s))" in content
+    assert "- [`sub`](#readme-package-sub) (1 module(s))" in content
     assert "**Quick links:**" in content
-    assert "- `top`" in content
-    assert "- `sub.nested`" in content
+    assert "- [`top`](#readme-top)" in content
+    assert (
+        "- [`sub.nested`](sub/nested.md)" in content
+        or "- [`sub.nested`](#readme-sub-nested)" in content
+    )
+    assert '<a id="readme-package-sub"></a>' in content
     assert "### Modules" in content
     assert "### Package `sub`" in content
     assert "Subpackage docs." in content
