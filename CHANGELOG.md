@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.7.3](https://github.com/f1sherFM/PyDoc2Markdown/compare/v0.7.2...v0.7.3) (2026-06-06)
+
+
+### Bug Fixes
+
+* refine coverage report output controls ([8da84fa](https://github.com/f1sherFM/PyDoc2Markdown/commit/8da84fa7425a8d1af0fdd9720d6e54f4b1695aca))
+* strengthen coverage report workflows ([34ff232](https://github.com/f1sherFM/PyDoc2Markdown/commit/34ff23233639330eee96e3b16caff1fa93a5c941))
+
 ## [0.7.2](https://github.com/f1sherFM/PyDoc2Markdown/compare/v0.7.1...v0.7.2) (2026-06-04)
 
 
