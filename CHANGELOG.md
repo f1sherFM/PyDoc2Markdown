@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.7.4](https://github.com/f1sherFM/PyDoc2Markdown/compare/v0.7.3...v0.7.4) (2026-06-06)
+
+
+### Bug Fixes
+
+* add readme summary anchor fallbacks ([48b08d0](https://github.com/f1sherFM/PyDoc2Markdown/commit/48b08d081e805ea2e880580198fe7caf743a0308))
+* add readme summary overview and quick links ([e136a9d](https://github.com/f1sherFM/PyDoc2Markdown/commit/e136a9d9236d039dc340a32a1aa42e836e4dfd44))
+* group readme summaries by package ([249ade2](https://github.com/f1sherFM/PyDoc2Markdown/commit/249ade2a50ff1027d6c1fcfc23082824ae2460f6))
+* improve readme summary generation ([7faf7a5](https://github.com/f1sherFM/PyDoc2Markdown/commit/7faf7a500bc5666e1be5a92e8d79b2d3ad739df5))
+* link readme summaries to generated docs ([1ed6152](https://github.com/f1sherFM/PyDoc2Markdown/commit/1ed61527db6ab3e324bca633a7bb2808d9d40f45))
+* prioritize public api in readme summaries ([5118fc6](https://github.com/f1sherFM/PyDoc2Markdown/commit/5118fc61270980a7a6241d1b56cf53f494dd59f2))
+
+
+### Documentation
+
+* refresh sample readme output ([e51f35b](https://github.com/f1sherFM/PyDoc2Markdown/commit/e51f35b90f5d585f319dbd370501608d73010d26))
+
 ## [0.7.3](https://github.com/f1sherFM/PyDoc2Markdown/compare/v0.7.2...v0.7.3) (2026-06-06)
 
 
