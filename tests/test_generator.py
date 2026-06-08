@@ -523,6 +523,52 @@ def _private_helper() -> None:
     assert "### `_private_helper`" in content
 
 
+def test_generate_filters_members_by_name_patterns(tmp_path: Path) -> None:
+    module = tmp_path / "pattern_members.py"
+    module.write_text(
+        '''"""Module for pattern filtering."""
+
+class Widget:
+    """Public widget."""
+
+    def run(self) -> None:
+        """Run the widget."""
+
+    def helper(self) -> None:
+        """Helper method."""
+
+class Service:
+    """Background service."""
+
+    def run(self) -> None:
+        """Run the service."""
+
+def public_helper() -> None:
+    """Public helper."""
+
+def backup() -> None:
+    """Backup helper."""
+''',
+        encoding="utf-8",
+    )
+
+    modules = DocstringParser().parse(module)
+    content = MarkdownGenerator(
+        output_options=OutputOptions(
+            member_include=("Widget", "Service.run", "public_*"),
+            member_exclude=("Widget.helper",),
+        )
+    ).generate_string(modules[0])
+
+    assert "### `Widget`" in content
+    assert "`run`" in content
+    assert "`helper`" not in content
+    assert "### `Service`" in content
+    assert "Run the service." in content
+    assert "### `public_helper`" in content
+    assert "### `backup`" not in content
+
+
 def test_generate_skips_empty_returns_block(tmp_path: Path) -> None:
     module = tmp_path / "no_returns.py"
     module.write_text(

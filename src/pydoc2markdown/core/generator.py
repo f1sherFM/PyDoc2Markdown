@@ -38,6 +38,8 @@ class OutputOptions:
     show_private_members: bool = False
     show_dunder_members: bool = False
     public_only: bool = False
+    member_include: tuple[str, ...] = ()
+    member_exclude: tuple[str, ...] = ()
 
 
 def _anchorize(value: str) -> str:

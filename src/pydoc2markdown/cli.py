@@ -307,6 +307,22 @@ def create_parser() -> argparse.ArgumentParser:
         default=_config_bool(defaults, "public_only", False),
         help="When __all__ is present, document only that exported top-level surface.",
     )
+    config_group.add_argument(
+        "--member-include",
+        default=",".join(_config_patterns(defaults, "member_include")) or None,
+        help=(
+            "Comma-separated glob patterns for member names to include, such as "
+            "'Widget,public_helper,Client.*,pkg.module.Service.run'."
+        ),
+    )
+    config_group.add_argument(
+        "--member-exclude",
+        default=",".join(_config_patterns(defaults, "member_exclude")) or None,
+        help=(
+            "Comma-separated glob patterns for member names to exclude, such as "
+            "'*_internal,_debug,Client.__repr__'."
+        ),
+    )
     demo_group.add_argument(
         "--demo",
         action="store_true",
@@ -517,6 +533,18 @@ def _config_string(
     return value.strip() if isinstance(value, str) and value.strip() else default
 
 
+def _config_patterns(config: dict[str, Any], key: str) -> tuple[str, ...]:
+    """Return validated member-filtering patterns from config."""
+    value = config.get(key)
+    if isinstance(value, str):
+        return tuple(pattern.strip() for pattern in value.split(",") if pattern.strip())
+    if isinstance(value, list):
+        return tuple(
+            pattern.strip() for pattern in value if isinstance(pattern, str) and pattern.strip()
+        )
+    return ()
+
+
 def _output_options_from_args(parsed_args: argparse.Namespace) -> OutputOptions:
     """Build generator output options from parsed CLI arguments."""
     return OutputOptions(
@@ -531,6 +559,8 @@ def _output_options_from_args(parsed_args: argparse.Namespace) -> OutputOptions:
         show_private_members=parsed_args.show_private_members,
         show_dunder_members=parsed_args.show_dunder_members,
         public_only=parsed_args.public_only,
+        member_include=tuple(_split_patterns(parsed_args.member_include) or ()),
+        member_exclude=tuple(_split_patterns(parsed_args.member_exclude) or ()),
     )
 
 

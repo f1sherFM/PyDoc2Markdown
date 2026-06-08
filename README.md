@@ -228,6 +228,8 @@ Start with the command that matches how you want to publish docs:
 | Hide returns and raises in generated docs | `pydoc2markdown src/my_package --recursive --no-show-returns --no-show-raises -o docs` |
 | Keep docs focused on exported API | `pydoc2markdown src/my_package --recursive --public-only -o docs` |
 | Include private helpers and dunder methods | `pydoc2markdown src/my_package --recursive --show-private-members --show-dunder-members -o docs` |
+| Include only selected members by name | `pydoc2markdown src/my_package --recursive --member-include "Client,Client.run,public_*" -o docs` |
+| Exclude noisy helpers by name | `pydoc2markdown src/my_package --recursive --member-exclude "_debug,Client.helper,*.backup" -o docs` |
 | Check generated docs in CI | `pydoc2markdown src/my_package --recursive --nav --readme --check -o docs` |
 | Print a documentation coverage report | `pydoc2markdown src/my_package --recursive --report` |
 | Fail CI when selected report findings exist | `pydoc2markdown src/my_package --recursive --report --fail-on modules,params` |
@@ -410,6 +412,8 @@ generator.generate(modules, output_dir=Path("docs"))
 | `--show-private-members`, `--no-show-private-members` | `False` / value from `pyproject.toml` | Show or hide private names such as `_helper` and `_debug` |
 | `--show-dunder-members`, `--no-show-dunder-members` | `False` / value from `pyproject.toml` | Show or hide dunder members such as `__repr__` |
 | `--public-only`, `--no-public-only` | `False` / value from `pyproject.toml` | When `__all__` exists, keep docs focused on that exported top-level API |
+| `--member-include` | `None` / value from `pyproject.toml` | Comma-separated glob patterns for member names to include |
+| `--member-exclude` | `None` / value from `pyproject.toml` | Comma-separated glob patterns for member names to exclude |
 | `--single-file` | `False` | Generate a single combined Markdown file; `--output` must be a `.md` or `.markdown` file path |
 | `--check` | `False` | Check whether generated docs are up to date without writing files |
 | `--prune` | `False` | Remove stale generated Markdown files tracked by PyDoc2Markdown |
@@ -466,6 +470,8 @@ show_raises = true
 show_private_members = false
 show_dunder_members = false
 public_only = false
+member_include = ["Client", "Client.run", "public_*"]
+member_exclude = ["Client.helper", "_debug"]
 readme_mode = "summary"
 readme_title = "API Reference"
 ```
@@ -528,6 +534,26 @@ These controls affect:
 
 That keeps the visible docs surface and the reported coverage surface aligned.
 
+When you need more precision, use `--member-include` and `--member-exclude`.
+Patterns are matched against a few useful forms for the same object:
+
+- bare names like `helper` or `Widget`
+- class-qualified names like `Client.run`
+- module-qualified names like `my_pkg.client.helper`
+- fully qualified method names like `my_pkg.client.Client.run`
+
+For example:
+
+```bash
+pydoc2markdown src/my_package --recursive \
+  --member-include "Client,Client.run,public_*" \
+  --member-exclude "Client.helper,_debug,*.backup" \
+  -o docs
+```
+
+This is applied after file-level include/exclude and alongside `public_only`,
+private-member, and dunder-member controls.
+
 ## Source Links
 
 Use `--source-repo` to add GitHub source links next to generated class,
@@ -573,6 +599,8 @@ template. You can set these toggles per run or keep them in
 - `show_private_members`
 - `show_dunder_members`
 - `public_only`
+- `member_include`
+- `member_exclude`
 
 For example, this keeps parameter tables but removes Public API, Returns, and
 Raises blocks from generated docs:

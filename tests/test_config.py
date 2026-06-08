@@ -21,6 +21,8 @@ def test_load_config_reads_pyproject(tmp_path: Path) -> None:
         "show_private_members = true\n"
         "show_dunder_members = true\n"
         "public_only = true\n"
+        'member_include = ["Widget", "Service.*"]\n'
+        'member_exclude = ["Service._debug"]\n'
         'readme_mode = "detailed"\n'
         'readme_title = "Developer API"\n',
         encoding="utf-8",
@@ -35,6 +37,8 @@ def test_load_config_reads_pyproject(tmp_path: Path) -> None:
     assert config["show_private_members"] is True
     assert config["show_dunder_members"] is True
     assert config["public_only"] is True
+    assert config["member_include"] == ["Widget", "Service.*"]
+    assert config["member_exclude"] == ["Service._debug"]
     assert config["readme_mode"] == "detailed"
     assert config["readme_title"] == "Developer API"
 

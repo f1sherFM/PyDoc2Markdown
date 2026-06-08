@@ -777,6 +777,58 @@ def _private_helper() -> None:
     assert "### `_private_helper`" in content
 
 
+def test_cli_member_include_and_exclude_patterns(tmp_path: Path) -> None:
+    source = tmp_path / "pattern_cli.py"
+    source.write_text(
+        '''"""CLI pattern filtering sample."""
+
+class Widget:
+    """Public widget."""
+
+    def run(self) -> None:
+        """Run the widget."""
+
+    def helper(self) -> None:
+        """Helper method."""
+
+class Service:
+    """Background service."""
+
+    def run(self) -> None:
+        """Run the service."""
+
+def public_helper() -> None:
+    """Public helper."""
+
+def backup() -> None:
+    """Backup helper."""
+''',
+        encoding="utf-8",
+    )
+
+    output = tmp_path / "docs"
+    result = main(
+        [
+            str(source),
+            "-o",
+            str(output),
+            "--member-include",
+            "Widget,Service.run,public_*",
+            "--member-exclude",
+            "Widget.helper",
+        ]
+    )
+
+    assert result == 0
+    content = (output / "pattern_cli.md").read_text(encoding="utf-8")
+    assert "### `Widget`" in content
+    assert "`helper`" not in content
+    assert "### `Service`" in content
+    assert "Run the service." in content
+    assert "### `public_helper`" in content
+    assert "### `backup`" not in content
+
+
 def test_cli_readme_invalid_marker_block_returns_error(
     sample_module: Path,
     tmp_path: Path,
@@ -1187,6 +1239,55 @@ def _private_helper() -> None:
     assert "Parameters missing descriptions: 1" in output
     assert "public_not_exported" not in output
     assert "_private_helper" not in output
+
+
+def test_cli_report_respects_member_include_and_exclude_patterns(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    module = tmp_path / "coverage_patterns.py"
+    module.write_text(
+        '''"""Coverage pattern sample."""
+
+class Widget:
+    """Public widget."""
+
+    def run(self) -> None:
+        """Run the widget."""
+
+class Service:
+    """Background service."""
+
+    def run(self) -> None:
+        pass
+
+def public_helper() -> None:
+    """Public helper."""
+
+def backup() -> None:
+    pass
+''',
+        encoding="utf-8",
+    )
+
+    result = main(
+        [
+            str(module),
+            "--report",
+            "--member-include",
+            "Widget,Service.run,public_*",
+            "--member-exclude",
+            "Service.run",
+        ]
+    )
+
+    assert result == 0
+    output = capsys.readouterr().out
+    assert "Scanned 1 module(s), 1 class(es), and 1 function(s)." in output
+    assert "Classes without docstrings: 0" in output
+    assert "Functions without docstrings: 0" in output
+    assert "Service" not in output
+    assert "backup" not in output
 
 
 def test_cli_report_json_output_respects_selected_categories(
