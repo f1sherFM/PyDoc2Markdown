@@ -289,6 +289,24 @@ def create_parser() -> argparse.ArgumentParser:
         default=_config_bool(defaults, "show_raises", True),
         help="Show or hide Raises sections in built-in output.",
     )
+    config_group.add_argument(
+        "--show-private-members",
+        action=argparse.BooleanOptionalAction,
+        default=_config_bool(defaults, "show_private_members", False),
+        help="Show or hide private members such as _helper in generated output.",
+    )
+    config_group.add_argument(
+        "--show-dunder-members",
+        action=argparse.BooleanOptionalAction,
+        default=_config_bool(defaults, "show_dunder_members", False),
+        help="Show or hide dunder members such as __repr__ in generated output.",
+    )
+    config_group.add_argument(
+        "--public-only",
+        action=argparse.BooleanOptionalAction,
+        default=_config_bool(defaults, "public_only", False),
+        help="When __all__ is present, document only that exported top-level surface.",
+    )
     demo_group.add_argument(
         "--demo",
         action="store_true",
@@ -510,6 +528,9 @@ def _output_options_from_args(parsed_args: argparse.Namespace) -> OutputOptions:
         show_attributes=parsed_args.show_attributes,
         show_returns=parsed_args.show_returns,
         show_raises=parsed_args.show_raises,
+        show_private_members=parsed_args.show_private_members,
+        show_dunder_members=parsed_args.show_dunder_members,
+        public_only=parsed_args.public_only,
     )
 
 
@@ -1118,11 +1139,12 @@ def main(args: list[str] | None = None) -> int:
             exclude=_split_patterns(parsed_args.exclude),
         )
         logger.info("Parsed %d module(s)", len(modules))
+        output_options = _output_options_from_args(parsed_args)
         md_generator = MarkdownGenerator(
             template_path=parsed_args.template,
             theme=parsed_args.theme,
             source_link_template=source_link_template,
-            output_options=_output_options_from_args(parsed_args),
+            output_options=output_options,
             readme_mode=parsed_args.readme_mode,
             readme_title=parsed_args.readme_title,
             readme_module_links=(
@@ -1139,7 +1161,7 @@ def main(args: list[str] | None = None) -> int:
             ),
         )
         if parsed_args.report:
-            report = analyze_modules(modules)
+            report = analyze_modules(modules, filter_options=output_options)
             content = (
                 format_report_json(report, categories=report_categories)
                 if parsed_args.report_format == "json"

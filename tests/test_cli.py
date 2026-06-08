@@ -693,6 +693,51 @@ def helper() -> int:
     assert "**Raises:**" not in content
 
 
+def test_cli_member_filtering_flags_apply_to_docs_output(tmp_path: Path) -> None:
+    source = tmp_path / "filtered_cli.py"
+    source.write_text(
+        '''"""CLI filtering sample."""
+
+__all__ = ["Widget", "exported_helper"]
+
+class Widget:
+    """Public widget."""
+
+    def run(self) -> None:
+        """Run the widget."""
+
+    def _debug(self) -> None:
+        """Debug helper."""
+
+    def __repr__(self) -> str:
+        """Render the widget."""
+        return "Widget()"
+
+class _InternalWidget:
+    """Internal widget."""
+
+def exported_helper() -> None:
+    """Exported helper."""
+
+def public_helper() -> None:
+    """Non-exported helper."""
+''',
+        encoding="utf-8",
+    )
+
+    output = tmp_path / "docs"
+    result = main([str(source), "-o", str(output), "--public-only"])
+
+    assert result == 0
+    content = (output / "filtered_cli.md").read_text(encoding="utf-8")
+    assert "### `Widget`" in content
+    assert "### `exported_helper`" in content
+    assert "_debug" not in content
+    assert "__repr__" not in content
+    assert "_InternalWidget" not in content
+    assert "public_helper" not in content
+
+
 def test_cli_readme_invalid_marker_block_returns_error(
     sample_module: Path,
     tmp_path: Path,
@@ -1065,6 +1110,44 @@ def test_cli_report_json_output(
     assert payload["counts"]["modules"] == 0
     assert payload["counts"]["functions"] == 0
     assert payload["percentages"]["params"] == 60.0
+
+
+def test_cli_report_respects_member_filtering_flags(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    module = tmp_path / "coverage_filtering.py"
+    module.write_text(
+        '''"""Coverage filtering sample."""
+
+__all__ = ["public_helper"]
+
+def public_helper(value: int, other: int) -> None:
+    """Public helper.
+
+    Args:
+        value: First value.
+    """
+
+def public_not_exported() -> None:
+    pass
+
+def _private_helper() -> None:
+    pass
+''',
+        encoding="utf-8",
+    )
+
+    result = main([str(module), "--report", "--public-only"])
+
+    assert result == 0
+    output = capsys.readouterr().out
+    assert "Scanned 1 module(s), 0 class(es), and 1 function(s)." in output
+    assert "Functions without docstrings: 0" in output
+    assert "Undocumented public API exports: 0" in output
+    assert "Parameters missing descriptions: 1" in output
+    assert "public_not_exported" not in output
+    assert "_private_helper" not in output
 
 
 def test_cli_report_json_output_respects_selected_categories(

@@ -405,6 +405,90 @@ def helper() -> int:
     assert "**Raises:**" not in content
 
 
+def test_generate_filters_private_dunder_and_public_only_members(tmp_path: Path) -> None:
+    module = tmp_path / "filtered_members.py"
+    module.write_text(
+        '''"""Module for member filtering."""
+
+__all__ = ["Widget", "exported_helper"]
+
+class Widget:
+    """Public widget."""
+
+    def run(self) -> None:
+        """Run the widget."""
+
+    def _debug(self) -> None:
+        """Debug helper."""
+
+    def __repr__(self) -> str:
+        """Render the widget."""
+        return "Widget()"
+
+class _InternalWidget:
+    """Internal widget."""
+
+def exported_helper() -> None:
+    """Exported helper."""
+
+def public_helper() -> None:
+    """Non-exported helper."""
+
+def _private_helper() -> None:
+    """Private helper."""
+''',
+        encoding="utf-8",
+    )
+
+    modules = DocstringParser().parse(module)
+    output_dir = tmp_path / "docs"
+    MarkdownGenerator(
+        output_options=OutputOptions(public_only=True),
+    ).generate(modules, output_dir)
+
+    content = (output_dir / "filtered_members.md").read_text(encoding="utf-8")
+    assert "### `Widget`" in content
+    assert "### `exported_helper`" in content
+    assert "`run`" in content
+    assert "_debug" not in content
+    assert "__repr__" not in content
+    assert "_InternalWidget" not in content
+    assert "public_helper" not in content
+    assert "_private_helper" not in content
+
+
+def test_update_readme_summary_respects_member_filtering(tmp_path: Path) -> None:
+    module = tmp_path / "readme_filtering.py"
+    module.write_text(
+        '''"""README filtering sample."""
+
+__all__ = ["Widget"]
+
+class Widget:
+    """Public widget."""
+
+class _InternalWidget:
+    """Internal widget."""
+
+def public_helper() -> None:
+    """Non-exported helper."""
+''',
+        encoding="utf-8",
+    )
+
+    modules = DocstringParser().parse(module)
+    readme_path = tmp_path / "README.md"
+
+    MarkdownGenerator(
+        output_options=OutputOptions(public_only=True),
+    ).update_readme(modules, readme_path)
+
+    content = readme_path.read_text(encoding="utf-8")
+    assert "- `Widget`: Public widget." in content
+    assert "_InternalWidget" not in content
+    assert "public_helper" not in content
+
+
 def test_generate_skips_empty_returns_block(tmp_path: Path) -> None:
     module = tmp_path / "no_returns.py"
     module.write_text(
