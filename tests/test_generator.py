@@ -489,6 +489,40 @@ def public_helper() -> None:
     assert "public_helper" not in content
 
 
+def test_generate_can_show_private_and_dunder_members_when_enabled(tmp_path: Path) -> None:
+    module = tmp_path / "visible_members.py"
+    module.write_text(
+        '''"""Module for visible member filtering."""
+
+class Widget:
+    """Public widget."""
+
+    def _debug(self) -> None:
+        """Debug helper."""
+
+    def __repr__(self) -> str:
+        """Render the widget."""
+        return "Widget()"
+
+def _private_helper() -> None:
+    """Private helper."""
+''',
+        encoding="utf-8",
+    )
+
+    modules = DocstringParser().parse(module)
+    content = MarkdownGenerator(
+        output_options=OutputOptions(
+            show_private_members=True,
+            show_dunder_members=True,
+        )
+    ).generate_string(modules[0])
+
+    assert "`_debug`" in content
+    assert "`__repr__`" in content
+    assert "### `_private_helper`" in content
+
+
 def test_generate_skips_empty_returns_block(tmp_path: Path) -> None:
     module = tmp_path / "no_returns.py"
     module.write_text(

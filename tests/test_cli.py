@@ -738,6 +738,45 @@ def public_helper() -> None:
     assert "public_helper" not in content
 
 
+def test_cli_can_show_private_and_dunder_members(tmp_path: Path) -> None:
+    source = tmp_path / "visible_cli.py"
+    source.write_text(
+        '''"""CLI visible filtering sample."""
+
+class Widget:
+    """Public widget."""
+
+    def _debug(self) -> None:
+        """Debug helper."""
+
+    def __repr__(self) -> str:
+        """Render the widget."""
+        return "Widget()"
+
+def _private_helper() -> None:
+    """Private helper."""
+''',
+        encoding="utf-8",
+    )
+
+    output = tmp_path / "docs"
+    result = main(
+        [
+            str(source),
+            "-o",
+            str(output),
+            "--show-private-members",
+            "--show-dunder-members",
+        ]
+    )
+
+    assert result == 0
+    content = (output / "visible_cli.md").read_text(encoding="utf-8")
+    assert "`_debug`" in content
+    assert "`__repr__`" in content
+    assert "### `_private_helper`" in content
+
+
 def test_cli_readme_invalid_marker_block_returns_error(
     sample_module: Path,
     tmp_path: Path,
