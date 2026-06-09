@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.8.0](https://github.com/f1sherFM/PyDoc2Markdown/compare/v0.7.4...HEAD) (unreleased)
+## [0.8.0](https://github.com/f1sherFM/PyDoc2Markdown/compare/v0.7.4...v0.8.0) (2026-06-09)
 
 
 ### Features
@@ -10,19 +10,20 @@ API docs. The release turns member filtering into a first-class feature across
 docs generation, README sections, single-file output, navigation docs, and
 coverage reporting.
 
-* add member visibility controls for `public_only`, private members, and dunder members so projects can keep generated output focused on their intended API surface
-* add glob-based `member_include` and `member_exclude` filters for classes, functions, methods, and fully qualified member names
-* extend member filtering to class attribute tables and Pydantic field tables so internal state can be hidden consistently from built-in output
+* add member visibility controls for `public_only`, private members, and dunder members so projects can keep generated output focused on their intended API surface ([e8a8a49](https://github.com/f1sherFM/PyDoc2Markdown/commit/e8a8a49efb2589ba71b4428c704990a8d1fd2ce3))
+* add glob-based `member_include` and `member_exclude` filters for classes, functions, methods, and fully qualified member names ([973a038](https://github.com/f1sherFM/PyDoc2Markdown/commit/973a038412d5015c00bcf56edc45f35f5de82567))
+* extend member filtering to class attribute tables and Pydantic field tables so internal state can be hidden consistently from built-in output ([556171f](https://github.com/f1sherFM/PyDoc2Markdown/commit/556171fdb757935bf2b0bc7aebf0bed2520cf4e9))
 
 
 ### Bug Fixes
 
-* align `--init` defaults and watch-path option forwarding with the new member filtering feature set
+* align `--init` defaults and watch-path option forwarding with the new member filtering feature set ([a0f05d7](https://github.com/f1sherFM/PyDoc2Markdown/commit/a0f05d787b1d1c322428ee1dc3d80d330ec2f74f))
 
 
 ### Documentation
 
-* document member filtering workflows, CLI flags, config keys, and examples in the README
+* document member filtering workflows, CLI flags, config keys, and examples in the README ([219fd58](https://github.com/f1sherFM/PyDoc2Markdown/commit/219fd580421fadb4f01f37522061fe4d819cd0e3))
+* expand filtering sample scenarios in the sample project and demo content ([60a8062](https://github.com/f1sherFM/PyDoc2Markdown/commit/60a8062bd19c0ee48c5054e5c34c3841be7ef9d1))
 
 ## [0.7.4](https://github.com/f1sherFM/PyDoc2Markdown/compare/v0.7.3...v0.7.4) (2026-06-06)
 
