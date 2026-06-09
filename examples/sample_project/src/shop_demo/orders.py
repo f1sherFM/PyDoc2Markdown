@@ -5,6 +5,8 @@ from enum import Enum
 
 from shop_demo.inventory import Product
 
+__all__ = ["OrderStatus", "Order", "calculate_total"]
+
 
 class OrderStatus(Enum):
     """Lifecycle status for an order."""
@@ -46,7 +48,13 @@ def calculate_total(items: list[Product], discount: float = 0.0) -> float:
     Raises:
         ValueError: If discount is outside the accepted range.
     """
-    if not 0 <= discount <= 1:
-        raise ValueError("discount must be between 0 and 1")
+    discount = _normalize_discount(discount)
     subtotal = sum(item.price for item in items)
     return subtotal * (1 - discount)
+
+
+def _normalize_discount(value: float) -> float:
+    """Validate and normalize a discount ratio."""
+    if not 0 <= value <= 1:
+        raise ValueError("discount must be between 0 and 1")
+    return value

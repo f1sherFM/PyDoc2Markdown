@@ -11,6 +11,10 @@ Inventory models and helpers for the sample shop.
     - [`add`](#inventory-add)
     - [`get`](#inventory-get)
 
+**Public API:**
+- `Product`
+- `Inventory`
+
 ## Classes
 
 ### `Product` (dataclass)

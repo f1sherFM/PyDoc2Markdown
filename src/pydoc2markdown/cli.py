@@ -69,6 +69,8 @@ __all__ = [
 
 from dataclasses import dataclass
 
+__all__ = ["Product", "Inventory"]
+
 
 @dataclass
 class Product:
@@ -108,6 +110,7 @@ class Inventory:
         Args:
             product: Product to store.
         """
+        self._validate_product(product)
         self._products[product.sku] = product
 
     def get(self, sku: str) -> Product:
@@ -122,7 +125,17 @@ class Inventory:
         Raises:
             KeyError: If the SKU is unknown.
         """
-        return self._products[sku]
+        return self._products[_coerce_sku(sku)]
+
+    def _validate_product(self, product: Product) -> None:
+        """Validate product input before it enters the inventory."""
+        if not product.sku:
+            raise ValueError("product sku must not be empty")
+
+
+def _coerce_sku(value: str) -> str:
+    """Normalize an SKU key used for in-memory lookups."""
+    return value.strip().upper()
 ''',
     "src/shop_demo/orders.py": '''"""Order models and pricing helpers."""
 
@@ -130,6 +143,8 @@ from dataclasses import dataclass
 from enum import Enum
 
 from shop_demo.inventory import Product
+
+__all__ = ["OrderStatus", "Order", "calculate_total"]
 
 
 class OrderStatus(Enum):
@@ -172,10 +187,16 @@ def calculate_total(items: list[Product], discount: float = 0.0) -> float:
     Raises:
         ValueError: If discount is outside the accepted range.
     """
-    if not 0 <= discount <= 1:
-        raise ValueError("discount must be between 0 and 1")
+    discount = _normalize_discount(discount)
     subtotal = sum(item.price for item in items)
     return subtotal * (1 - discount)
+
+
+def _normalize_discount(value: float) -> float:
+    """Validate and normalize a discount ratio."""
+    if not 0 <= value <= 1:
+        raise ValueError("discount must be between 0 and 1")
+    return value
 ''',
     "README.md": """# PyDoc2Markdown Demo
 
