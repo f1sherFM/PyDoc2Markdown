@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.8.0](https://github.com/f1sherFM/PyDoc2Markdown/compare/v0.7.4...v0.8.0) (2026-06-09)
+
+
+### Features
+
+* add member filtering controls ([e8a8a49](https://github.com/f1sherFM/PyDoc2Markdown/commit/e8a8a49efb2589ba71b4428c704990a8d1fd2ce3))
+* filter class fields and attributes ([556171f](https://github.com/f1sherFM/PyDoc2Markdown/commit/556171fdb757935bf2b0bc7aebf0bed2520cf4e9))
+* support member name filters ([973a038](https://github.com/f1sherFM/PyDoc2Markdown/commit/973a038412d5015c00bcf56edc45f35f5de82567))
+
+
+### Bug Fixes
+
+* align init config with member filters ([a0f05d7](https://github.com/f1sherFM/PyDoc2Markdown/commit/a0f05d787b1d1c322428ee1dc3d80d330ec2f74f))
+
+
+### Documentation
+
+* document member filtering workflows ([219fd58](https://github.com/f1sherFM/PyDoc2Markdown/commit/219fd580421fadb4f01f37522061fe4d819cd0e3))
+* draft 0.8.0 changelog ([b17ad0e](https://github.com/f1sherFM/PyDoc2Markdown/commit/b17ad0ec065e38b72ab26416a906c73b9fa780cb))
+* expand filtering sample scenarios ([60a8062](https://github.com/f1sherFM/PyDoc2Markdown/commit/60a8062bd19c0ee48c5054e5c34c3841be7ef9d1))
+
 ## [0.8.0](https://github.com/f1sherFM/PyDoc2Markdown/compare/v0.7.4...HEAD) (unreleased)
 
 
