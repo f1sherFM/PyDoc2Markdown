@@ -1,5 +1,29 @@
 # Changelog
 
+## [0.8.0](https://github.com/f1sherFM/PyDoc2Markdown/compare/v0.7.4...HEAD) (unreleased)
+
+
+### Features
+
+0.8.0 expands PyDoc2Markdown's control over what actually appears in generated
+API docs. The release turns member filtering into a first-class feature across
+docs generation, README sections, single-file output, navigation docs, and
+coverage reporting.
+
+* add member visibility controls for `public_only`, private members, and dunder members so projects can keep generated output focused on their intended API surface
+* add glob-based `member_include` and `member_exclude` filters for classes, functions, methods, and fully qualified member names
+* extend member filtering to class attribute tables and Pydantic field tables so internal state can be hidden consistently from built-in output
+
+
+### Bug Fixes
+
+* align `--init` defaults and watch-path option forwarding with the new member filtering feature set
+
+
+### Documentation
+
+* document member filtering workflows, CLI flags, config keys, and examples in the README
+
 ## [0.7.4](https://github.com/f1sherFM/PyDoc2Markdown/compare/v0.7.3...v0.7.4) (2026-06-06)
 
 
