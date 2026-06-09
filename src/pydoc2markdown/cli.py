@@ -34,6 +34,21 @@ _DEFAULT_CONFIG = """[tool.pydoc2markdown]
 output = "docs"
 theme = "default"
 recursive = true
+show_toc = true
+show_source_links = true
+compact_sections = false
+show_class_metadata = true
+show_public_api = true
+show_attributes = true
+show_returns = true
+show_raises = true
+show_private_members = false
+show_dunder_members = false
+public_only = false
+member_include = []
+member_exclude = []
+readme_mode = "summary"
+readme_title = "API Reference"
 """
 
 _DEMO_FILES = {
@@ -53,6 +68,8 @@ __all__ = [
     "src/shop_demo/inventory.py": '''"""Inventory models and helpers for the sample shop."""
 
 from dataclasses import dataclass
+
+__all__ = ["Product", "Inventory"]
 
 
 @dataclass
@@ -93,6 +110,7 @@ class Inventory:
         Args:
             product: Product to store.
         """
+        self._validate_product(product)
         self._products[product.sku] = product
 
     def get(self, sku: str) -> Product:
@@ -107,7 +125,17 @@ class Inventory:
         Raises:
             KeyError: If the SKU is unknown.
         """
-        return self._products[sku]
+        return self._products[_coerce_sku(sku)]
+
+    def _validate_product(self, product: Product) -> None:
+        """Validate product input before it enters the inventory."""
+        if not product.sku:
+            raise ValueError("product sku must not be empty")
+
+
+def _coerce_sku(value: str) -> str:
+    """Normalize an SKU key used for in-memory lookups."""
+    return value.strip().upper()
 ''',
     "src/shop_demo/orders.py": '''"""Order models and pricing helpers."""
 
@@ -115,6 +143,8 @@ from dataclasses import dataclass
 from enum import Enum
 
 from shop_demo.inventory import Product
+
+__all__ = ["OrderStatus", "Order", "calculate_total"]
 
 
 class OrderStatus(Enum):
@@ -157,10 +187,16 @@ def calculate_total(items: list[Product], discount: float = 0.0) -> float:
     Raises:
         ValueError: If discount is outside the accepted range.
     """
-    if not 0 <= discount <= 1:
-        raise ValueError("discount must be between 0 and 1")
+    discount = _normalize_discount(discount)
     subtotal = sum(item.price for item in items)
     return subtotal * (1 - discount)
+
+
+def _normalize_discount(value: float) -> float:
+    """Validate and normalize a discount ratio."""
+    if not 0 <= value <= 1:
+        raise ValueError("discount must be between 0 and 1")
+    return value
 ''',
     "README.md": """# PyDoc2Markdown Demo
 
@@ -288,6 +324,40 @@ def create_parser() -> argparse.ArgumentParser:
         action=argparse.BooleanOptionalAction,
         default=_config_bool(defaults, "show_raises", True),
         help="Show or hide Raises sections in built-in output.",
+    )
+    config_group.add_argument(
+        "--show-private-members",
+        action=argparse.BooleanOptionalAction,
+        default=_config_bool(defaults, "show_private_members", False),
+        help="Show or hide private members such as _helper in generated output.",
+    )
+    config_group.add_argument(
+        "--show-dunder-members",
+        action=argparse.BooleanOptionalAction,
+        default=_config_bool(defaults, "show_dunder_members", False),
+        help="Show or hide dunder members such as __repr__ in generated output.",
+    )
+    config_group.add_argument(
+        "--public-only",
+        action=argparse.BooleanOptionalAction,
+        default=_config_bool(defaults, "public_only", False),
+        help="When __all__ is present, document only that exported top-level surface.",
+    )
+    config_group.add_argument(
+        "--member-include",
+        default=",".join(_config_patterns(defaults, "member_include")) or None,
+        help=(
+            "Comma-separated glob patterns for member names to include, such as "
+            "'Widget,public_helper,Client.*,pkg.module.Service.run'."
+        ),
+    )
+    config_group.add_argument(
+        "--member-exclude",
+        default=",".join(_config_patterns(defaults, "member_exclude")) or None,
+        help=(
+            "Comma-separated glob patterns for member names to exclude, such as "
+            "'*_internal,_debug,Client.__repr__'."
+        ),
     )
     demo_group.add_argument(
         "--demo",
@@ -499,6 +569,18 @@ def _config_string(
     return value.strip() if isinstance(value, str) and value.strip() else default
 
 
+def _config_patterns(config: dict[str, Any], key: str) -> tuple[str, ...]:
+    """Return validated member-filtering patterns from config."""
+    value = config.get(key)
+    if isinstance(value, str):
+        return tuple(pattern.strip() for pattern in value.split(",") if pattern.strip())
+    if isinstance(value, list):
+        return tuple(
+            pattern.strip() for pattern in value if isinstance(pattern, str) and pattern.strip()
+        )
+    return ()
+
+
 def _output_options_from_args(parsed_args: argparse.Namespace) -> OutputOptions:
     """Build generator output options from parsed CLI arguments."""
     return OutputOptions(
@@ -510,6 +592,11 @@ def _output_options_from_args(parsed_args: argparse.Namespace) -> OutputOptions:
         show_attributes=parsed_args.show_attributes,
         show_returns=parsed_args.show_returns,
         show_raises=parsed_args.show_raises,
+        show_private_members=parsed_args.show_private_members,
+        show_dunder_members=parsed_args.show_dunder_members,
+        public_only=parsed_args.public_only,
+        member_include=tuple(_split_patterns(parsed_args.member_include) or ()),
+        member_exclude=tuple(_split_patterns(parsed_args.member_exclude) or ()),
     )
 
 
@@ -1118,11 +1205,12 @@ def main(args: list[str] | None = None) -> int:
             exclude=_split_patterns(parsed_args.exclude),
         )
         logger.info("Parsed %d module(s)", len(modules))
+        output_options = _output_options_from_args(parsed_args)
         md_generator = MarkdownGenerator(
             template_path=parsed_args.template,
             theme=parsed_args.theme,
             source_link_template=source_link_template,
-            output_options=_output_options_from_args(parsed_args),
+            output_options=output_options,
             readme_mode=parsed_args.readme_mode,
             readme_title=parsed_args.readme_title,
             readme_module_links=(
@@ -1139,7 +1227,7 @@ def main(args: list[str] | None = None) -> int:
             ),
         )
         if parsed_args.report:
-            report = analyze_modules(modules)
+            report = analyze_modules(modules, filter_options=output_options)
             content = (
                 format_report_json(report, categories=report_categories)
                 if parsed_args.report_format == "json"

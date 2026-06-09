@@ -405,6 +405,249 @@ def helper() -> int:
     assert "**Raises:**" not in content
 
 
+def test_generate_filters_private_dunder_and_public_only_members(tmp_path: Path) -> None:
+    module = tmp_path / "filtered_members.py"
+    module.write_text(
+        '''"""Module for member filtering."""
+
+__all__ = ["Widget", "exported_helper"]
+
+class Widget:
+    """Public widget."""
+
+    def run(self) -> None:
+        """Run the widget."""
+
+    def _debug(self) -> None:
+        """Debug helper."""
+
+    def __repr__(self) -> str:
+        """Render the widget."""
+        return "Widget()"
+
+class _InternalWidget:
+    """Internal widget."""
+
+def exported_helper() -> None:
+    """Exported helper."""
+
+def public_helper() -> None:
+    """Non-exported helper."""
+
+def _private_helper() -> None:
+    """Private helper."""
+''',
+        encoding="utf-8",
+    )
+
+    modules = DocstringParser().parse(module)
+    output_dir = tmp_path / "docs"
+    MarkdownGenerator(
+        output_options=OutputOptions(public_only=True),
+    ).generate(modules, output_dir)
+
+    content = (output_dir / "filtered_members.md").read_text(encoding="utf-8")
+    assert "### `Widget`" in content
+    assert "### `exported_helper`" in content
+    assert "`run`" in content
+    assert "_debug" not in content
+    assert "__repr__" not in content
+    assert "_InternalWidget" not in content
+    assert "public_helper" not in content
+    assert "_private_helper" not in content
+
+
+def test_update_readme_summary_respects_member_filtering(tmp_path: Path) -> None:
+    module = tmp_path / "readme_filtering.py"
+    module.write_text(
+        '''"""README filtering sample."""
+
+__all__ = ["Widget"]
+
+class Widget:
+    """Public widget."""
+
+class _InternalWidget:
+    """Internal widget."""
+
+def public_helper() -> None:
+    """Non-exported helper."""
+''',
+        encoding="utf-8",
+    )
+
+    modules = DocstringParser().parse(module)
+    readme_path = tmp_path / "README.md"
+
+    MarkdownGenerator(
+        output_options=OutputOptions(public_only=True),
+    ).update_readme(modules, readme_path)
+
+    content = readme_path.read_text(encoding="utf-8")
+    assert "- `Widget`: Public widget." in content
+    assert "_InternalWidget" not in content
+    assert "public_helper" not in content
+
+
+def test_generate_can_show_private_and_dunder_members_when_enabled(tmp_path: Path) -> None:
+    module = tmp_path / "visible_members.py"
+    module.write_text(
+        '''"""Module for visible member filtering."""
+
+class Widget:
+    """Public widget."""
+
+    def _debug(self) -> None:
+        """Debug helper."""
+
+    def __repr__(self) -> str:
+        """Render the widget."""
+        return "Widget()"
+
+def _private_helper() -> None:
+    """Private helper."""
+''',
+        encoding="utf-8",
+    )
+
+    modules = DocstringParser().parse(module)
+    content = MarkdownGenerator(
+        output_options=OutputOptions(
+            show_private_members=True,
+            show_dunder_members=True,
+        )
+    ).generate_string(modules[0])
+
+    assert "`_debug`" in content
+    assert "`__repr__`" in content
+    assert "### `_private_helper`" in content
+
+
+def test_generate_filters_members_by_name_patterns(tmp_path: Path) -> None:
+    module = tmp_path / "pattern_members.py"
+    module.write_text(
+        '''"""Module for pattern filtering."""
+
+class Widget:
+    """Public widget."""
+
+    def run(self) -> None:
+        """Run the widget."""
+
+    def helper(self) -> None:
+        """Helper method."""
+
+class Service:
+    """Background service."""
+
+    def run(self) -> None:
+        """Run the service."""
+
+def public_helper() -> None:
+    """Public helper."""
+
+def backup() -> None:
+    """Backup helper."""
+''',
+        encoding="utf-8",
+    )
+
+    modules = DocstringParser().parse(module)
+    content = MarkdownGenerator(
+        output_options=OutputOptions(
+            member_include=("Widget", "Service.run", "public_*"),
+            member_exclude=("Widget.helper",),
+        )
+    ).generate_string(modules[0])
+
+    assert "### `Widget`" in content
+    assert "`run`" in content
+    assert "`helper`" not in content
+    assert "### `Service`" in content
+    assert "Run the service." in content
+    assert "### `public_helper`" in content
+    assert "### `backup`" not in content
+
+
+def test_generate_filters_class_attributes_and_pydantic_fields(tmp_path: Path) -> None:
+    module = tmp_path / "field_filtering.py"
+    module.write_text(
+        '''"""Module for field filtering."""
+
+from pydantic import BaseModel, Field
+
+class Widget:
+    """Widget with internal state."""
+
+    def __init__(self, name: str, secret: str) -> None:
+        """Create widget.
+
+        Args:
+            name: Public name.
+            secret: Internal secret.
+        """
+        self.name: str = name
+        self._secret: str = secret
+
+class Config(BaseModel):
+    """Pydantic config."""
+
+    debug: bool = False
+    _token: str = Field(default="", description="Internal token")
+''',
+        encoding="utf-8",
+    )
+
+    modules = DocstringParser().parse(module)
+    content = MarkdownGenerator(
+        output_options=OutputOptions(
+            show_private_members=False,
+            member_exclude=("Config.debug",),
+        )
+    ).generate_string(modules[0])
+
+    assert "| `name` | `str` | Public name. |" in content
+    assert "_secret" not in content
+    assert "#### Pydantic Fields" not in content
+    assert "`debug`" not in content
+    assert "_token" not in content
+
+
+def test_generate_can_show_private_attributes_and_fields_when_enabled(tmp_path: Path) -> None:
+    module = tmp_path / "field_visibility.py"
+    module.write_text(
+        '''"""Module for visible fields."""
+
+from pydantic import BaseModel, Field
+
+class Widget:
+    """Widget with internal state."""
+
+    def __init__(self, secret: str) -> None:
+        """Create widget.
+
+        Args:
+            secret: Internal secret.
+        """
+        self._secret: str = secret
+
+class Config(BaseModel):
+    """Pydantic config."""
+
+    _token: str = Field(default="", description="Internal token")
+''',
+        encoding="utf-8",
+    )
+
+    modules = DocstringParser().parse(module)
+    content = MarkdownGenerator(
+        output_options=OutputOptions(show_private_members=True),
+    ).generate_string(modules[0])
+
+    assert "_secret" in content
+    assert "_token" in content
+
+
 def test_generate_skips_empty_returns_block(tmp_path: Path) -> None:
     module = tmp_path / "no_returns.py"
     module.write_text(

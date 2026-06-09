@@ -11,6 +11,11 @@ Order models and pricing helpers.
 - [Functions](#functions)
   - [`calculate_total`](#calculate_total)
 
+**Public API:**
+- `OrderStatus`
+- `Order`
+- `calculate_total`
+
 ## Classes
 
 ### `OrderStatus` (enum)

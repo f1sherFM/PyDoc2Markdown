@@ -191,6 +191,13 @@ def test_cli_watch_passes_navigation_options(
             "--readme",
             "--readme-path",
             str(tmp_path / "README.md"),
+            "--public-only",
+            "--show-private-members",
+            "--show-dunder-members",
+            "--member-include",
+            "Widget,Widget.run",
+            "--member-exclude",
+            "Widget._debug",
             "-o",
             str(tmp_path / "docs"),
         ]
@@ -209,6 +216,11 @@ def test_cli_watch_passes_navigation_options(
     assert calls[0]["readme_title"] == "API Reference"
     output_options = cast(OutputOptions, calls[0]["output_options"])
     assert output_options.show_toc is True
+    assert output_options.public_only is True
+    assert output_options.show_private_members is True
+    assert output_options.show_dunder_members is True
+    assert output_options.member_include == ("Widget", "Widget.run")
+    assert output_options.member_exclude == ("Widget._debug",)
 
 
 def test_cli_single_file(sample_package: Path, tmp_path: Path) -> None:
@@ -693,6 +705,142 @@ def helper() -> int:
     assert "**Raises:**" not in content
 
 
+def test_cli_member_filtering_flags_apply_to_docs_output(tmp_path: Path) -> None:
+    source = tmp_path / "filtered_cli.py"
+    source.write_text(
+        '''"""CLI filtering sample."""
+
+__all__ = ["Widget", "exported_helper"]
+
+class Widget:
+    """Public widget."""
+
+    def run(self) -> None:
+        """Run the widget."""
+
+    def _debug(self) -> None:
+        """Debug helper."""
+
+    def __repr__(self) -> str:
+        """Render the widget."""
+        return "Widget()"
+
+class _InternalWidget:
+    """Internal widget."""
+
+def exported_helper() -> None:
+    """Exported helper."""
+
+def public_helper() -> None:
+    """Non-exported helper."""
+''',
+        encoding="utf-8",
+    )
+
+    output = tmp_path / "docs"
+    result = main([str(source), "-o", str(output), "--public-only"])
+
+    assert result == 0
+    content = (output / "filtered_cli.md").read_text(encoding="utf-8")
+    assert "### `Widget`" in content
+    assert "### `exported_helper`" in content
+    assert "_debug" not in content
+    assert "__repr__" not in content
+    assert "_InternalWidget" not in content
+    assert "public_helper" not in content
+
+
+def test_cli_can_show_private_and_dunder_members(tmp_path: Path) -> None:
+    source = tmp_path / "visible_cli.py"
+    source.write_text(
+        '''"""CLI visible filtering sample."""
+
+class Widget:
+    """Public widget."""
+
+    def _debug(self) -> None:
+        """Debug helper."""
+
+    def __repr__(self) -> str:
+        """Render the widget."""
+        return "Widget()"
+
+def _private_helper() -> None:
+    """Private helper."""
+''',
+        encoding="utf-8",
+    )
+
+    output = tmp_path / "docs"
+    result = main(
+        [
+            str(source),
+            "-o",
+            str(output),
+            "--show-private-members",
+            "--show-dunder-members",
+        ]
+    )
+
+    assert result == 0
+    content = (output / "visible_cli.md").read_text(encoding="utf-8")
+    assert "`_debug`" in content
+    assert "`__repr__`" in content
+    assert "### `_private_helper`" in content
+
+
+def test_cli_member_include_and_exclude_patterns(tmp_path: Path) -> None:
+    source = tmp_path / "pattern_cli.py"
+    source.write_text(
+        '''"""CLI pattern filtering sample."""
+
+class Widget:
+    """Public widget."""
+
+    def run(self) -> None:
+        """Run the widget."""
+
+    def helper(self) -> None:
+        """Helper method."""
+
+class Service:
+    """Background service."""
+
+    def run(self) -> None:
+        """Run the service."""
+
+def public_helper() -> None:
+    """Public helper."""
+
+def backup() -> None:
+    """Backup helper."""
+''',
+        encoding="utf-8",
+    )
+
+    output = tmp_path / "docs"
+    result = main(
+        [
+            str(source),
+            "-o",
+            str(output),
+            "--member-include",
+            "Widget,Service.run,public_*",
+            "--member-exclude",
+            "Widget.helper",
+        ]
+    )
+
+    assert result == 0
+    content = (output / "pattern_cli.md").read_text(encoding="utf-8")
+    assert "### `Widget`" in content
+    assert "`helper`" not in content
+    assert "### `Service`" in content
+    assert "Run the service." in content
+    assert "### `public_helper`" in content
+    assert "### `backup`" not in content
+
+
 def test_cli_readme_invalid_marker_block_returns_error(
     sample_module: Path,
     tmp_path: Path,
@@ -729,6 +877,12 @@ def test_cli_init_creates_pyproject(tmp_path: Path, monkeypatch: pytest.MonkeyPa
     assert 'output = "docs"' in content
     assert 'theme = "default"' in content
     assert "recursive = true" in content
+    assert "show_private_members = false" in content
+    assert "show_dunder_members = false" in content
+    assert "public_only = false" in content
+    assert "member_include = []" in content
+    assert "member_exclude = []" in content
+    assert 'readme_mode = "summary"' in content
 
 
 def test_cli_init_appends_to_existing(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -1065,6 +1219,141 @@ def test_cli_report_json_output(
     assert payload["counts"]["modules"] == 0
     assert payload["counts"]["functions"] == 0
     assert payload["percentages"]["params"] == 60.0
+
+
+def test_cli_report_respects_member_filtering_flags(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    module = tmp_path / "coverage_filtering.py"
+    module.write_text(
+        '''"""Coverage filtering sample."""
+
+__all__ = ["public_helper"]
+
+def public_helper(value: int, other: int) -> None:
+    """Public helper.
+
+    Args:
+        value: First value.
+    """
+
+def public_not_exported() -> None:
+    pass
+
+def _private_helper() -> None:
+    pass
+''',
+        encoding="utf-8",
+    )
+
+    result = main([str(module), "--report", "--public-only"])
+
+    assert result == 0
+    output = capsys.readouterr().out
+    assert "Scanned 1 module(s), 0 class(es), and 1 function(s)." in output
+    assert "Functions without docstrings: 0" in output
+    assert "Undocumented public API exports: 0" in output
+    assert "Parameters missing descriptions: 1" in output
+    assert "public_not_exported" not in output
+    assert "_private_helper" not in output
+
+
+def test_cli_report_respects_member_include_and_exclude_patterns(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    module = tmp_path / "coverage_patterns.py"
+    module.write_text(
+        '''"""Coverage pattern sample."""
+
+class Widget:
+    """Public widget."""
+
+    def run(self) -> None:
+        """Run the widget."""
+
+class Service:
+    """Background service."""
+
+    def run(self) -> None:
+        pass
+
+def public_helper() -> None:
+    """Public helper."""
+
+def backup() -> None:
+    pass
+''',
+        encoding="utf-8",
+    )
+
+    result = main(
+        [
+            str(module),
+            "--report",
+            "--member-include",
+            "Widget,Service.run,public_*",
+            "--member-exclude",
+            "Service.run",
+        ]
+    )
+
+    assert result == 0
+    output = capsys.readouterr().out
+    assert "Scanned 1 module(s), 1 class(es), and 1 function(s)." in output
+    assert "Classes without docstrings: 0" in output
+    assert "Functions without docstrings: 0" in output
+    assert "Service" not in output
+    assert "backup" not in output
+
+
+def test_cli_member_filters_apply_to_attributes_and_fields(tmp_path: Path) -> None:
+    source = tmp_path / "field_cli.py"
+    source.write_text(
+        '''"""CLI field filtering sample."""
+
+from pydantic import BaseModel, Field
+
+class Widget:
+    """Widget with internal state."""
+
+    def __init__(self, name: str, secret: str) -> None:
+        """Create widget.
+
+        Args:
+            name: Public name.
+            secret: Internal secret.
+        """
+        self.name: str = name
+        self._secret: str = secret
+
+class Config(BaseModel):
+    """Pydantic config."""
+
+    debug: bool = False
+    _token: str = Field(default="", description="Internal token")
+''',
+        encoding="utf-8",
+    )
+
+    output = tmp_path / "docs"
+    result = main(
+        [
+            str(source),
+            "-o",
+            str(output),
+            "--member-exclude",
+            "Config.debug",
+        ]
+    )
+
+    assert result == 0
+    content = (output / "field_cli.md").read_text(encoding="utf-8")
+    assert "| `name` | `str` | Public name. |" in content
+    assert "_secret" not in content
+    assert "`debug`" not in content
+    assert "_token" not in content
 
 
 def test_cli_report_json_output_respects_selected_categories(

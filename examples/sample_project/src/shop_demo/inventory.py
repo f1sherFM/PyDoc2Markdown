@@ -2,6 +2,8 @@
 
 from dataclasses import dataclass
 
+__all__ = ["Product", "Inventory"]
+
 
 @dataclass
 class Product:
@@ -41,6 +43,7 @@ class Inventory:
         Args:
             product: Product to store.
         """
+        self._validate_product(product)
         self._products[product.sku] = product
 
     def get(self, sku: str) -> Product:
@@ -55,4 +58,14 @@ class Inventory:
         Raises:
             KeyError: If the SKU is unknown.
         """
-        return self._products[sku]
+        return self._products[_coerce_sku(sku)]
+
+    def _validate_product(self, product: Product) -> None:
+        """Validate product input before it enters the inventory."""
+        if not product.sku:
+            raise ValueError("product sku must not be empty")
+
+
+def _coerce_sku(value: str) -> str:
+    """Normalize an SKU key used for in-memory lookups."""
+    return value.strip().upper()

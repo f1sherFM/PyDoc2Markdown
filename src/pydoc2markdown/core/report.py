@@ -3,6 +3,7 @@
 import json
 from dataclasses import dataclass, field
 
+from pydoc2markdown.core.filtering import filter_modules
 from pydoc2markdown.core.parser import FunctionDoc, ModuleDoc
 
 REPORT_CATEGORY_TITLES = {
@@ -135,8 +136,13 @@ class CoverageReport:
         }
 
 
-def analyze_modules(modules: list[ModuleDoc]) -> CoverageReport:
+def analyze_modules(
+    modules: list[ModuleDoc],
+    *,
+    filter_options: object | None = None,
+) -> CoverageReport:
     """Inspect parsed modules and return coverage findings."""
+    modules = filter_modules(modules, filter_options)
     report = CoverageReport(
         module_count=len(modules),
         class_count=sum(len(module.classes) for module in modules),
