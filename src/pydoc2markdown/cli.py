@@ -34,6 +34,21 @@ _DEFAULT_CONFIG = """[tool.pydoc2markdown]
 output = "docs"
 theme = "default"
 recursive = true
+show_toc = true
+show_source_links = true
+compact_sections = false
+show_class_metadata = true
+show_public_api = true
+show_attributes = true
+show_returns = true
+show_raises = true
+show_private_members = false
+show_dunder_members = false
+public_only = false
+member_include = []
+member_exclude = []
+readme_mode = "summary"
+readme_title = "API Reference"
 """
 
 _DEMO_FILES = {

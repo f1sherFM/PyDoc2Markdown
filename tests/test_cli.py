@@ -191,6 +191,13 @@ def test_cli_watch_passes_navigation_options(
             "--readme",
             "--readme-path",
             str(tmp_path / "README.md"),
+            "--public-only",
+            "--show-private-members",
+            "--show-dunder-members",
+            "--member-include",
+            "Widget,Widget.run",
+            "--member-exclude",
+            "Widget._debug",
             "-o",
             str(tmp_path / "docs"),
         ]
@@ -209,6 +216,11 @@ def test_cli_watch_passes_navigation_options(
     assert calls[0]["readme_title"] == "API Reference"
     output_options = cast(OutputOptions, calls[0]["output_options"])
     assert output_options.show_toc is True
+    assert output_options.public_only is True
+    assert output_options.show_private_members is True
+    assert output_options.show_dunder_members is True
+    assert output_options.member_include == ("Widget", "Widget.run")
+    assert output_options.member_exclude == ("Widget._debug",)
 
 
 def test_cli_single_file(sample_package: Path, tmp_path: Path) -> None:
@@ -865,6 +877,12 @@ def test_cli_init_creates_pyproject(tmp_path: Path, monkeypatch: pytest.MonkeyPa
     assert 'output = "docs"' in content
     assert 'theme = "default"' in content
     assert "recursive = true" in content
+    assert "show_private_members = false" in content
+    assert "show_dunder_members = false" in content
+    assert "public_only = false" in content
+    assert "member_include = []" in content
+    assert "member_exclude = []" in content
+    assert 'readme_mode = "summary"' in content
 
 
 def test_cli_init_appends_to_existing(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
