@@ -1290,6 +1290,54 @@ def backup() -> None:
     assert "backup" not in output
 
 
+def test_cli_member_filters_apply_to_attributes_and_fields(tmp_path: Path) -> None:
+    source = tmp_path / "field_cli.py"
+    source.write_text(
+        '''"""CLI field filtering sample."""
+
+from pydantic import BaseModel, Field
+
+class Widget:
+    """Widget with internal state."""
+
+    def __init__(self, name: str, secret: str) -> None:
+        """Create widget.
+
+        Args:
+            name: Public name.
+            secret: Internal secret.
+        """
+        self.name: str = name
+        self._secret: str = secret
+
+class Config(BaseModel):
+    """Pydantic config."""
+
+    debug: bool = False
+    _token: str = Field(default="", description="Internal token")
+''',
+        encoding="utf-8",
+    )
+
+    output = tmp_path / "docs"
+    result = main(
+        [
+            str(source),
+            "-o",
+            str(output),
+            "--member-exclude",
+            "Config.debug",
+        ]
+    )
+
+    assert result == 0
+    content = (output / "field_cli.md").read_text(encoding="utf-8")
+    assert "| `name` | `str` | Public name. |" in content
+    assert "_secret" not in content
+    assert "`debug`" not in content
+    assert "_token" not in content
+
+
 def test_cli_report_json_output_respects_selected_categories(
     sample_module: Path,
     capsys: pytest.CaptureFixture[str],

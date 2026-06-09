@@ -533,6 +533,8 @@ These controls affect:
 - `--report`
 
 That keeps the visible docs surface and the reported coverage surface aligned.
+For class docs, the same filtering rules also apply to attribute tables and
+Pydantic field tables.
 
 When you need more precision, use `--member-include` and `--member-exclude`.
 Patterns are matched against a few useful forms for the same object:

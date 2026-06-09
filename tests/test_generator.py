@@ -569,6 +569,85 @@ def backup() -> None:
     assert "### `backup`" not in content
 
 
+def test_generate_filters_class_attributes_and_pydantic_fields(tmp_path: Path) -> None:
+    module = tmp_path / "field_filtering.py"
+    module.write_text(
+        '''"""Module for field filtering."""
+
+from pydantic import BaseModel, Field
+
+class Widget:
+    """Widget with internal state."""
+
+    def __init__(self, name: str, secret: str) -> None:
+        """Create widget.
+
+        Args:
+            name: Public name.
+            secret: Internal secret.
+        """
+        self.name: str = name
+        self._secret: str = secret
+
+class Config(BaseModel):
+    """Pydantic config."""
+
+    debug: bool = False
+    _token: str = Field(default="", description="Internal token")
+''',
+        encoding="utf-8",
+    )
+
+    modules = DocstringParser().parse(module)
+    content = MarkdownGenerator(
+        output_options=OutputOptions(
+            show_private_members=False,
+            member_exclude=("Config.debug",),
+        )
+    ).generate_string(modules[0])
+
+    assert "| `name` | `str` | Public name. |" in content
+    assert "_secret" not in content
+    assert "#### Pydantic Fields" not in content
+    assert "`debug`" not in content
+    assert "_token" not in content
+
+
+def test_generate_can_show_private_attributes_and_fields_when_enabled(tmp_path: Path) -> None:
+    module = tmp_path / "field_visibility.py"
+    module.write_text(
+        '''"""Module for visible fields."""
+
+from pydantic import BaseModel, Field
+
+class Widget:
+    """Widget with internal state."""
+
+    def __init__(self, secret: str) -> None:
+        """Create widget.
+
+        Args:
+            secret: Internal secret.
+        """
+        self._secret: str = secret
+
+class Config(BaseModel):
+    """Pydantic config."""
+
+    _token: str = Field(default="", description="Internal token")
+''',
+        encoding="utf-8",
+    )
+
+    modules = DocstringParser().parse(module)
+    content = MarkdownGenerator(
+        output_options=OutputOptions(show_private_members=True),
+    ).generate_string(modules[0])
+
+    assert "_secret" in content
+    assert "_token" in content
+
+
 def test_generate_skips_empty_returns_block(tmp_path: Path) -> None:
     module = tmp_path / "no_returns.py"
     module.write_text(

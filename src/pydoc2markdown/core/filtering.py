@@ -77,7 +77,32 @@ def _filter_class(class_doc: ClassDoc, *, module_name: str, options: object | No
             module_name=module_name,
         )
     ]
-    return replace(class_doc, methods=filtered_methods)
+    filtered_attributes = [
+        attribute
+        for attribute in class_doc.attributes
+        if _keep_member_name(
+            attribute.name,
+            options,
+            owner_name=class_doc.name,
+            module_name=module_name,
+        )
+    ]
+    filtered_pydantic_fields = [
+        field
+        for field in class_doc.pydantic_fields
+        if _keep_member_name(
+            field.name,
+            options,
+            owner_name=class_doc.name,
+            module_name=module_name,
+        )
+    ]
+    return replace(
+        class_doc,
+        methods=filtered_methods,
+        attributes=filtered_attributes,
+        pydantic_fields=filtered_pydantic_fields,
+    )
 
 
 def _keep_top_level_name(
