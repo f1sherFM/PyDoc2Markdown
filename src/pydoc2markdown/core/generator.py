@@ -78,6 +78,26 @@ def _write_utf8_text(path: Path, content: str) -> None:
     path.write_text(content, encoding="utf-8", newline="\n")
 
 
+def _replace_generated_readme_section(
+    content: str,
+    generated: str,
+    title: str,
+) -> str:
+    """Replace an existing generated README block, updating the section title when possible."""
+    start = content.index(README_START_MARKER)
+    end = content.index(README_END_MARKER) + len(README_END_MARKER)
+    heading_match = None
+    for match in re.finditer(r"(?m)^(#{1,6}) [^\n]+$", content[:start]):
+        heading_match = match
+
+    if heading_match and content[heading_match.end() : start].strip() == "":
+        heading_prefix = heading_match.group(1)
+        section = f"{heading_prefix} {title}\n\n{generated}"
+        return content[: heading_match.start()] + section + content[end:]
+
+    return content[:start] + generated + content[end:]
+
+
 class MarkdownGenerator:
     """Generate Markdown files from parsed Python documentation."""
 
@@ -608,9 +628,11 @@ class MarkdownGenerator:
             raise ValueError(msg)
 
         if has_start_marker and has_end_marker:
-            start = content.index(README_START_MARKER)
-            end = content.index(README_END_MARKER) + len(README_END_MARKER)
-            updated = content[:start] + generated + content[end:]
+            updated = _replace_generated_readme_section(
+                content,
+                generated,
+                self._readme_title,
+            )
         else:
             separator = "" if not content or content.endswith("\n") else "\n"
             updated = f"{content}{separator}\n{section}"

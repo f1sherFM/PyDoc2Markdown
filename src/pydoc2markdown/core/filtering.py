@@ -30,7 +30,12 @@ def _filter_module(module: ModuleDoc, options: object | None) -> ModuleDoc:
             restrict_to_public_api=restrict_to_public_api,
             options=options,
         )
-        if keep_class or filtered_class.methods:
+        if (
+            keep_class
+            or filtered_class.methods
+            or filtered_class.attributes
+            or filtered_class.pydantic_fields
+        ):
             filtered_classes.append(filtered_class)
     filtered_functions = [
         function_doc
