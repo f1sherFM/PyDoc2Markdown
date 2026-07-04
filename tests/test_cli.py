@@ -459,12 +459,17 @@ def test_cli_demo_creates_project(
     assert (output / "docs" / "api" / "shop_demo" / "orders.md").exists()
 
     readme = (output / "README.md").read_text(encoding="utf-8")
-    assert "### `shop_demo.inventory`" in readme
-    assert "### `shop_demo.orders`" in readme
+    assert "This small shop package shows what PyDoc2Markdown creates" in readme
+    assert "### [`shop_demo.inventory`](docs/api/shop_demo/inventory.md)" in readme
+    assert "### [`shop_demo.orders`](docs/api/shop_demo/orders.md)" in readme
+    assert "pydoc2markdown src --recursive --nav --readme --check -o docs" in readme
 
     out = capsys.readouterr().out
     assert "Created demo project:" in out
-    assert "Open docs index:" in out
+    assert "Next steps:" in out
+    assert "Inspect the README:" in out
+    assert "Inspect the docs index:" in out
+    assert "pydoc2markdown src --recursive --nav --readme --check -o docs" in out
 
 
 def test_cli_demo_rejects_non_empty_output(
