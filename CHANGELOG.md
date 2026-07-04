@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.1](https://github.com/f1sherFM/PyDoc2Markdown/compare/v0.8.0...v0.8.1) (2026-07-04)
+
+
+### Bug Fixes
+
+* tighten docs generation edge cases ([ee4125a](https://github.com/f1sherFM/PyDoc2Markdown/commit/ee4125a5be25471372feb77ae5208f6d642c6730))
+
 ## [0.8.0](https://github.com/f1sherFM/PyDoc2Markdown/compare/v0.7.4...v0.8.0) (2026-06-09)
 
 
