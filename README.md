@@ -48,6 +48,19 @@ publish with GitHub, GitLab, MkDocs, or any static site setup.
 - CI-friendly checks with `--check`, stale file cleanup with `--prune`, and docs
   coverage reporting with `--report`
 
+## Project Health
+
+Before adopting a docs tool, you should be able to inspect how it is built,
+tested, released, and used. This repository keeps those signals visible:
+
+- Published package: [pydoc2markdown on PyPI](https://pypi.org/project/pydoc2markdown/)
+- Automated tests: [GitHub Actions CI](https://github.com/f1sherFM/PyDoc2Markdown/actions/workflows/ci.yml)
+- Coverage reporting: [Codecov](https://codecov.io/gh/f1sherFM/PyDoc2Markdown)
+- Release history: [CHANGELOG.md](CHANGELOG.md)
+- Contributor workflow: [CONTRIBUTING.md](CONTRIBUTING.md)
+- Real generated output: [examples/sample_project/](examples/sample_project/)
+- Issues and ideas: [GitHub Issues](https://github.com/f1sherFM/PyDoc2Markdown/issues)
+
 ## Before And After
 
 Start with normal Python code and docstrings:
@@ -104,6 +117,7 @@ Total price after discount.
 
 - [See It In One Command](#see-it-in-one-command)
 - [What It Gives You](#what-it-gives-you)
+- [Project Health](#project-health)
 - [Before And After](#before-and-after)
 - [When To Use It](#when-to-use-it)
 - [Sample Project](#sample-project)
