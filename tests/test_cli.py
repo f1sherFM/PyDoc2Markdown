@@ -316,20 +316,60 @@ def test_cli_check_fails_when_docs_are_outdated(
 
 
 def test_cli_check_fails_when_stale_generated_file_remains(
-    sample_module: Path,
     tmp_path: Path,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
+    source = tmp_path / "pkg"
+    source.mkdir()
+    initial = source / "sample_module.py"
+    initial.write_text('"""First module."""\n', encoding="utf-8")
     output = tmp_path / "docs"
-    assert main([str(sample_module), "-o", str(output)]) == 0
-    stale = output / "old_module.md"
-    stale.write_text("# stale\n", encoding="utf-8")
+    assert main([str(initial), "-o", str(output)]) == 0
+
+    renamed = source / "renamed_module.py"
+    initial.rename(renamed)
+    renamed.write_text('"""Renamed module."""\n', encoding="utf-8")
+    stale = output / "sample_module.md"
 
     with caplog.at_level(logging.ERROR):
-        result = main([str(sample_module), "-o", str(output), "--check"])
+        result = main([str(renamed), "-o", str(output), "--check"])
 
     assert result == 1
+    assert "Generated documentation is out of date." in caplog.text
     assert str(stale) in caplog.text
+
+
+def test_cli_check_detects_outdated_generated_content(
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    module = tmp_path / "stale_content.py"
+    module.write_text('"""Fresh docs."""\n', encoding="utf-8")
+    output = tmp_path / "docs"
+    assert main([str(module), "-o", str(output)]) == 0
+
+    generated = output / "stale_content.md"
+    generated.write_text("stale docs\n", encoding="utf-8")
+
+    with caplog.at_level(logging.ERROR):
+        result = main([str(module), "-o", str(output), "--check"])
+
+    assert result == 1
+    assert "Generated documentation is out of date." in caplog.text
+    assert str(generated) in caplog.text
+
+
+def test_cli_check_keeps_non_generated_markdown_files(
+    sample_module: Path,
+    tmp_path: Path,
+) -> None:
+    output = tmp_path / "docs"
+    assert main([str(sample_module), "-o", str(output)]) == 0
+    (output / "guide.md").write_text("# Manual guide\n", encoding="utf-8")
+
+    result = main([str(sample_module), "-o", str(output), "--check"])
+
+    assert result == 0
 
 
 def test_cli_check_single_file(sample_package: Path, tmp_path: Path) -> None:

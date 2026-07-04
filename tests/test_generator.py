@@ -648,6 +648,47 @@ class Config(BaseModel):
     assert "_token" in content
 
 
+def test_generate_keeps_class_when_member_include_matches_only_attribute_or_field(
+    tmp_path: Path,
+) -> None:
+    module = tmp_path / "field_only_include.py"
+    module.write_text(
+        '''"""Module for field-only include patterns."""
+
+from pydantic import BaseModel
+
+class Widget:
+    """Widget with an attribute."""
+
+    def __init__(self, name: str) -> None:
+        """Create widget.
+
+        Args:
+            name: Public name.
+        """
+        self.name: str = name
+
+class Config(BaseModel):
+    """Pydantic config."""
+
+    debug: bool = False
+''',
+        encoding="utf-8",
+    )
+
+    modules = DocstringParser().parse(module)
+    content = MarkdownGenerator(
+        output_options=OutputOptions(
+            member_include=("Widget.name", "Config.debug"),
+        )
+    ).generate_string(modules[0])
+
+    assert "### `Widget`" in content
+    assert "| `name` | `str` | Public name. |" in content
+    assert "### `Config`" in content
+    assert "`debug`" in content
+
+
 def test_generate_skips_empty_returns_block(tmp_path: Path) -> None:
     module = tmp_path / "no_returns.py"
     module.write_text(
@@ -921,6 +962,34 @@ def test_update_readme_uses_custom_title(sample_module: Path, tmp_path: Path) ->
     modules = DocstringParser().parse(sample_module)
     readme_path = tmp_path / "README.md"
 
+    MarkdownGenerator(readme_title="Developer API").update_readme(modules, readme_path)
+
+    content = readme_path.read_text(encoding="utf-8")
+    assert "# Developer API" in content
+    assert "# API Reference" not in content
+
+
+def test_update_readme_replaces_existing_section_title(sample_module: Path, tmp_path: Path) -> None:
+    modules = DocstringParser().parse(sample_module)
+    readme_path = tmp_path / "README.md"
+    readme_path.write_text(
+        f"## API Reference\n\n{README_START_MARKER}\nold content\n{README_END_MARKER}\n",
+        encoding="utf-8",
+    )
+
+    MarkdownGenerator(readme_title="Developer API").update_readme(modules, readme_path)
+
+    content = readme_path.read_text(encoding="utf-8")
+    assert "## Developer API" in content
+    assert "## API Reference" not in content
+    assert "old content" not in content
+
+
+def test_update_readme_replaces_created_readme_title(sample_module: Path, tmp_path: Path) -> None:
+    modules = DocstringParser().parse(sample_module)
+    readme_path = tmp_path / "README.md"
+
+    MarkdownGenerator().update_readme(modules, readme_path)
     MarkdownGenerator(readme_title="Developer API").update_readme(modules, readme_path)
 
     content = readme_path.read_text(encoding="utf-8")
