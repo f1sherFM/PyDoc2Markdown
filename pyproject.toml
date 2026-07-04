@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "pydoc2markdown"
-version = "0.8.0"
+version = "0.8.1"
 description = "Convert Python docstrings to Markdown documentation."
 readme = "README.md"
 license = { text = "MIT" }
