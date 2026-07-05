@@ -78,6 +78,21 @@ def _write_utf8_text(path: Path, content: str) -> None:
     path.write_text(content, encoding="utf-8", newline="\n")
 
 
+def _safe_api_output_dir(output_dir: Path, api_dir: Path) -> Path:
+    """Return a validated API output directory inside output_dir."""
+    if api_dir.is_absolute() or any(part == ".." for part in api_dir.parts):
+        msg = "--api-dir must be a relative path inside the output directory."
+        raise ValueError(msg)
+
+    api_output_dir = output_dir / api_dir
+    output_root = output_dir.resolve()
+    resolved_api_dir = api_output_dir.resolve()
+    if not resolved_api_dir.is_relative_to(output_root):
+        msg = "--api-dir must resolve inside the output directory."
+        raise ValueError(msg)
+    return api_output_dir
+
+
 def _replace_generated_readme_section(
     content: str,
     generated: str,
@@ -177,6 +192,7 @@ class MarkdownGenerator:
         *,
         type_index: object,
         output_options: OutputOptions | None = None,
+        link_cross_module_types: bool = False,
     ) -> str:
         """Render a single module using the configured Jinja template."""
         template_name = self._resolve_template_name()
@@ -190,6 +206,7 @@ class MarkdownGenerator:
                     module=module,
                     type_index=type_index,
                     render_options=render_options,
+                    link_cross_module_types=link_cross_module_types,
                 )
             )
         finally:
@@ -243,7 +260,8 @@ class MarkdownGenerator:
         """Generate a navigation-first docs layout with API pages under api_dir."""
         modules = self._filtered_modules(modules)
         output_dir.mkdir(parents=True, exist_ok=True)
-        generated = self._write_module_docs(modules, output_dir / api_dir)
+        api_output_dir = _safe_api_output_dir(output_dir, api_dir)
+        generated = self._write_module_docs(modules, api_output_dir)
 
         package_pages = self._generate_package_pages(modules, output_dir, api_dir)
         generated.extend(package_pages)
@@ -588,6 +606,7 @@ class MarkdownGenerator:
                 module,
                 type_index=type_index,
                 output_options=self._readme_render_options(),
+                link_cross_module_types=True,
             )
             rendered_modules.append(self._demote_headings(content))
 
@@ -762,7 +781,11 @@ class MarkdownGenerator:
 
         # Render each module and concatenate
         for module in sorted(modules, key=lambda m: (m.package, m.name)):
-            content = self._render_module_content(module, type_index=type_index)
+            content = self._render_module_content(
+                module,
+                type_index=type_index,
+                link_cross_module_types=True,
+            )
             lines.append(content)
             lines.append("---")
             lines.append("")

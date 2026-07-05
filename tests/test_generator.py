@@ -227,6 +227,19 @@ def test_generate_navigation_uses_custom_api_dir(
     assert "[`sample_module`](reference/sample_module.md)" in content
 
 
+def test_generate_navigation_rejects_api_dir_escape(
+    sample_module: Path,
+    tmp_path: Path,
+) -> None:
+    modules = DocstringParser().parse(sample_module)
+    output_dir = tmp_path / "docs"
+
+    with pytest.raises(ValueError, match="--api-dir must be a relative path"):
+        MarkdownGenerator().generate_navigation(modules, output_dir, api_dir=Path(".."))
+
+    assert not (tmp_path / "sample_module.md").exists()
+
+
 def test_generate_minimal_theme(sample_module: Path, tmp_path: Path) -> None:
     parser = DocstringParser()
     modules = parser.parse(sample_module)
@@ -755,6 +768,69 @@ def test_generate_cross_references(crossref_module: Path, tmp_path: Path) -> Non
     assert "[User](#user)" in content
     # create_user returns User
     assert "[User](#user)" in content
+
+
+def test_generate_skips_cross_module_local_anchor_links(tmp_path: Path) -> None:
+    package = tmp_path / "shop"
+    package.mkdir()
+    (package / "inventory.py").write_text(
+        '''"""Inventory models."""
+
+class Product:
+    """A sellable product."""
+''',
+        encoding="utf-8",
+    )
+    (package / "orders.py").write_text(
+        '''"""Order helpers."""
+
+from inventory import Product
+
+def latest_product() -> Product:
+    """Return the latest product."""
+    return Product()
+''',
+        encoding="utf-8",
+    )
+    modules = DocstringParser().parse(package, recursive=True)
+
+    output_dir = tmp_path / "docs"
+    MarkdownGenerator().generate(modules, output_dir)
+
+    orders_content = (output_dir / "orders.md").read_text(encoding="utf-8")
+    assert "`Product`" in orders_content
+    assert "[Product](#product)" not in orders_content
+
+
+def test_generate_single_file_links_cross_module_types(tmp_path: Path) -> None:
+    package = tmp_path / "shop"
+    package.mkdir()
+    (package / "inventory.py").write_text(
+        '''"""Inventory models."""
+
+class Product:
+    """A sellable product."""
+''',
+        encoding="utf-8",
+    )
+    (package / "orders.py").write_text(
+        '''"""Order helpers."""
+
+from inventory import Product
+
+def latest_product() -> Product:
+    """Return the latest product."""
+    return Product()
+''',
+        encoding="utf-8",
+    )
+    modules = DocstringParser().parse(package, recursive=True)
+
+    output_path = tmp_path / "combined.md"
+    MarkdownGenerator().generate_single_file(modules, output_path)
+
+    content = output_path.read_text(encoding="utf-8")
+    assert "[Product](#product)" in content
 
 
 def test_generate_single_file(sample_package: Path, tmp_path: Path) -> None:

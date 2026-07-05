@@ -538,6 +538,37 @@ def test_cli_nav_uses_custom_api_dir(sample_module: Path, tmp_path: Path) -> Non
     assert (output / "reference" / "sample_module.md").exists()
 
 
+def test_cli_nav_rejects_api_dir_parent_escape(
+    sample_module: Path,
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    output = tmp_path / "docs"
+
+    with caplog.at_level(logging.ERROR):
+        result = main([str(sample_module), "--nav", "-o", str(output), "--api-dir", ".."])
+
+    assert result == 1
+    assert "--api-dir must be a relative path inside --output." in caplog.text
+    assert not (tmp_path / "sample_module.md").exists()
+
+
+def test_cli_nav_rejects_absolute_api_dir(
+    sample_module: Path,
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    output = tmp_path / "docs"
+    outside = tmp_path / "outside-api"
+
+    with caplog.at_level(logging.ERROR):
+        result = main([str(sample_module), "--nav", "-o", str(output), "--api-dir", str(outside)])
+
+    assert result == 1
+    assert "--api-dir must be a relative path inside --output." in caplog.text
+    assert not outside.exists()
+
+
 def test_cli_nav_rejects_single_file(
     sample_module: Path,
     tmp_path: Path,
@@ -1018,6 +1049,35 @@ def test_cli_prune_keeps_non_generated_markdown_files(
     assert result == 0
     assert guide.exists()
     assert "Removed stale generated file:" not in caplog.text
+
+
+def test_cli_prune_ignores_unsafe_manifest_paths(
+    sample_module: Path,
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    output = tmp_path / "docs"
+    output.mkdir()
+    outside = tmp_path / "README.md"
+    outside.write_text("# Keep me\n", encoding="utf-8")
+    (output / ".pydoc2markdown.json").write_text(
+        json.dumps(
+            {
+                "version": 1,
+                "single_file": False,
+                "files": ["../README.md", str(outside)],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    with caplog.at_level(logging.WARNING):
+        result = main([str(sample_module), "-o", str(output), "--prune"])
+
+    assert result == 0
+    assert outside.read_text(encoding="utf-8") == "# Keep me\n"
+    assert "Ignoring unsafe manifest path: ../README.md" in caplog.text
+    assert f"Ignoring unsafe manifest path: {outside}" in caplog.text
 
 
 def test_cli_prune_nav_layout(
