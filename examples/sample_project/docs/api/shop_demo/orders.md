@@ -58,7 +58,7 @@ Raises:
 
 | Name | Type | Default | Description |
 |------|------|---------|-------------|
-| `items` | `list[[Product](#product)]` | *required* | Products to include in the total. |
+| `items` | `list[Product]` | *required* | Products to include in the total. |
 | `discount` | `float` | `0.0` | Discount ratio between 0 and 1. |
 
 **Returns:** `float`
