@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.8.2](https://github.com/f1sherFM/PyDoc2Markdown/compare/v0.8.1...v0.8.2) (2026-07-05)
+
+
+### Bug Fixes
+
+0.8.2 is a focused safety and correctness patch for generated-output workflows.
+It does not add new CLI features; instead it hardens the places where existing
+commands touch the filesystem and avoids broken links in multi-file output.
+
+* harden `--prune` against unsafe manifest entries by ignoring absolute paths,
+  parent-directory escapes, symlinked entries, and any resolved path outside the
+  output directory before deleting stale generated files
+* validate `--api-dir` before navigation docs are written, requiring it to stay
+  relative to `--output` so failed generation cannot leave API pages outside the
+  selected docs directory
+* stop rendering cross-module type references as local `#anchor` links in
+  multi-file docs, while keeping cross-module links available in single-file and
+  detailed README output where the anchors live in the same Markdown document
+
 ## [0.8.1](https://github.com/f1sherFM/PyDoc2Markdown/compare/v0.8.0...v0.8.1) (2026-07-04)
 
 
