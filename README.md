@@ -6,171 +6,62 @@
 [![Python versions](https://img.shields.io/pypi/pyversions/pydoc2markdown)](https://pypi.org/project/pydoc2markdown/)
 [![License](https://img.shields.io/pypi/l/pydoc2markdown)](https://github.com/f1sherFM/PyDoc2Markdown/blob/main/LICENSE)
 
-> Convert Python docstrings into clean, structured Markdown documentation.
+> Generate clean Markdown API docs from Python docstrings without adopting a
+> full documentation framework.
 
-PyDoc2Markdown turns Python docstrings into plain Markdown that is easy to read,
-easy to commit, and easy to publish anywhere. Point it at your source tree and
-it can generate module docs, a navigation-ready docs directory, or a maintained
-API section inside your README.
+PyDoc2Markdown is a small CLI and library for projects that want useful API
+docs to live in the repo, next to the code. Point it at a Python package and it
+can generate plain `.md` files, a navigation-ready docs directory, a maintained
+README API section, or a documentation coverage report for CI.
 
-It is built for projects that want documentation to stay close to the code
-without taking on a full documentation framework. The output works well on
-GitHub, GitLab, MkDocs, and any other Markdown renderer.
+It is not trying to replace Sphinx for large documentation sites. It is for the
+common middle ground: libraries, internal tools, services, and small packages
+where Markdown output is enough and setup should stay boring.
 
-**What you get:**
-
-- Plain `.md` files instead of a custom docs runtime
-- Useful output with almost no setup
-- A CLI for day-to-day use and a small library API for automation
-- Features that help docs stay current: `--check`, `--prune`, README sync, navigation pages, and `--report`
-
-**A good fit for:**
-
-- Python libraries that want lightweight API docs in the repo
-- Internal tools and services that keep docs next to the code
-- Projects that want README API sections without manual copy-paste
-- Teams that prefer Markdown files over framework-specific documentation stacks
-
-## Table of Contents
-
-- [Why PyDoc2Markdown?](#why-pydoc2markdown)
-- [Features](#features)
-- [Requirements](#requirements)
-- [Installation](#installation)
-- [Visual Tour](#visual-tour)
-- [Try It In 30 Seconds](#try-it-in-30-seconds)
-- [Sample Project](#sample-project)
-- [Before And After](#before-and-after)
-- [Common Commands](#common-commands)
-- [Recipes](#recipes)
-- [Quick Start](#quick-start)
-  - [CLI Usage](#cli-usage)
-  - [Library Usage](#library-usage)
-- [CLI Reference](#cli-reference)
-- [Configuration](#configuration)
-- [Module Filtering](#module-filtering)
-- [Source Links](#source-links)
-- [README API Sections](#readme-api-sections)
-- [Navigation Docs Layout](#navigation-docs-layout)
-- [CI Checks](#ci-checks)
-- [Library API](#library-api)
-- [Supported Docstring Formats](#supported-docstring-formats)
-- [Example Output](#example-output)
-- [Documentation](#documentation)
-- [License](#license)
-
-## Why PyDoc2Markdown?
-
-Documentation generators like **Sphinx** are powerful but often come with
-noticeable setup: themes, `conf.py`, extensions, and custom builders to get the
-exact output you want. **pdoc** and **mkdocstrings** are lighter, but they still
-pull you toward a broader documentation stack.
-
-PyDoc2Markdown takes a different approach: **minimal setup, no framework lock-in,
-plain Markdown output.** Point it at a Python project and get structured docs
-that work anywhere: GitHub, GitLab, MkDocs, or any Markdown renderer.
-
-- **No `conf.py`** - works out of the box
-- **No framework lock-in** - generates plain `.md` files
-- **Minimal dependencies** - Jinja2 + docstring-parser
-- **Practical defaults** - useful CLI output before you write any config
-
-## Features
-
-- **Docstring parsing** - Extract Google and NumPy style docstrings, with basic reStructuredText field support via `docstring-parser`.
-- **Markdown generation** - Produce clean Markdown files with customizable Jinja2 templates.
-- **README API sections** - Create or update a generated API reference block in README files, in `summary` or `detailed` mode.
-- **Auto-generated index & TOC** - Each module gets a Table of Contents; an `index.md` with package grouping is created automatically.
-- **Navigation layout** - Generate a docs entrypoint with package pages and API files under `api/`.
-- **Output toggles** - Control built-in TOC, source links, compact sections, class metadata, Public API, attributes, returns, raises, and member visibility from CLI or `pyproject.toml`.
-- **CI-friendly checks** - Verify generated docs are up to date with `--check`.
-- **Coverage report mode** - Inspect undocumented modules, classes, functions, exports, and parameter docs with `--report`.
-- **Managed cleanup** - Preview or remove stale generated Markdown with `--prune` and `--dry-run`.
-- **Module filtering** - Include or exclude source files with glob patterns.
-- **Parameter defaults** - Show which function arguments are required or optional.
-- **Source links** - Link generated classes, functions, and methods back to source code.
-- **Package grouping** - Output files are organized into subdirectories matching the package structure.
-- **Built-in themes** - Choose between `default` (detailed) and `minimal` themes, or supply your own template.
-- **CLI & API** - Use via command line or import as a Python library.
-- **Recursive processing** - Scan entire packages in one command.
-- **Type-aware** - Respects type hints and annotations.
-- **Advanced constructs** - Supports `property`, `classmethod`, `staticmethod`, `dataclass`, `Enum`, `TypedDict`, `Protocol`, `ABC`, `Pydantic`, and `__all__`.
-
-## Requirements
-
-- Python >= 3.10
-- Dependencies: [Jinja2](https://jinja.palletsprojects.com/), [docstring-parser](https://github.com/rr-/docstring-parser)
-- Optional: [watchdog](https://github.com/argoslabs/python-watchdog) (for `--watch` mode)
-
-## Installation
+## See It In One Command
 
 ```bash
-# Base installation
 pip install pydoc2markdown
-
-# With file watcher support
-pip install pydoc2markdown[watch]
-```
-
-## Visual Tour
-
-Here is the kind of navigation-first Markdown output the project generates from
-the included sample package:
-
-![Generated docs showcase](docs/assets/readme-showcase.png)
-
-## Try It In 30 Seconds
-
-Clone the repository and run PyDoc2Markdown against the included sample project:
-
-```bash
-pydoc2markdown examples/sample_project/src --recursive --nav --readme \
-  --readme-path examples/sample_project/README.md \
-  -o examples/sample_project/docs
-```
-
-That one command updates the sample project's README API block and creates a
-navigation-first docs layout you can inspect immediately:
-
-```text
-examples/sample_project/
-|-- README.md
-|-- src/shop_demo/
-`-- docs/
-    |-- index.md
-    |-- shop_demo.md
-    `-- api/shop_demo/
-        |-- inventory.md
-        `-- orders.md
-```
-
-## Sample Project
-
-The [sample project](examples/sample_project/) is a tiny shop package with
-dataclasses, an enum, typed functions, properties, and Google-style docstrings.
-It is the fastest way to understand what PyDoc2Markdown actually produces in a
-real repo layout.
-
-You can inspect the whole workflow side by side:
-
-- [source code](examples/sample_project/src/shop_demo/)
-- [generated docs index](examples/sample_project/docs/index.md)
-- [README API section](examples/sample_project/README.md)
-
-You can also create the same kind of demo project locally:
-
-```bash
 pydoc2markdown --demo
 ```
 
-By default this writes to `pydoc2markdown-demo/`. Use `--demo-output` to choose
-another directory. Existing non-empty directories are not overwritten.
+That creates a tiny sample project, generates a browsable docs tree, and updates
+the sample README with an API section. If you already have a package, start with:
+
+```bash
+pydoc2markdown src/my_package --recursive --nav --readme -o docs
+```
+
+You get normal Markdown files that are easy to inspect, commit, review, and
+publish with GitHub, GitLab, MkDocs, or any static site setup.
+
+![Generated docs showcase](docs/assets/readme-showcase.png)
+
+## What It Gives You
+
+- Plain `.md` files instead of a custom docs runtime
+- A maintained API section inside `README.md`
+- Navigation pages and package indexes for `docs/`
+- Source links back to GitHub or another code host
+- Output controls for public API, private members, attributes, returns, raises,
+  and compact sections
+- CI-friendly checks with `--check`, stale file cleanup with `--prune`, and docs
+  coverage reporting with `--report`
+
+## Project Health
+
+Before adopting a docs tool, you should be able to inspect how it is built,
+tested, released, and used. This repository keeps those signals visible:
+
+- Published package: [pydoc2markdown on PyPI](https://pypi.org/project/pydoc2markdown/)
+- Automated tests: [GitHub Actions CI](https://github.com/f1sherFM/PyDoc2Markdown/actions/workflows/ci.yml)
+- Coverage reporting: [Codecov](https://codecov.io/gh/f1sherFM/PyDoc2Markdown)
+- Release history: [CHANGELOG.md](CHANGELOG.md)
+- Contributor workflow: [CONTRIBUTING.md](CONTRIBUTING.md)
+- Real generated output: [examples/sample_project/](examples/sample_project/)
+- Issues and ideas: [GitHub Issues](https://github.com/f1sherFM/PyDoc2Markdown/issues)
 
 ## Before And After
-
-This is the same idea in a tighter `input -> output` view:
-
-![Input to output example](docs/assets/readme-input-output.png)
 
 Start with normal Python code and docstrings:
 
@@ -210,6 +101,117 @@ Total price after discount.
 
 **Raises:**
 - `ValueError`: If discount is outside the accepted range.
+```
+
+![Input to output example](docs/assets/readme-input-output.png)
+
+## When To Use It
+
+- Python libraries that want lightweight API docs in the repo
+- Internal tools and services that keep docs next to the code
+- Projects that want README API sections without copy-paste maintenance
+- Teams that prefer plain Markdown over framework-specific output
+- CI workflows that should fail when docs drift from the source
+
+## Table of Contents
+
+- [See It In One Command](#see-it-in-one-command)
+- [What It Gives You](#what-it-gives-you)
+- [Project Health](#project-health)
+- [Before And After](#before-and-after)
+- [When To Use It](#when-to-use-it)
+- [Sample Project](#sample-project)
+- [Why PyDoc2Markdown?](#why-pydoc2markdown)
+- [Installation](#installation)
+- [Common Commands](#common-commands)
+- [Recipes](#recipes)
+- [Quick Start](#quick-start)
+  - [CLI Usage](#cli-usage)
+  - [Library Usage](#library-usage)
+- [CLI Reference](#cli-reference)
+- [Configuration](#configuration)
+- [Module Filtering](#module-filtering)
+- [Member Filtering](#member-filtering)
+- [Source Links](#source-links)
+- [Output Toggles](#output-toggles)
+- [README API Sections](#readme-api-sections)
+- [Navigation Docs Layout](#navigation-docs-layout)
+- [CI Checks](#ci-checks)
+- [Documentation Coverage Report](#documentation-coverage-report)
+- [Prune Stale Docs](#prune-stale-docs)
+- [Library API](#library-api)
+- [Supported Docstring Formats](#supported-docstring-formats)
+- [Example Output](#example-output)
+- [Documentation](#documentation)
+- [License](#license)
+
+## Sample Project
+
+The [sample project](examples/sample_project/) is a tiny shop package with
+dataclasses, an enum, typed functions, properties, private helpers, and
+Google-style docstrings. It shows what PyDoc2Markdown produces in a real repo
+layout: source code, generated docs, and README sync side by side.
+
+You can inspect the workflow here:
+
+- [source code](examples/sample_project/src/shop_demo/)
+- [generated docs index](examples/sample_project/docs/index.md)
+- [README API section](examples/sample_project/README.md)
+
+The generated docs layout looks like this:
+
+```text
+examples/sample_project/
+|-- README.md
+|-- src/shop_demo/
+`-- docs/
+    |-- index.md
+    |-- shop_demo.md
+    `-- api/shop_demo/
+        |-- inventory.md
+        `-- orders.md
+```
+
+You can also create the same kind of demo project locally:
+
+```bash
+pydoc2markdown --demo
+```
+
+By default this writes to `pydoc2markdown-demo/`. Use `--demo-output` to choose
+another directory. Existing non-empty directories are not overwritten.
+
+## Why PyDoc2Markdown?
+
+Documentation generators like **Sphinx** are powerful, but they can be more
+machinery than a small project needs: themes, `conf.py`, extensions, hosting
+choices, and a documentation build pipeline. **pdoc** and **mkdocstrings** are
+lighter, but they still pull you toward a broader docs stack.
+
+PyDoc2Markdown keeps the output simple:
+
+- **No `conf.py` required** - point it at source and generate Markdown
+- **No framework lock-in** - the output is normal `.md`
+- **Minimal dependencies** - Jinja2 and docstring-parser
+- **Practical defaults** - useful output before writing config
+- **Automation-friendly** - `--check`, `--prune`, `--report`, and library APIs
+
+## Installation
+
+Requirements:
+
+- Python >= 3.10
+- Runtime dependencies: [Jinja2](https://jinja.palletsprojects.com/) and
+  [docstring-parser](https://github.com/rr-/docstring-parser)
+- Optional: [watchdog](https://github.com/argoslabs/python-watchdog) for
+  `--watch` mode
+
+```bash
+# Base installation
+pip install pydoc2markdown
+
+# With file watcher support
+pip install pydoc2markdown[watch]
 ```
 
 ## Common Commands
