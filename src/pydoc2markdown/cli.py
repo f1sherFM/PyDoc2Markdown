@@ -847,7 +847,11 @@ def _read_manifest(output: Path, *, single_file: bool) -> set[Path]:
     managed_paths: set[Path] = set()
     for value in payload["files"]:
         if isinstance(value, str):
-            managed_paths.add(Path(value))
+            relative_path = Path(value)
+            if _is_safe_relative_path(relative_path):
+                managed_paths.add(relative_path)
+            else:
+                logger.warning("Ignoring unsafe manifest path: %s", value)
     return managed_paths
 
 
@@ -891,7 +895,9 @@ def _find_stale_managed_files(
 
         stale_paths: list[Path] = []
         for relative_path in sorted(managed_relative_paths - expected_relative_paths):
-            actual_path = base_dir / relative_path
+            actual_path = _safe_managed_file(base_dir, relative_path)
+            if actual_path is None:
+                continue
             if actual_path.exists():
                 stale_paths.append(actual_path)
 
@@ -921,7 +927,12 @@ def prune_stale_files(
     if dry_run:
         return stale_paths
 
+    output_root = (output.parent if single_file else output).resolve()
     for stale_path in stale_paths:
+        resolved_path = stale_path.resolve()
+        if not resolved_path.is_relative_to(output_root) or stale_path.is_symlink():
+            logger.warning("Skipping unsafe stale generated file: %s", stale_path)
+            continue
         stale_path.unlink()
 
     return stale_paths
@@ -1017,6 +1028,39 @@ def _validate_single_file_output(output: Path) -> int:
         return _log_cli_error(
             "--single-file requires --output to be a Markdown file path.",
             hint="Pass a file path such as -o docs/api.md instead of the default docs directory.",
+        )
+    return 0
+
+
+def _is_safe_relative_path(path: Path) -> bool:
+    """Return whether path is relative and cannot escape through parent segments."""
+    return not path.is_absolute() and ".." not in path.parts
+
+
+def _safe_managed_file(base_dir: Path, relative_path: Path) -> Path | None:
+    """Resolve a managed manifest path only when it stays inside base_dir."""
+    if not _is_safe_relative_path(relative_path):
+        logger.warning("Ignoring unsafe manifest path: %s", relative_path)
+        return None
+
+    output_root = base_dir.resolve()
+    actual_path = base_dir / relative_path
+    resolved_path = actual_path.resolve()
+    if not resolved_path.is_relative_to(output_root):
+        logger.warning("Ignoring manifest path outside output directory: %s", relative_path)
+        return None
+    if actual_path.is_symlink():
+        logger.warning("Ignoring symlinked manifest path: %s", relative_path)
+        return None
+    return actual_path
+
+
+def _validate_api_dir(api_dir: Path) -> int:
+    """Return a CLI error when --api-dir can escape the output directory."""
+    if not _is_safe_relative_path(api_dir):
+        return _log_cli_error(
+            "--api-dir must be a relative path inside --output.",
+            hint="Use a path like 'api' or 'reference/api', without '..' or an absolute root.",
         )
     return 0
 
@@ -1185,6 +1229,11 @@ def main(args: list[str] | None = None) -> int:
         single_file_error = _validate_single_file_output(parsed_args.output)
         if single_file_error:
             return single_file_error
+
+    if parsed_args.nav:
+        api_dir_error = _validate_api_dir(parsed_args.api_dir)
+        if api_dir_error:
+            return api_dir_error
 
     if parsed_args.watch:
         return watch_and_generate(
