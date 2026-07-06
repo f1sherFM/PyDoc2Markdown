@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.9.0](https://github.com/f1sherFM/PyDoc2Markdown/compare/v0.8.1...v0.9.0) (2026-07-06)
+
+
+### Features
+
+* add doctor diagnostics mode ([2412ba1](https://github.com/f1sherFM/PyDoc2Markdown/commit/2412ba1213eb5d33e26bb7f4e2a2ad3e406b197e))
+* improve demo onboarding flow ([cc6583f](https://github.com/f1sherFM/PyDoc2Markdown/commit/cc6583f0edc30147cad0ad271d092c261c68d5cc))
+
+
+### Bug Fixes
+
+* harden generated output paths ([5f2ebaf](https://github.com/f1sherFM/PyDoc2Markdown/commit/5f2ebaf5dd17ffbbef7d133e78f3f437cca46e96))
+
+
+### Documentation
+
+* add project trust signals ([0de628d](https://github.com/f1sherFM/PyDoc2Markdown/commit/0de628df01827f07c65daf0bc645825d69e46ace))
+* improve README for public launch ([cb102f6](https://github.com/f1sherFM/PyDoc2Markdown/commit/cb102f60f2b3a95677c833b3c53b1c24bca93fe9))
+* refresh sample navigation output ([0b07de9](https://github.com/f1sherFM/PyDoc2Markdown/commit/0b07de9c8cd7ec9654889902595086c3b00fe836))
+
 ## [0.9.0b1](https://github.com/f1sherFM/PyDoc2Markdown/compare/v0.8.2...v0.9.0b1) (2026-07-06)
 
 
