@@ -29,6 +29,7 @@ That creates a tiny sample project, generates a browsable docs tree, and updates
 the sample README with an API section. If you already have a package, start with:
 
 ```bash
+pydoc2markdown src/my_package --recursive --doctor
 pydoc2markdown src/my_package --recursive --nav --readme -o docs
 ```
 
@@ -47,6 +48,8 @@ publish with GitHub, GitLab, MkDocs, or any static site setup.
   and compact sections
 - CI-friendly checks with `--check`, stale file cleanup with `--prune`, and docs
   coverage reporting with `--report`
+- A read-only `--doctor` mode that summarizes docs readiness and suggests next
+  commands before writing anything
 
 ## Project Health
 
@@ -123,6 +126,7 @@ Total price after discount.
 - [Sample Project](#sample-project)
 - [Why PyDoc2Markdown?](#why-pydoc2markdown)
 - [Installation](#installation)
+- [Doctor Diagnostics](#doctor-diagnostics)
 - [Common Commands](#common-commands)
 - [Recipes](#recipes)
 - [Quick Start](#quick-start)
@@ -214,12 +218,58 @@ pip install pydoc2markdown
 pip install pydoc2markdown[watch]
 ```
 
+## Doctor Diagnostics
+
+Use `--doctor` when you want PyDoc2Markdown to inspect a project before writing
+any generated files:
+
+```bash
+pydoc2markdown src/my_package --recursive --doctor
+```
+
+The doctor report summarizes what PyDoc2Markdown sees:
+
+- modules, classes, functions, and `__all__` exports
+- docstring and parameter-description readiness
+- whether the README target exists
+- whether `[tool.pydoc2markdown]` config is present
+- recommended next commands for docs, README sync, CI checks, and coverage
+
+Example output:
+
+```text
+PyDoc2Markdown Doctor
+
+Scanned:
+- Source: src/my_package
+- Recursive: yes
+- Modules: 12
+- Classes: 18
+- Functions: 43
+- __all__ exports: 7
+
+Docs readiness:
+- Module docstrings: 10/12 (83.3%)
+- Class docstrings: 17/18 (94.4%)
+- Function docstrings: 39/43 (90.7%)
+- Public API exports: 7/7 (100.0%)
+- Parameter descriptions: 82/96 (85.4%)
+- Overall: 89.2%
+
+Recommended commands:
+- Generate navigation docs:
+  pydoc2markdown src/my_package --recursive --nav -o docs
+- Keep README API section in sync:
+  pydoc2markdown src/my_package --recursive --readme --readme-path README.md
+```
+
 ## Common Commands
 
 Start with the command that matches how you want to publish docs:
 
 | Goal | Command |
 |------|---------|
+| Inspect docs readiness first | `pydoc2markdown src/my_package --recursive --doctor` |
 | Generate module docs | `pydoc2markdown src/my_package --recursive -o docs` |
 | Generate a docs index and API pages | `pydoc2markdown src/my_package --recursive --nav -o docs` |
 | Update the API section in README.md | `pydoc2markdown src/my_package --recursive --readme` |
@@ -325,6 +375,9 @@ pydoc2markdown src/my_package --recursive --exclude "tests/*,*/internal/*,*_test
 # Generate a navigation-first docs layout
 pydoc2markdown src/my_package --recursive --nav -o docs
 
+# Inspect docs readiness without writing files
+pydoc2markdown src/my_package --recursive --doctor
+
 # Add GitHub source links next to documented objects
 pydoc2markdown src/my_package --recursive --source-repo user/repo -o docs
 
@@ -427,6 +480,7 @@ generator.generate(modules, output_dir=Path("docs"))
 | `--fail-under` | `None` | Return exit code `1` when overall report coverage falls below this percentage |
 | `--report-output` | `None` | Also write the report output to a file |
 | `--report-summary-only` | `False` | Print report totals and counts without listing every finding |
+| `--doctor` | `False` | Inspect docs readiness and recommended commands without writing files |
 | `--readme` | `False` | Create or update an API reference section in README.md |
 | `--readme-path` | `README.md` | Path to the README file updated by `--readme` |
 | `--readme-mode` | `summary` / value from `pyproject.toml` | README rendering mode: `summary` or `detailed` |

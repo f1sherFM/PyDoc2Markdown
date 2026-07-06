@@ -11,6 +11,7 @@ from typing import Any
 
 from pydoc2markdown import __version__
 from pydoc2markdown.core.config import load_config
+from pydoc2markdown.core.doctor import DoctorOptions, format_doctor_report
 from pydoc2markdown.core.generator import (
     DEFAULT_README_TITLE,
     README_RENDER_MODES,
@@ -208,6 +209,12 @@ The generated output includes:
 - a README API section below
 - a browsable docs entrypoint at `docs/index.md`
 - per-module API pages under `docs/api/`
+
+Inspect the demo without writing files:
+
+```bash
+pydoc2markdown src --recursive --doctor
+```
 
 Regenerate the demo docs from this directory with:
 
@@ -471,6 +478,12 @@ def create_parser() -> argparse.ArgumentParser:
         action="store_true",
         default=False,
         help="Print a documentation coverage report instead of generating Markdown files.",
+    )
+    analysis_group.add_argument(
+        "--doctor",
+        action="store_true",
+        default=False,
+        help="Inspect a project and suggest useful PyDoc2Markdown commands.",
     )
     analysis_group.add_argument(
         "--report-categories",
@@ -1174,6 +1187,26 @@ def main(args: list[str] | None = None) -> int:
             hint="Use --report to inspect coverage, or --watch to regenerate files continuously.",
         )
 
+    doctor_conflicts = {
+        "--report": parsed_args.report,
+        "--watch": parsed_args.watch,
+        "--readme": parsed_args.readme,
+        "--nav": parsed_args.nav,
+        "--single-file": parsed_args.single_file,
+        "--check": parsed_args.check,
+        "--prune": parsed_args.prune,
+    }
+    active_doctor_conflicts = [
+        flag for flag, enabled in doctor_conflicts.items() if parsed_args.doctor and enabled
+    ]
+    if active_doctor_conflicts:
+        return _log_cli_error(
+            f"--doctor cannot be combined with {', '.join(active_doctor_conflicts)}.",
+            hint=(
+                "Use --doctor for a read-only project diagnosis, or remove it to run another mode."
+            ),
+        )
+
     if parsed_args.dry_run and not parsed_args.prune:
         return _log_cli_error(
             "--dry-run currently works only with --prune.",
@@ -1302,6 +1335,22 @@ def main(args: list[str] | None = None) -> int:
         )
         logger.info("Parsed %d module(s)", len(modules))
         output_options = _output_options_from_args(parsed_args)
+        if parsed_args.doctor:
+            sys.stdout.write(
+                format_doctor_report(
+                    modules,
+                    DoctorOptions(
+                        source=parsed_args.source,
+                        recursive=parsed_args.recursive,
+                        output=parsed_args.output,
+                        readme_path=parsed_args.readme_path,
+                        cwd=Path.cwd(),
+                        filter_options=output_options,
+                    ),
+                )
+            )
+            return 0
+
         md_generator = MarkdownGenerator(
             template_path=parsed_args.template,
             theme=parsed_args.theme,
