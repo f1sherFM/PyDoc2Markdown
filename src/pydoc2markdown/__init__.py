@@ -1,6 +1,6 @@
 """PyDoc2Markdown - Convert Python docstrings to Markdown documentation."""
 
-__version__ = "0.8.2"
+__version__ = "0.9.0b1"
 __author__ = "f1sherFM"
 
 from pydoc2markdown.core.generator import MarkdownGenerator, OutputOptions

@@ -34,6 +34,7 @@ def test_cli_help_groups_options(capsys: pytest.CaptureFixture[str]) -> None:
     assert "--dry-run" in help_text
     assert "--include" in help_text
     assert "--exclude" in help_text
+    assert "--doctor" in help_text
     assert "pydoc2markdown --demo" in help_text
     assert "pydoc2markdown src/my_package --recursive --nav -o docs" in help_text
 
@@ -462,6 +463,7 @@ def test_cli_demo_creates_project(
     assert "This small shop package shows what PyDoc2Markdown creates" in readme
     assert "### [`shop_demo.inventory`](docs/api/shop_demo/inventory.md)" in readme
     assert "### [`shop_demo.orders`](docs/api/shop_demo/orders.md)" in readme
+    assert "pydoc2markdown src --recursive --doctor" in readme
     assert "pydoc2markdown src --recursive --nav --readme --check -o docs" in readme
 
     out = capsys.readouterr().out
@@ -1198,6 +1200,104 @@ def test_cli_prune_rejects_check(sample_module: Path, tmp_path: Path) -> None:
 def test_cli_prune_rejects_watch(sample_module: Path, tmp_path: Path) -> None:
     result = main([str(sample_module), "-o", str(tmp_path / "docs"), "--prune", "--watch"])
     assert result == 1
+
+
+def test_cli_doctor_prints_project_diagnostics(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "README.md").write_text("# Demo\n", encoding="utf-8")
+    (tmp_path / "pyproject.toml").write_text(
+        "[tool.pydoc2markdown]\noutput = 'docs'\n",
+        encoding="utf-8",
+    )
+    source = tmp_path / "pkg"
+    source.mkdir()
+    (source / "__init__.py").write_text('"""Demo package."""\n', encoding="utf-8")
+    (source / "orders.py").write_text(
+        '''"""Order helpers."""
+
+__all__ = ["calculate_total"]
+
+def calculate_total(value: int, discount: int) -> int:
+    """Calculate a total.
+
+    Args:
+        value: Base value.
+    """
+    return value - discount
+''',
+        encoding="utf-8",
+    )
+
+    result = main([str(source), "--recursive", "--doctor"])
+
+    assert result == 0
+    output = capsys.readouterr().out
+    assert "PyDoc2Markdown Doctor" in output
+    assert "Scanned:" in output
+    assert "- Modules: 2" in output
+    assert "- Functions: 1" in output
+    assert "- __all__ exports: 1" in output
+    assert "Docs readiness:" in output
+    assert "- Parameter descriptions: 1/2 (50.0%)" in output
+    assert "Project signals:" in output
+    assert "README.md (found)" in output
+    assert "[tool.pydoc2markdown] found" in output
+    assert "Recommended commands:" in output
+    assert f"pydoc2markdown {source.as_posix()} --recursive --nav -o docs" in output
+    assert "pydoc2markdown --init" not in output
+
+
+def test_cli_doctor_respects_member_filters(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    module = tmp_path / "doctor_filtering.py"
+    module.write_text(
+        '''"""Doctor filtering sample."""
+
+def public_helper() -> None:
+    """Public helper."""
+
+def _private_helper() -> None:
+    pass
+''',
+        encoding="utf-8",
+    )
+
+    result = main([str(module), "--doctor", "--show-private-members"])
+
+    assert result == 0
+    output = capsys.readouterr().out
+    assert "- Functions: 2" in output
+    assert "- Function docstrings: 1/2 (50.0%)" in output
+
+
+@pytest.mark.parametrize(
+    "flag",
+    ["--watch", "--readme", "--nav", "--single-file", "--check", "--prune", "--report"],
+)
+def test_cli_doctor_rejects_incompatible_modes(
+    sample_module: Path,
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+    flag: str,
+) -> None:
+    args = [str(sample_module), "--doctor", flag]
+    if flag == "--single-file":
+        args.extend(["-o", str(tmp_path / "combined.md")])
+    elif flag in {"--nav", "--prune", "--check"}:
+        args.extend(["-o", str(tmp_path / "docs")])
+
+    with caplog.at_level(logging.ERROR):
+        result = main(args)
+
+    assert result == 1
+    assert "--doctor cannot be combined with" in caplog.text
+    assert flag in caplog.text
 
 
 def test_cli_report_prints_summary(

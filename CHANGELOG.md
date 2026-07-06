@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.9.0b1](https://github.com/f1sherFM/PyDoc2Markdown/compare/v0.8.2...v0.9.0b1) (2026-07-06)
+
+
+### Features
+
+0.9.0b1 marks PyDoc2Markdown's first beta release. The project now presents
+itself less as an experimental prototype and more as a practical documentation
+tool with onboarding, release history, CI checks, generated examples, and a
+clear path for trying it safely on a real codebase.
+
+* add `--doctor`, a read-only diagnostics mode that scans a project, summarizes
+  documentation readiness, reports project signals such as README/config/docs
+  targets, and suggests the next PyDoc2Markdown commands to run
+* document the doctor workflow in the README and sample project so new users can
+  inspect what PyDoc2Markdown sees before generating or updating files
+* promote the package metadata from Alpha to Beta to match the current project
+  maturity and public-launch posture
+
 ## [0.8.2](https://github.com/f1sherFM/PyDoc2Markdown/compare/v0.8.1...v0.8.2) (2026-07-05)
 
 

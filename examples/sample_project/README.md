@@ -20,6 +20,12 @@ pydoc2markdown examples/sample_project/src --recursive --nav --readme \
 That command updates the API section below and writes a browsable docs layout to
 `examples/sample_project/docs`.
 
+Inspect the sample first without writing files:
+
+```bash
+pydoc2markdown examples/sample_project/src --recursive --doctor
+```
+
 Good places to inspect after running it:
 
 - [`src/shop_demo/`](src/shop_demo/) for the input code
