@@ -33,6 +33,7 @@ def _filter_module(module: ModuleDoc, options: object | None) -> ModuleDoc:
         if (
             keep_class
             or filtered_class.methods
+            or filtered_class.constructor_params
             or filtered_class.attributes
             or filtered_class.pydantic_fields
         ):
@@ -72,6 +73,16 @@ def _filter_module(module: ModuleDoc, options: object | None) -> ModuleDoc:
 
 
 def _filter_class(class_doc: ClassDoc, *, module_name: str, options: object | None) -> ClassDoc:
+    filtered_constructor_params = [
+        param
+        for param in class_doc.constructor_params
+        if _keep_member_name(
+            param.name,
+            options,
+            owner_name=class_doc.name,
+            module_name=module_name,
+        )
+    ]
     filtered_methods = [
         method
         for method in class_doc.methods
@@ -104,6 +115,7 @@ def _filter_class(class_doc: ClassDoc, *, module_name: str, options: object | No
     ]
     return replace(
         class_doc,
+        constructor_params=filtered_constructor_params,
         methods=filtered_methods,
         attributes=filtered_attributes,
         pydantic_fields=filtered_pydantic_fields,

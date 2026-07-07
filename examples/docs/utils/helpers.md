@@ -17,7 +17,7 @@ Clean and normalize a docstring.
 
 | Name | Type | Default | Description |
 |------|------|---------|-------------|
-| `docstring` | `str | None` | *required* | - |
+| `docstring` | `str \| None` | *required* | - |
 
 **Returns:** `str | None`
 ### `slugify`

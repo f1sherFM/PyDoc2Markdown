@@ -5,34 +5,10 @@ Type hint formatting utilities.
 ## Table of Contents
 
 - [Functions](#functions)
-  - [`_find_closing_bracket`](#_find_closing_bracket)
-  - [`_split_top_level`](#_split_top_level)
   - [`format_type_hint`](#format_type_hint)
 
 ## Functions
 
-### `_find_closing_bracket`
-Find the index of the closing bracket matching an opening bracket at start.
-
-**Parameters:**
-
-| Name | Type | Default | Description |
-|------|------|---------|-------------|
-| `s` | `str` | *required* | - |
-| `start` | `int` | `0` | - |
-
-**Returns:** `int`
-### `_split_top_level`
-Split text by delimiter respecting nested brackets and quoted strings.
-
-**Parameters:**
-
-| Name | Type | Default | Description |
-|------|------|---------|-------------|
-| `text` | `str` | *required* | - |
-| `delimiter` | `str` | `','` | - |
-
-**Returns:** `list[str]`
 ### `format_type_hint`
 Format a type hint string using modern Python syntax.
 
@@ -45,12 +21,6 @@ Transformations:
 - ``typing.Set[X]`` → ``set[X]``
 - ``typing.FrozenSet[X]`` → ``frozenset[X]``
 - ``typing.Any`` → ``Any`` (drop typing prefix)
-
-Args:
-    type_str: Raw type hint string.
-
-Returns:
-    Formatted type hint string.
 
 **Parameters:**
 

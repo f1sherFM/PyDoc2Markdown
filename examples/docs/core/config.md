@@ -12,17 +12,11 @@ Configuration loader for PyDoc2Markdown.
 ### `load_config`
 Load [tool.pydoc2markdown] from pyproject.toml.
 
-Args:
-    cwd: Directory to search for pyproject.toml. Defaults to current dir.
-
-Returns:
-    Dictionary with parsed config values.
-
 **Parameters:**
 
 | Name | Type | Default | Description |
 |------|------|---------|-------------|
-| `cwd` | `Path | None` | `None` | Directory to search for pyproject.toml. Defaults to current dir. |
+| `cwd` | `Path \| None` | `None` | Directory to search for pyproject.toml. Defaults to current dir. |
 
 **Returns:** `dict[str, Any]`
 Dictionary with parsed config values.

@@ -45,6 +45,16 @@
 
 {{ class.docstring }}
 {% endif %}
+{% if class.constructor_params %}
+
+{% if render_options.compact_sections %}**Constructor Parameters:**{% else %}#### Constructor Parameters{% endif %}
+
+| Name | Type | Default | Description |
+|------|------|---------|-------------|
+{% for param in class.constructor_params %}
+| `{{ param.name }}` | {% if param.type_hint %}`{{ param.type_hint | format_type_hint | link_type | table_cell }}`{% else %}-{% endif %} | {% if param.default %}`{{ param.default }}`{% else %}*required*{% endif %} | {% if param.description %}{{ param.description }}{% else %}-{% endif %} |
+{% endfor %}
+{% endif %}
 {% if render_options.show_attributes and class.attributes %}
 
 {% if render_options.compact_sections %}**Attributes:**{% else %}#### Attributes{% endif %}
@@ -52,7 +62,7 @@
 | Name | Type | Description |
 |------|------|-------------|
 {% for attr in class.attributes %}
-| `{{ attr.name }}` | {% if attr.type_hint %}`{{ attr.type_hint | format_type_hint | link_type }}`{% else %}-{% endif %} | {% if attr.description %}{{ attr.description }}{% else %}-{% endif %} |
+| `{{ attr.name }}` | {% if attr.type_hint %}`{{ attr.type_hint | format_type_hint | link_type | table_cell }}`{% else %}-{% endif %} | {% if attr.description %}{{ attr.description }}{% else %}-{% endif %} |
 {% endfor %}
 {% endif %}
 {% if render_options.show_attributes and class.pydantic_fields %}
@@ -62,7 +72,7 @@
 | Name | Type | Default | Description |
 |------|------|---------|-------------|
 {% for field in class.pydantic_fields %}
-| `{{ field.name }}` | {% if field.type_hint %}`{{ field.type_hint | format_type_hint | link_type }}`{% else %}-{% endif %} | {% if field.default %}`{{ field.default }}`{% elif field.required %}*required*{% else %}-{% endif %} | {% if field.description %}{{ field.description }}{% else %}-{% endif %} |
+| `{{ field.name }}` | {% if field.type_hint %}`{{ field.type_hint | format_type_hint | link_type | table_cell }}`{% else %}-{% endif %} | {% if field.default %}`{{ field.default }}`{% elif field.required %}*required*{% else %}-{% endif %} | {% if field.description %}{{ field.description }}{% else %}-{% endif %} |
 {% endfor %}
 {% endif %}
 {% if class.methods %}
@@ -84,7 +94,7 @@
 | Name | Type | Default | Description |
 |------|------|---------|-------------|
 {% for param in method.params %}
-| `{{ param.name }}` | {% if param.type_hint %}`{{ param.type_hint | format_type_hint | link_type }}`{% else %}-{% endif %} | {% if param.default %}`{{ param.default }}`{% else %}*required*{% endif %} | {% if param.description %}{{ param.description }}{% else %}-{% endif %} |
+| `{{ param.name }}` | {% if param.type_hint %}`{{ param.type_hint | format_type_hint | link_type | table_cell }}`{% else %}-{% endif %} | {% if param.default %}`{{ param.default }}`{% else %}*required*{% endif %} | {% if param.description %}{{ param.description }}{% else %}-{% endif %} |
 {% endfor %}
 {% endif %}
 {% if render_options.show_returns and method.returns %}
@@ -126,7 +136,7 @@
 | Name | Type | Default | Description |
 |------|------|---------|-------------|
 {% for param in func.params %}
-| `{{ param.name }}` | {% if param.type_hint %}`{{ param.type_hint | format_type_hint | link_type }}`{% else %}-{% endif %} | {% if param.default %}`{{ param.default }}`{% else %}*required*{% endif %} | {% if param.description %}{{ param.description }}{% else %}-{% endif %} |
+| `{{ param.name }}` | {% if param.type_hint %}`{{ param.type_hint | format_type_hint | link_type | table_cell }}`{% else %}-{% endif %} | {% if param.default %}`{{ param.default }}`{% else %}*required*{% endif %} | {% if param.description %}{{ param.description }}{% else %}-{% endif %} |
 {% endfor %}
 {% endif %}
 {% if render_options.show_returns and func.returns %}

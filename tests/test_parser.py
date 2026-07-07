@@ -132,6 +132,7 @@ def test_parse_function_params(sample_module: Path) -> None:
     modules = parser.parse(sample_module)
     func = modules[0].functions[0]
 
+    assert func.docstring == "Greet a person."
     assert len(func.params) == 1
     assert func.params[0].name == "name"
     assert func.params[0].type_hint == "str"
@@ -274,6 +275,71 @@ def test_parse_typeddict(advanced_module: Path) -> None:
     modules = parser.parse(advanced_module)
     td = next(c for c in modules[0].classes if c.name == "MyTypedDict")
     assert td.class_type == "typeddict"
+
+
+def test_parse_dataclass_fields_from_class_body(tmp_path: Path) -> None:
+    module = tmp_path / "models.py"
+    module.write_text(
+        '''"""Models."""
+
+from dataclasses import dataclass
+
+@dataclass
+class Product:
+    """A product.
+
+    Args:
+        sku: Stable product identifier.
+        price: Unit price.
+    """
+
+    sku: str
+    price: float
+''',
+        encoding="utf-8",
+    )
+
+    product = DocstringParser().parse(module)[0].classes[0]
+
+    assert product.docstring == "A product."
+    assert [(attr.name, attr.type_hint, attr.description) for attr in product.attributes] == [
+        ("sku", "str", "Stable product identifier."),
+        ("price", "float", "Unit price."),
+    ]
+
+
+def test_parse_constructor_params_from_class_docstring(tmp_path: Path) -> None:
+    module = tmp_path / "inventory.py"
+    module.write_text(
+        '''"""Inventory module."""
+
+class Inventory:
+    """In-memory inventory.
+
+    Args:
+        products: Initial products keyed by SKU.
+    """
+
+    def __init__(self, products: dict[str, str] | None = None) -> None:
+        self._products = products or {}
+''',
+        encoding="utf-8",
+    )
+
+    inventory = DocstringParser().parse(module)[0].classes[0]
+
+    assert inventory.docstring == "In-memory inventory."
+    assert [
+        (param.name, param.type_hint, param.default, param.description)
+        for param in inventory.constructor_params
+    ] == [
+        (
+            "products",
+            "dict[str, str] | None",
+            "None",
+            "Initial products keyed by SKU.",
+        )
+    ]
 
 
 def test_parse_public_api(advanced_module: Path) -> None:

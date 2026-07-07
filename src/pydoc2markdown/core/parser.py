@@ -74,6 +74,7 @@ class ClassDoc:
 
     name: str
     docstring: str | None = None
+    constructor_params: list[Parameter] = field(default_factory=list)
     methods: list[FunctionDoc] = field(default_factory=list)
     attributes: list[Parameter] = field(default_factory=list)
     bases: list[str] = field(default_factory=list)
@@ -214,11 +215,13 @@ class DocstringParser:
 
     def _extract_class(self, node: ast.ClassDef, source_path: str) -> ClassDoc:
         """Extract documentation from a class definition."""
+        raw_docstring = ast.get_docstring(node)
+        parsed_docstring = self._parse_docstring(raw_docstring)
         bases = [self._format_base(base) for base in node.bases]
         is_pydantic = self._is_pydantic_model(bases)
         class_doc = ClassDoc(
             name=node.name,
-            docstring=ast.get_docstring(node),
+            docstring=raw_docstring,
             bases=bases,
             class_type=self._resolve_class_type(node, bases),
             is_protocol=self._is_protocol(bases),
@@ -230,10 +233,19 @@ class DocstringParser:
 
         if is_pydantic:
             class_doc.pydantic_fields = self._extract_pydantic_fields(node)
+        elif class_doc.class_type in ("dataclass", "typeddict"):
+            class_doc.attributes.extend(self._extract_class_attributes(node))
 
         for item in node.body:
             if isinstance(item, ast.FunctionDef | ast.AsyncFunctionDef):
                 if item.name == "__init__":
+                    class_doc.constructor_params = self._extract_ast_params(item)
+                    init_docstring = self._parse_docstring(ast.get_docstring(item))
+                    if init_docstring:
+                        self._merge_param_descriptions(
+                            class_doc.constructor_params,
+                            init_docstring,
+                        )
                     class_doc.attributes.extend(self._extract_attributes(item))
                 else:
                     class_doc.methods.append(
@@ -243,6 +255,12 @@ class DocstringParser:
                             source_path=source_path,
                         )
                     )
+
+        if parsed_docstring:
+            self._merge_param_descriptions(class_doc.constructor_params, parsed_docstring)
+            self._merge_param_descriptions(class_doc.attributes, parsed_docstring)
+            if self._class_docstring_params_are_rendered(class_doc, parsed_docstring):
+                class_doc.docstring = self._docstring_description(parsed_docstring)
 
         return class_doc
 
@@ -254,16 +272,17 @@ class DocstringParser:
     ) -> FunctionDoc:
         """Extract documentation from a function definition."""
         raw_docstring = ast.get_docstring(node)
+        parsed_docstring = self._parse_docstring(raw_docstring)
         params = self._extract_ast_params(node)
         returns: ReturnsInfo | None = None
         raises: list[RaisesInfo] = []
+        description = raw_docstring
 
-        if raw_docstring:
-            with contextlib.suppress(Exception):
-                parsed = docstring_parser.parse(raw_docstring)
-                self._merge_param_descriptions(params, parsed)
-                returns = self._extract_returns(parsed)
-                raises = self._extract_raises(parsed)
+        if parsed_docstring:
+            description = self._docstring_description(parsed_docstring)
+            self._merge_param_descriptions(params, parsed_docstring)
+            returns = self._extract_returns(parsed_docstring)
+            raises = self._extract_raises(parsed_docstring)
 
         # Fallback to AST return annotation if docstring did not provide type
         ast_return_type = ast.unparse(node.returns) if node.returns else None
@@ -281,7 +300,7 @@ class DocstringParser:
 
         return FunctionDoc(
             name=node.name,
-            docstring=raw_docstring,
+            docstring=description,
             params=params,
             returns=returns,
             raises=raises,
@@ -293,6 +312,38 @@ class DocstringParser:
             source_path=source_path,
             line_number=node.lineno,
         )
+
+    def _parse_docstring(self, docstring: str | None) -> ParsedDocstring | None:
+        """Parse a docstring into structured sections when possible."""
+        if not docstring:
+            return None
+        with contextlib.suppress(Exception):
+            return docstring_parser.parse(docstring)
+        return None
+
+    def _docstring_description(self, parsed: ParsedDocstring) -> str | None:
+        """Return the narrative part of a parsed docstring without structured fields."""
+        parts = [
+            part.strip()
+            for part in (parsed.short_description, parsed.long_description)
+            if part and part.strip()
+        ]
+        return "\n\n".join(parts) if parts else None
+
+    def _class_docstring_params_are_rendered(
+        self,
+        class_doc: ClassDoc,
+        parsed: ParsedDocstring,
+    ) -> bool:
+        """Return whether class docstring params are represented in rendered fields."""
+        param_names = {param.arg_name for param in parsed.params if param.arg_name}
+        if not param_names:
+            return True
+
+        rendered_names = {attr.name for attr in class_doc.attributes}
+        rendered_names.update(param.name for param in class_doc.constructor_params)
+        rendered_names.update(field.name for field in class_doc.pydantic_fields)
+        return param_names <= rendered_names
 
     def _extract_ast_params(
         self,
@@ -427,6 +478,20 @@ class DocstringParser:
                         attr.description = doc_attr.description
                 attributes.append(attr)
 
+        return attributes
+
+    def _extract_class_attributes(self, node: ast.ClassDef) -> list[Parameter]:
+        """Extract annotated class-body fields from dataclasses and TypedDicts."""
+        attributes: list[Parameter] = []
+        for item in node.body:
+            if isinstance(item, ast.AnnAssign) and isinstance(item.target, ast.Name):
+                attributes.append(
+                    Parameter(
+                        name=item.target.id,
+                        type_hint=ast.unparse(item.annotation) if item.annotation else None,
+                        default=ast.unparse(item.value) if item.value else None,
+                    )
+                )
         return attributes
 
     def _format_base(self, base: ast.expr) -> str:

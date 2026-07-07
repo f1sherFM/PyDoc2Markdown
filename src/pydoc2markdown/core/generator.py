@@ -47,8 +47,15 @@ def _anchorize(value: str) -> str:
     return value.lower().replace(" ", "-")
 
 
+def _table_cell(value: object) -> str:
+    """Escape Markdown table separators inside generated cells."""
+    return str(value).replace("|", r"\|")
+
+
 def _write_markdown_lines(path: Path, lines: list[str]) -> None:
     """Write Markdown lines with a final newline."""
+    while lines and lines[-1] == "":
+        lines.pop()
     path.write_text("\n".join(lines) + "\n", encoding="utf-8", newline="\n")
 
 
@@ -162,6 +169,7 @@ class MarkdownGenerator:
 
         env.filters["format_type_hint"] = format_type_hint
         env.filters["link_type"] = link_type_filter
+        env.filters["table_cell"] = _table_cell
         env.globals["anchorize"] = _anchorize
         env.globals["method_anchor"] = self._method_anchor
         env.globals["source_url"] = self._source_url

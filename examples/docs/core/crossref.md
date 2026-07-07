@@ -5,20 +5,34 @@ Cross-referencing utilities for linking project-defined types.
 ## Table of Contents
 
 - [Classes](#classes)
+  - [`TypeRef`](#typeref)
   - [`TypeIndex`](#typeindex)
     - [@classmethod `from_modules`](#typeindex-from_modules)
     - [`link`](#typeindex-link)
 - [Functions](#functions)
   - [`link_type_filter`](#link_type_filter)
-  - [`_to_anchor`](#_to_anchor)
 
 ## Classes
 
+### `TypeRef` (dataclass)
+A project-defined type target.
+
+#### Attributes
+| Name | Type | Description |
+|------|------|-------------|
+| `anchor` | `str` | - |
+| `module` | `str \| None` | - |
+
+---
 ### `TypeIndex` (dataclass)
 Index of project-defined types for cross-referencing.
 
-#### Methods
+#### Attributes
+| Name | Type | Description |
+|------|------|-------------|
+| `types` | `dict[str, [TypeRef](#typeref) \| str]` | - |
 
+#### Methods
 <a id="typeindex-from_modules"></a>
 
 ##### @classmethod `from_modules`
@@ -28,7 +42,7 @@ Build an index from a list of parsed modules.
 
 | Name | Type | Default | Description |
 |------|------|---------|-------------|
-| `modules` | `list[[ModuleDoc](#moduledoc)]` | *required* | - |
+| `modules` | `list[ModuleDoc]` | *required* | - |
 
 **Returns:** `[TypeIndex](#typeindex)`
 <a id="typeindex-link"></a>
@@ -36,23 +50,18 @@ Build an index from a list of parsed modules.
 ##### `link`
 Replace project-defined type names with Markdown hyperlinks.
 
-Args:
-    type_str: A type hint string (preferably already formatted).
-
-Returns:
-    Markdown string with hyperlinks for known types.
-
 **Parameters:**
 
 | Name | Type | Default | Description |
 |------|------|---------|-------------|
 | `type_str` | `str` | *required* | A type hint string (preferably already formatted). |
+| `current_module` | `str \| None` | `None` | Module key for local-only links. When provided,
+types from other modules are left as plain text. |
 
 **Returns:** `str`
 Markdown string with hyperlinks for known types.
 
 ---
-
 ## Functions
 
 ### `link_type_filter`
@@ -66,15 +75,5 @@ Expects ``type_index`` in the render context.
 |------|------|---------|-------------|
 | `ctx` | `dict` | *required* | - |
 | `type_str` | `str` | *required* | - |
-
-**Returns:** `str`
-### `_to_anchor`
-Convert a name to a Markdown anchor.
-
-**Parameters:**
-
-| Name | Type | Default | Description |
-|------|------|---------|-------------|
-| `name` | `str` | *required* | - |
 
 **Returns:** `str`

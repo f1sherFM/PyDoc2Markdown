@@ -8,6 +8,7 @@ PyDoc2Markdown - Convert Python docstrings to Markdown documentation.
 - `FunctionDoc`
 - `MarkdownGenerator`
 - `ModuleDoc`
+- `OutputOptions`
 - `Parameter`
 - `PydanticField`
 - `RaisesInfo`

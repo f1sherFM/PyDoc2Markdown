@@ -50,7 +50,7 @@ def test_generate_string_formats_type_hints_and_crossrefs(
     generator = MarkdownGenerator()
 
     typed_content = generator.generate_string(parser.parse(typed_module)[0])
-    assert "str | None" in typed_content
+    assert "str \\| None" in typed_content
     assert "list[int]" in typed_content
 
     crossref_content = generator.generate_string(parser.parse(crossref_module)[0])
@@ -141,7 +141,68 @@ class Example:
     assert "- [`run`](#example-run)" in content
     assert "[\n" not in content
     assert "\n\n\n" not in content
+    assert "Args:" not in content
     assert "| `value` | `int` | *required* | Input value. |" in content
+
+
+def test_generate_renders_dataclass_fields_without_raw_args(tmp_path: Path) -> None:
+    module = tmp_path / "models.py"
+    module.write_text(
+        '''"""Models."""
+
+from dataclasses import dataclass
+
+@dataclass
+class Product:
+    """A product.
+
+    Args:
+        sku: Stable product identifier.
+        price: Unit price.
+    """
+
+    sku: str
+    price: float
+''',
+        encoding="utf-8",
+    )
+
+    content = MarkdownGenerator().generate_string(DocstringParser().parse(module)[0])
+
+    assert "A product." in content
+    assert "Args:" not in content
+    assert "#### Attributes" in content
+    assert "| `sku` | `str` | Stable product identifier. |" in content
+    assert "| `price` | `float` | Unit price. |" in content
+
+
+def test_generate_renders_constructor_params_from_class_docstring(tmp_path: Path) -> None:
+    module = tmp_path / "inventory.py"
+    module.write_text(
+        '''"""Inventory module."""
+
+class Inventory:
+    """In-memory inventory.
+
+    Args:
+        products: Initial products keyed by SKU.
+    """
+
+    def __init__(self, products: dict[str, str] | None = None) -> None:
+        self._products = products or {}
+''',
+        encoding="utf-8",
+    )
+
+    content = MarkdownGenerator().generate_string(DocstringParser().parse(module)[0])
+
+    assert "In-memory inventory." in content
+    assert "Args:" not in content
+    assert "#### Constructor Parameters" in content
+    assert (
+        "| `products` | `dict[str, str] \\| None` | `None` | Initial products keyed by SKU. |"
+        in content
+    )
 
 
 def test_generate_package_grouping(tmp_path: Path) -> None:
@@ -265,7 +326,7 @@ def test_generate_type_hint_formatting(typed_module: Path, tmp_path: Path) -> No
 
     module_path = output_dir / "typed_module.md"
     content = module_path.read_text()
-    assert "str | None" in content
+    assert "str \\| None" in content
     assert "int | str" in content
     assert "list[int]" in content
     assert "list[str]" in content
@@ -624,6 +685,38 @@ class Config(BaseModel):
     assert "#### Pydantic Fields" not in content
     assert "`debug`" not in content
     assert "_token" not in content
+
+
+def test_generate_filters_constructor_params(tmp_path: Path) -> None:
+    module = tmp_path / "constructor_filtering.py"
+    module.write_text(
+        '''"""Module for constructor filtering."""
+
+class Service:
+    """Service.
+
+    Args:
+        public: Public option.
+        _secret: Private option.
+    """
+
+    def __init__(self, public: str, _secret: str) -> None:
+        self.public = public
+        self._secret = _secret
+''',
+        encoding="utf-8",
+    )
+
+    modules = DocstringParser().parse(module)
+    content = MarkdownGenerator(
+        output_options=OutputOptions(
+            member_include=("Service.public",),
+        )
+    ).generate_string(modules[0])
+
+    assert "### `Service`" in content
+    assert "| `public` | `str` | *required* | Public option. |" in content
+    assert "_secret" not in content
 
 
 def test_generate_can_show_private_attributes_and_fields_when_enabled(tmp_path: Path) -> None:
