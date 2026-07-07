@@ -46,6 +46,8 @@ publish with GitHub, GitLab, MkDocs, or any static site setup.
 - Source links back to GitHub or another code host
 - Output controls for public API, private members, attributes, returns, raises,
   and compact sections
+- pdoc/mkdocstrings-style documented attributes for module constants, class
+  fields, and instance attributes
 - CI-friendly checks with `--check`, stale file cleanup with `--prune`, and docs
   coverage reporting with `--report`
 - A read-only `--doctor` mode that summarizes docs readiness and suggests next
@@ -144,6 +146,7 @@ Total price after discount.
 - [Documentation Coverage Report](#documentation-coverage-report)
 - [Prune Stale Docs](#prune-stale-docs)
 - [Library API](#library-api)
+- [Documented Attributes](#documented-attributes)
 - [Supported Docstring Formats](#supported-docstring-formats)
 - [Example Output](#example-output)
 - [Documentation](#documentation)
@@ -902,6 +905,32 @@ gen.generate_navigation(modules, output_dir=Path("docs"))
 # Markdown string for a single module
 md_string = gen.generate_string(modules[0])
 ```
+
+## Documented Attributes
+
+PyDoc2Markdown recognizes the common pdoc/mkdocstrings-style pattern where a
+string literal immediately follows an assignment. This works for module
+constants, class fields, dataclass fields, Pydantic fields, and instance
+attributes assigned in `__init__`:
+
+```python
+DEFAULT_TIMEOUT: float = 30.0
+"""Default request timeout in seconds."""
+
+
+class Client:
+    """HTTP client."""
+
+    default_retries: int = 3
+    """Default retry count."""
+
+    def __init__(self, token: str) -> None:
+        self.token: str = token
+        """Authentication token."""
+```
+
+Those descriptions are rendered as Markdown attribute sections and are also
+used by README summaries and `__all__` public API reporting.
 
 ## Supported Docstring Formats
 

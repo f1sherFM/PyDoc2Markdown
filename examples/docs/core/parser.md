@@ -112,6 +112,7 @@ Represents extracted documentation for a module.
 | `name` | `str` | - |
 | `path` | `Path` | - |
 | `docstring` | `str \| None` | - |
+| `attributes` | `list[[Parameter](#parameter)]` | - |
 | `classes` | `list[[ClassDoc](#classdoc)]` | - |
 | `functions` | `list[[FunctionDoc](#functiondoc)]` | - |
 | `public_api` | `list[str]` | - |

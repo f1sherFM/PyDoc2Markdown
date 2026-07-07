@@ -3,9 +3,16 @@
 
 {{ module.docstring }}
 {% endif %}
-{% if render_options.show_toc and (module.classes or module.functions) %}
+{% if render_options.show_toc and ((render_options.show_attributes and module.attributes) or module.classes or module.functions) %}
 
 ## Table of Contents
+{% if render_options.show_attributes and module.attributes %}
+
+- [Attributes](#attributes)
+{% for attr in module.attributes %}
+  - [`{{ attr.name }}`](#{{ anchorize(attr.name) }})
+{% endfor %}
+{% endif %}
 {% if module.classes %}
 
 - [Classes](#classes)
@@ -29,6 +36,22 @@
 **Public API:**
 {% for name in module.public_api %}
 - `{{ name }}`
+{% endfor %}
+{% endif %}
+{% if render_options.show_attributes and module.attributes %}
+
+## Attributes
+{% for attr in module.attributes %}
+
+### `{{ attr.name }}`
+{% if attr.description %}
+
+{{ attr.description }}
+{% endif %}
+
+| Type | Default |
+|------|---------|
+| {% if attr.type_hint %}`{{ attr.type_hint | format_type_hint | link_type | table_cell }}`{% else %}-{% endif %} | {% if attr.default %}`{{ attr.default }}`{% else %}-{% endif %} |
 {% endfor %}
 {% endif %}
 {% if module.classes %}

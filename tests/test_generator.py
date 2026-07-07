@@ -205,6 +205,50 @@ class Inventory:
     )
 
 
+def test_generate_renders_documented_module_attributes(tmp_path: Path) -> None:
+    module = tmp_path / "settings.py"
+    module.write_text(
+        '''"""Settings."""
+
+DEFAULT_TIMEOUT: float = 30.0
+"""Default request timeout in seconds."""
+''',
+        encoding="utf-8",
+    )
+
+    content = MarkdownGenerator().generate_string(DocstringParser().parse(module)[0])
+
+    assert "- [Attributes](#attributes)" in content
+    assert "## Attributes" in content
+    assert "### `DEFAULT_TIMEOUT`" in content
+    assert "Default request timeout in seconds." in content
+    assert "| `float` | `30.0` |" in content
+
+
+def test_generate_renders_documented_class_and_instance_attributes(tmp_path: Path) -> None:
+    module = tmp_path / "client.py"
+    module.write_text(
+        '''"""Client module."""
+
+class Client:
+    """HTTP client."""
+
+    default_retries: int = 3
+    """Default retry count."""
+
+    def __init__(self, token: str) -> None:
+        self.token: str = token
+        """Authentication token."""
+''',
+        encoding="utf-8",
+    )
+
+    content = MarkdownGenerator().generate_string(DocstringParser().parse(module)[0])
+
+    assert "| `default_retries` | `int` | Default retry count. |" in content
+    assert "| `token` | `str` | Authentication token. |" in content
+
+
 def test_generate_package_grouping(tmp_path: Path) -> None:
     pkg = tmp_path / "my_pkg"
     sub = pkg / "sub"
@@ -687,6 +731,30 @@ class Config(BaseModel):
     assert "_token" not in content
 
 
+def test_generate_filters_module_attributes(tmp_path: Path) -> None:
+    module = tmp_path / "settings.py"
+    module.write_text(
+        '''"""Settings."""
+
+PUBLIC_TIMEOUT: float = 30.0
+"""Public timeout."""
+
+_SECRET: str = "token"
+"""Internal secret."""
+''',
+        encoding="utf-8",
+    )
+
+    modules = DocstringParser().parse(module)
+    content = MarkdownGenerator(
+        output_options=OutputOptions(member_exclude=("PUBLIC_TIMEOUT",))
+    ).generate_string(modules[0])
+
+    assert "PUBLIC_TIMEOUT" not in content
+    assert "_SECRET" not in content
+    assert "## Attributes" not in content
+
+
 def test_generate_filters_constructor_params(tmp_path: Path) -> None:
     module = tmp_path / "constructor_filtering.py"
     module.write_text(
@@ -1048,6 +1116,32 @@ def internal_helper() -> None:
     assert "- `missing_export`" in content
     assert "- `InternalThing`: Internal helper." in content
     assert "- `internal_helper`: Internal function." in content
+
+
+def test_update_readme_summary_includes_public_attributes(tmp_path: Path) -> None:
+    module = tmp_path / "settings.py"
+    module.write_text(
+        '''"""Settings."""
+
+__all__ = ["DEFAULT_TIMEOUT"]
+
+DEFAULT_TIMEOUT: float = 30.0
+"""Default request timeout in seconds."""
+''',
+        encoding="utf-8",
+    )
+
+    modules = DocstringParser().parse(module)
+    readme_path = tmp_path / "README.md"
+    readme_path.write_text("# Project\n", encoding="utf-8")
+
+    MarkdownGenerator().update_readme(modules, readme_path)
+
+    content = readme_path.read_text(encoding="utf-8")
+    assert "**Overview:** 1 modules, 1 attributes, 0 classes, 0 functions." in content
+    assert "_Includes: 1 attribute(s), 1 export(s)._" in content
+    assert "- `DEFAULT_TIMEOUT`: Default request timeout in seconds." in content
+    assert "**Additional exports:**" not in content
 
 
 def test_update_readme_summary_groups_modules_by_package(tmp_path: Path) -> None:

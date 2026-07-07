@@ -342,6 +342,80 @@ class Inventory:
     ]
 
 
+def test_parse_documented_module_attribute(tmp_path: Path) -> None:
+    module = tmp_path / "settings.py"
+    module.write_text(
+        '''"""Settings."""
+
+DEFAULT_TIMEOUT: float = 30.0
+"""Default request timeout in seconds."""
+''',
+        encoding="utf-8",
+    )
+
+    parsed = DocstringParser().parse(module)[0]
+
+    assert [
+        (attr.name, attr.type_hint, attr.default, attr.description) for attr in parsed.attributes
+    ] == [
+        (
+            "DEFAULT_TIMEOUT",
+            "float",
+            "30.0",
+            "Default request timeout in seconds.",
+        )
+    ]
+
+
+def test_parse_documented_class_and_instance_attributes(tmp_path: Path) -> None:
+    module = tmp_path / "client.py"
+    module.write_text(
+        '''"""Client module."""
+
+class Client:
+    """HTTP client."""
+
+    default_retries: int = 3
+    """Default retry count."""
+
+    def __init__(self, token: str) -> None:
+        self.token: str = token
+        """Authentication token."""
+''',
+        encoding="utf-8",
+    )
+
+    client = DocstringParser().parse(module)[0].classes[0]
+
+    assert [(attr.name, attr.type_hint, attr.description) for attr in client.attributes] == [
+        ("default_retries", "int", "Default retry count."),
+        ("token", "str", "Authentication token."),
+    ]
+
+
+def test_parse_pydantic_field_description_from_adjacent_docstring(tmp_path: Path) -> None:
+    module = tmp_path / "settings.py"
+    module.write_text(
+        '''"""Settings."""
+
+from pydantic import BaseModel
+
+class Settings(BaseModel):
+    """Application settings."""
+
+    timeout: float = 30.0
+    """Request timeout in seconds."""
+''',
+        encoding="utf-8",
+    )
+
+    settings = DocstringParser().parse(module)[0].classes[0]
+
+    timeout = settings.pydantic_fields[0]
+    assert timeout.name == "timeout"
+    assert timeout.description == "Request timeout in seconds."
+
+
 def test_parse_public_api(advanced_module: Path) -> None:
     parser = DocstringParser()
     modules = parser.parse(advanced_module)

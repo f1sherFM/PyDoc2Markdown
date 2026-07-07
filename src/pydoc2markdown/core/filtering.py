@@ -49,9 +49,21 @@ def _filter_module(module: ModuleDoc, options: object | None) -> ModuleDoc:
             options=options,
         )
     ]
+    filtered_attributes = [
+        attribute
+        for attribute in module.attributes
+        if _keep_top_level_name(
+            attribute.name,
+            module_name=module_name,
+            exported_names=exported_names,
+            restrict_to_public_api=restrict_to_public_api,
+            options=options,
+        )
+    ]
     available_top_level_names = {
         *(class_doc.name for class_doc in filtered_classes),
         *(function_doc.name for function_doc in filtered_functions),
+        *(attribute.name for attribute in filtered_attributes),
     }
     filtered_public_api = [
         export_name
@@ -66,6 +78,7 @@ def _filter_module(module: ModuleDoc, options: object | None) -> ModuleDoc:
 
     return replace(
         module,
+        attributes=filtered_attributes,
         classes=filtered_classes,
         functions=filtered_functions,
         public_api=filtered_public_api,

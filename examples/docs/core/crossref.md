@@ -30,7 +30,7 @@ Index of project-defined types for cross-referencing.
 #### Attributes
 | Name | Type | Description |
 |------|------|-------------|
-| `types` | `dict[str, [TypeRef](#typeref) \| str]` | - |
+| `types` | `dict[str, [TypeRef](#typeref) \| str]` | Mapping from type name to a Markdown target. |
 
 #### Methods
 <a id="typeindex-from_modules"></a>

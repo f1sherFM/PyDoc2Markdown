@@ -94,6 +94,7 @@ class ModuleDoc:
     name: str
     path: Path
     docstring: str | None = None
+    attributes: list[Parameter] = field(default_factory=list)
     classes: list[ClassDoc] = field(default_factory=list)
     functions: list[FunctionDoc] = field(default_factory=list)
     public_api: list[str] = field(default_factory=list)
@@ -203,6 +204,7 @@ class DocstringParser:
             elif isinstance(node, ast.Assign | ast.AnnAssign):
                 module.public_api.extend(self._extract_public_api(node))
 
+        module.attributes = self._extract_documented_name_attributes(tree.body)
         return module
 
     def _source_relative_path(self, path: Path) -> str:
@@ -231,10 +233,18 @@ class DocstringParser:
             line_number=node.lineno,
         )
 
+        documented_class_attrs = self._extract_documented_name_attributes(
+            node.body,
+            include_undocumented_annassign=class_doc.class_type in ("dataclass", "typeddict"),
+        )
         if is_pydantic:
             class_doc.pydantic_fields = self._extract_pydantic_fields(node)
-        elif class_doc.class_type in ("dataclass", "typeddict"):
-            class_doc.attributes.extend(self._extract_class_attributes(node))
+            self._merge_pydantic_field_descriptions(
+                class_doc.pydantic_fields,
+                documented_class_attrs,
+            )
+        else:
+            class_doc.attributes.extend(documented_class_attrs)
 
         for item in node.body:
             if isinstance(item, ast.FunctionDef | ast.AsyncFunctionDef):
@@ -421,7 +431,7 @@ class DocstringParser:
                 (p for p in parsed.params if p.arg_name == param.name.lstrip("*")),
                 None,
             )
-            if doc_param and doc_param.description:
+            if doc_param and doc_param.description and not param.description:
                 param.description = doc_param.description
 
     def _extract_returns(self, parsed: ParsedDocstring) -> ReturnsInfo | None:
@@ -448,7 +458,9 @@ class DocstringParser:
         init_node: ast.FunctionDef | ast.AsyncFunctionDef,
     ) -> list[Parameter]:
         """Extract instance attributes from __init__ method."""
-        attributes: list[Parameter] = []
+        attributes_by_name = {
+            attr.name: attr for attr in self._extract_documented_instance_attributes(init_node.body)
+        }
 
         # Try to enrich with __init__ docstring parameter descriptions
         init_docstring = ast.get_docstring(init_node)
@@ -464,35 +476,148 @@ class DocstringParser:
                 and isinstance(node.target.value, ast.Name)
                 and node.target.value.id == "self"
             ):
-                attr_name = node.target.attr
-                attr = Parameter(
-                    name=attr_name,
-                    type_hint=ast.unparse(node.annotation) if node.annotation else None,
+                attr = attributes_by_name.setdefault(
+                    node.target.attr,
+                    Parameter(
+                        name=node.target.attr,
+                        type_hint=ast.unparse(node.annotation) if node.annotation else None,
+                    ),
                 )
+                if node.annotation and not attr.type_hint:
+                    attr.type_hint = ast.unparse(node.annotation)
                 if parsed_init:
                     doc_attr = next(
-                        (p for p in parsed_init.params if p.arg_name == attr_name),
+                        (p for p in parsed_init.params if p.arg_name == attr.name),
                         None,
                     )
-                    if doc_attr and doc_attr.description:
+                    if doc_attr and doc_attr.description and not attr.description:
                         attr.description = doc_attr.description
-                attributes.append(attr)
 
-        return attributes
+        return list(attributes_by_name.values())
 
-    def _extract_class_attributes(self, node: ast.ClassDef) -> list[Parameter]:
-        """Extract annotated class-body fields from dataclasses and TypedDicts."""
+    def _extract_documented_name_attributes(
+        self,
+        body: list[ast.stmt],
+        *,
+        include_undocumented_annassign: bool = False,
+    ) -> list[Parameter]:
+        """Extract documented module/class attributes from adjacent string literals."""
         attributes: list[Parameter] = []
-        for item in node.body:
-            if isinstance(item, ast.AnnAssign) and isinstance(item.target, ast.Name):
-                attributes.append(
-                    Parameter(
-                        name=item.target.id,
-                        type_hint=ast.unparse(item.annotation) if item.annotation else None,
-                        default=ast.unparse(item.value) if item.value else None,
+        descriptions = self._adjacent_docstrings(body)
+
+        for item in body:
+            for name, type_hint, default in self._name_assignment_targets(item):
+                if name == "__all__":
+                    continue
+                description = descriptions.get(item)
+                if description or (
+                    include_undocumented_annassign and isinstance(item, ast.AnnAssign)
+                ):
+                    attributes.append(
+                        Parameter(
+                            name=name,
+                            type_hint=type_hint,
+                            default=default,
+                            description=description,
+                        )
                     )
-                )
         return attributes
+
+    def _extract_documented_instance_attributes(self, body: list[ast.stmt]) -> list[Parameter]:
+        """Extract documented self attributes from adjacent string literals."""
+        attributes: list[Parameter] = []
+        descriptions = self._adjacent_docstrings(body)
+
+        for item in body:
+            for name, type_hint, default in self._self_assignment_targets(item):
+                description = descriptions.get(item)
+                if description:
+                    attributes.append(
+                        Parameter(
+                            name=name,
+                            type_hint=type_hint,
+                            default=default,
+                            description=description,
+                        )
+                    )
+        return attributes
+
+    def _adjacent_docstrings(self, body: list[ast.stmt]) -> dict[ast.stmt, str]:
+        """Return string literals that immediately document the previous statement."""
+        descriptions: dict[ast.stmt, str] = {}
+        for index, item in enumerate(body[:-1]):
+            next_item = body[index + 1]
+            if (
+                isinstance(next_item, ast.Expr)
+                and isinstance(next_item.value, ast.Constant)
+                and isinstance(next_item.value.value, str)
+            ):
+                descriptions[item] = next_item.value.value.strip()
+        return descriptions
+
+    def _name_assignment_targets(
+        self,
+        node: ast.stmt,
+    ) -> list[tuple[str, str | None, str | None]]:
+        """Return simple top-level assignment targets with type hints and defaults."""
+        if isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name):
+            return [
+                (
+                    node.target.id,
+                    ast.unparse(node.annotation) if node.annotation else None,
+                    ast.unparse(node.value) if node.value else None,
+                )
+            ]
+        if isinstance(node, ast.Assign):
+            return [
+                (target.id, None, ast.unparse(node.value))
+                for target in node.targets
+                if isinstance(target, ast.Name)
+            ]
+        return []
+
+    def _self_assignment_targets(
+        self,
+        node: ast.stmt,
+    ) -> list[tuple[str, str | None, str | None]]:
+        """Return self attribute assignment targets with type hints and defaults."""
+        if isinstance(node, ast.AnnAssign) and self._is_self_attribute(node.target):
+            assert isinstance(node.target, ast.Attribute)
+            return [
+                (
+                    node.target.attr,
+                    ast.unparse(node.annotation) if node.annotation else None,
+                    ast.unparse(node.value) if node.value else None,
+                )
+            ]
+        if isinstance(node, ast.Assign):
+            targets: list[tuple[str, str | None, str | None]] = []
+            for target in node.targets:
+                if isinstance(target, ast.Attribute) and self._is_self_attribute(target):
+                    targets.append((target.attr, None, ast.unparse(node.value)))
+            return targets
+        return []
+
+    def _is_self_attribute(self, node: ast.expr) -> bool:
+        """Return whether a node targets an attribute on self."""
+        return (
+            isinstance(node, ast.Attribute)
+            and isinstance(node.value, ast.Name)
+            and node.value.id == "self"
+        )
+
+    def _merge_pydantic_field_descriptions(
+        self,
+        fields: list[PydanticField],
+        documented_attrs: list[Parameter],
+    ) -> None:
+        """Fill missing Pydantic field descriptions from adjacent attribute docs."""
+        descriptions = {
+            attr.name: attr.description for attr in documented_attrs if attr.description
+        }
+        for pydantic_field in fields:
+            if not pydantic_field.description:
+                pydantic_field.description = descriptions.get(pydantic_field.name)
 
     def _format_base(self, base: ast.expr) -> str:
         """Format a base class expression as a string."""

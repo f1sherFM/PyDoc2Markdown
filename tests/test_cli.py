@@ -1464,6 +1464,30 @@ def _private_helper() -> None:
     assert "_private_helper" not in output
 
 
+def test_cli_report_treats_documented_attribute_exports_as_public_api(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    module = tmp_path / "settings.py"
+    module.write_text(
+        '''"""Settings."""
+
+__all__ = ["DEFAULT_TIMEOUT"]
+
+DEFAULT_TIMEOUT: float = 30.0
+"""Default request timeout in seconds."""
+''',
+        encoding="utf-8",
+    )
+
+    result = main([str(module), "--report"])
+
+    assert result == 0
+    output = capsys.readouterr().out
+    assert "Undocumented public API exports: 0" in output
+    assert "DEFAULT_TIMEOUT" not in output
+
+
 def test_cli_report_respects_member_include_and_exclude_patterns(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],

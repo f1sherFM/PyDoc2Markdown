@@ -13,7 +13,7 @@ from pydoc2markdown.core.filtering import filter_modules
 from pydoc2markdown.core.parser import ModuleDoc
 
 if TYPE_CHECKING:
-    from pydoc2markdown.core.parser import ClassDoc, FunctionDoc
+    from pydoc2markdown.core.parser import ClassDoc, FunctionDoc, Parameter
 
 logger = logging.getLogger(__name__)
 
@@ -83,6 +83,20 @@ def _normalize_markdown(content: str) -> str:
 def _write_utf8_text(path: Path, content: str) -> None:
     """Write UTF-8 text with LF newlines for stable generated output."""
     path.write_text(content, encoding="utf-8", newline="\n")
+
+
+def _overview_text(
+    module_count: int,
+    attribute_count: int,
+    class_count: int,
+    function_count: int,
+) -> str:
+    """Return a compact overview sentence for generated indexes."""
+    parts = [f"{module_count} modules"]
+    if attribute_count:
+        parts.append(f"{attribute_count} attributes")
+    parts.extend([f"{class_count} classes", f"{function_count} functions"])
+    return f"**Overview:** {', '.join(parts)}."
 
 
 def _safe_api_output_dir(output_dir: Path, api_dir: Path) -> Path:
@@ -339,12 +353,16 @@ class MarkdownGenerator:
 
         total_classes = sum(len(m.classes) for m in modules)
         total_functions = sum(len(m.functions) for m in modules)
+        total_attributes = sum(len(m.attributes) for m in modules)
 
         lines = ["# Documentation Index", ""]
         lines.append(
-            f"**Overview:** {len(modules)} modules, "
-            f"{total_classes} classes, "
-            f"{total_functions} functions."
+            _overview_text(
+                len(modules),
+                total_attributes,
+                total_classes,
+                total_functions,
+            )
         )
         lines.append("")
 
@@ -369,6 +387,8 @@ class MarkdownGenerator:
                     else f"{module.name}.md"
                 )
                 stats_parts: list[str] = []
+                if module.attributes:
+                    stats_parts.append(f"{len(module.attributes)} attribute(s)")
                 if module.classes:
                     stats_parts.append(f"{len(module.classes)} class(es)")
                 if module.functions:
@@ -397,14 +417,18 @@ class MarkdownGenerator:
             return None
 
         package_pages = self._package_page_map(public_modules)
+        total_attributes = sum(len(m.attributes) for m in modules)
         total_classes = sum(len(m.classes) for m in modules)
         total_functions = sum(len(m.functions) for m in modules)
 
         lines = ["# Documentation", ""]
         lines.append(
-            f"**Overview:** {len(public_modules)} modules, "
-            f"{total_classes} classes, "
-            f"{total_functions} functions."
+            _overview_text(
+                len(public_modules),
+                total_attributes,
+                total_classes,
+                total_functions,
+            )
         )
         lines.append("")
         lines.append("## Navigation")
@@ -451,9 +475,12 @@ class MarkdownGenerator:
             title = package_name or "Modules"
             lines = [f"# {title}", ""]
             lines.append(
-                f"**Overview:** {len(package_modules)} modules, "
-                f"{sum(len(m.classes) for m in package_modules)} classes, "
-                f"{sum(len(m.functions) for m in package_modules)} functions."
+                _overview_text(
+                    len(package_modules),
+                    sum(len(m.attributes) for m in package_modules),
+                    sum(len(m.classes) for m in package_modules),
+                    sum(len(m.functions) for m in package_modules),
+                )
             )
             lines.append("")
             lines.append("## Modules")
@@ -493,6 +520,8 @@ class MarkdownGenerator:
     def _module_stats(self, module: ModuleDoc) -> str:
         """Return compact class/function counts for navigation links."""
         stats_parts: list[str] = []
+        if module.attributes:
+            stats_parts.append(f"{len(module.attributes)} attribute(s)")
         if module.classes:
             stats_parts.append(f"{len(module.classes)} class(es)")
         if module.functions:
@@ -515,9 +544,12 @@ class MarkdownGenerator:
 
         if public_modules:
             lines.append(
-                f"**Overview:** {len(public_modules)} modules, "
-                f"{sum(len(module.classes) for module in public_modules)} classes, "
-                f"{sum(len(module.functions) for module in public_modules)} functions."
+                _overview_text(
+                    len(public_modules),
+                    sum(len(module.attributes) for module in public_modules),
+                    sum(len(module.classes) for module in public_modules),
+                    sum(len(module.functions) for module in public_modules),
+                )
             )
             lines.append("")
 
@@ -560,6 +592,8 @@ class MarkdownGenerator:
                     lines.append("")
 
                 stats_parts: list[str] = []
+                if module.attributes:
+                    stats_parts.append(f"{len(module.attributes)} attribute(s)")
                 if module.classes:
                     stats_parts.append(f"{len(module.classes)} class(es)")
                 if module.functions:
@@ -570,9 +604,13 @@ class MarkdownGenerator:
                     lines.append(f"_Includes: {', '.join(stats_parts)}._")
                     lines.append("")
 
-                public_entries, remaining_classes, remaining_functions, undocumented_exports = (
-                    self._readme_public_api_sections(module)
-                )
+                (
+                    public_entries,
+                    remaining_attributes,
+                    remaining_classes,
+                    remaining_functions,
+                    undocumented_exports,
+                ) = self._readme_public_api_sections(module)
                 if public_entries:
                     lines.append("**Public API:**")
                     lines.extend(public_entries)
@@ -581,6 +619,12 @@ class MarkdownGenerator:
                 if undocumented_exports:
                     lines.append("**Additional exports:**")
                     lines.extend(f"- `{name}`" for name in undocumented_exports)
+                    lines.append("")
+
+                if remaining_attributes:
+                    lines.append("**Other attributes:**")
+                    for attr in remaining_attributes:
+                        lines.append(self._readme_object_line(attr.name, attr.description))
                     lines.append("")
 
                 if remaining_classes:
@@ -707,17 +751,30 @@ class MarkdownGenerator:
     def _readme_public_api_sections(
         self,
         module: ModuleDoc,
-    ) -> tuple[list[str], list["ClassDoc"], list["FunctionDoc"], list[str]]:
+    ) -> tuple[
+        list[str],
+        list["Parameter"],
+        list["ClassDoc"],
+        list["FunctionDoc"],
+        list[str],
+    ]:
         """Split module objects into public API and remaining README summary buckets."""
+        attribute_map = {attr.name: attr for attr in module.attributes}
         class_map = {class_doc.name: class_doc for class_doc in module.classes}
         function_map = {func_doc.name: func_doc for func_doc in module.functions}
         public_entries: list[str] = []
+        public_attribute_names: set[str] = set()
         public_class_names: set[str] = set()
         public_function_names: set[str] = set()
         undocumented_exports: list[str] = []
 
         for export_name in module.public_api:
-            if export_name in class_map:
+            if export_name in attribute_map:
+                public_entries.append(
+                    self._readme_object_line(export_name, attribute_map[export_name].description)
+                )
+                public_attribute_names.add(export_name)
+            elif export_name in class_map:
                 public_entries.append(
                     self._readme_object_line(export_name, class_map[export_name].docstring)
                 )
@@ -730,13 +787,22 @@ class MarkdownGenerator:
             else:
                 undocumented_exports.append(export_name)
 
+        remaining_attributes = [
+            attr for attr in module.attributes if attr.name not in public_attribute_names
+        ]
         remaining_classes = [
             class_doc for class_doc in module.classes if class_doc.name not in public_class_names
         ]
         remaining_functions = [
             func_doc for func_doc in module.functions if func_doc.name not in public_function_names
         ]
-        return public_entries, remaining_classes, remaining_functions, undocumented_exports
+        return (
+            public_entries,
+            remaining_attributes,
+            remaining_classes,
+            remaining_functions,
+            undocumented_exports,
+        )
 
     def _readme_summary_groups(
         self,

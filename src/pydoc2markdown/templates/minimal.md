@@ -3,6 +3,18 @@
 
 {{ module.docstring }}
 {% endif %}
+{% if module.attributes %}
+
+## Attributes
+{% for attr in module.attributes %}
+
+### `{{ attr.name }}`
+{% if attr.description %}
+
+{{ attr.description }}
+{% endif %}
+{% endfor %}
+{% endif %}
 {% if module.classes %}
 
 ## Classes

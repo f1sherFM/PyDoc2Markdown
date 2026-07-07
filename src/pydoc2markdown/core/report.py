@@ -157,6 +157,9 @@ def analyze_modules(
 
         documented_top_level: dict[str, bool] = {}
 
+        for attribute in module.attributes:
+            documented_top_level[attribute.name] = bool(attribute.description)
+
         for class_doc in module.classes:
             documented_top_level[class_doc.name] = bool(class_doc.docstring)
             if not class_doc.docstring:
