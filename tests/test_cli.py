@@ -195,6 +195,7 @@ def test_cli_watch_passes_navigation_options(
             "--public-only",
             "--show-private-members",
             "--show-dunder-members",
+            "--inherit-docstrings",
             "--member-include",
             "Widget,Widget.run",
             "--member-exclude",
@@ -215,6 +216,7 @@ def test_cli_watch_passes_navigation_options(
     assert calls[0]["readme_path"] == tmp_path / "README.md"
     assert calls[0]["readme_mode"] == "summary"
     assert calls[0]["readme_title"] == "API Reference"
+    assert calls[0]["inherit_docstrings"] is True
     output_options = cast(OutputOptions, calls[0]["output_options"])
     assert output_options.show_toc is True
     assert output_options.public_only is True
@@ -665,6 +667,44 @@ def test_cli_readme_uses_custom_title(sample_module: Path, tmp_path: Path) -> No
     assert "# API Reference" not in content
 
 
+def test_cli_inherit_docstrings_generates_inherited_docs(tmp_path: Path) -> None:
+    source = tmp_path / "models.py"
+    source.write_text(
+        '''"""Models."""
+
+class Base:
+    """Base model."""
+
+    def save(self, force: bool) -> bool:
+        """Persist the model.
+
+        Args:
+            force: Persist even when unchanged.
+
+        Returns:
+            Whether a write happened.
+        """
+        return True
+
+class User(Base):
+    def save(self, force: bool) -> bool:
+        return False
+''',
+        encoding="utf-8",
+    )
+    output = tmp_path / "docs"
+
+    result = main([str(source), "--inherit-docstrings", "-o", str(output)])
+
+    assert result == 0
+    content = (output / "models.md").read_text(encoding="utf-8")
+    assert "### `User`" in content
+    assert "Base model." in content
+    assert "Persist the model." in content
+    assert "| `force` | `bool` | *required* | Persist even when unchanged. |" in content
+    assert "Whether a write happened." in content
+
+
 def test_cli_readme_links_to_navigation_docs(sample_package: Path, tmp_path: Path) -> None:
     output = tmp_path / "docs"
     readme_path = tmp_path / "README.md"
@@ -958,6 +998,7 @@ def test_cli_init_creates_pyproject(tmp_path: Path, monkeypatch: pytest.MonkeyPa
     assert "show_private_members = false" in content
     assert "show_dunder_members = false" in content
     assert "public_only = false" in content
+    assert "inherit_docstrings = false" in content
     assert "member_include = []" in content
     assert "member_exclude = []" in content
     assert 'readme_mode = "summary"' in content

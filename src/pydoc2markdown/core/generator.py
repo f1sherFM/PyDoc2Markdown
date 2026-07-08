@@ -50,7 +50,7 @@ def _anchorize(value: str) -> str:
 
 def _table_cell(value: object) -> str:
     """Escape Markdown table separators inside generated cells."""
-    return str(value).replace("|", r"\|")
+    return " ".join(str(value).split()).replace("|", r"\|")
 
 
 def _write_markdown_lines(path: Path, lines: list[str]) -> None:

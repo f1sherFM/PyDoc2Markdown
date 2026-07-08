@@ -55,8 +55,7 @@ Replace project-defined type names with Markdown hyperlinks.
 | Name | Type | Default | Description |
 |------|------|---------|-------------|
 | `type_str` | `str` | *required* | A type hint string (preferably already formatted). |
-| `current_module` | `str \| None` | `None` | Module key for local-only links. When provided,
-types from other modules are left as plain text. |
+| `current_module` | `str \| None` | `None` | Module key for local-only links. When provided, types from other modules are left as plain text. |
 
 **Returns:** `str`
 Markdown string with hyperlinks for known types.

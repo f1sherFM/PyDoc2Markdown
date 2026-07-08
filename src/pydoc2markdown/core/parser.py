@@ -104,9 +104,16 @@ class ModuleDoc:
 class DocstringParser:
     """Parse Python source files and extract structured docstrings."""
 
-    def __init__(self) -> None:
+    def __init__(self, inherit_docstrings: bool = False) -> None:
+        """Initialize the parser.
+
+        Args:
+            inherit_docstrings: Fill missing class and method documentation from
+                parsed base classes when possible.
+        """
         self._modules: list[ModuleDoc] = []
         self._source: Path = Path()
+        self._inherit_docstrings = inherit_docstrings
 
     def parse(
         self,
@@ -129,6 +136,9 @@ class DocstringParser:
                     self._parse_file(file_path)
         else:
             raise ValueError(f"Invalid source: {source}")
+
+        if self._inherit_docstrings:
+            self._apply_docstring_inheritance()
 
         return self._modules
 
@@ -158,6 +168,113 @@ class DocstringParser:
         if "/" not in normalized_pattern:
             return fnmatch.fnmatch(path.name, normalized_pattern)
         return False
+
+    def _apply_docstring_inheritance(self) -> None:
+        """Fill missing class and method docs from parsed base classes."""
+        class_index = self._class_index()
+        resolved: set[int] = set()
+        for module in self._modules:
+            for class_doc in module.classes:
+                self._inherit_class_docs(class_doc, class_index, resolved, set())
+
+    def _class_index(self) -> dict[str, ClassDoc | None]:
+        """Return class lookup keys, marking duplicate short names as ambiguous."""
+        index: dict[str, ClassDoc | None] = {}
+        for module in self._modules:
+            module_name = f"{module.package}.{module.name}" if module.package else module.name
+            for class_doc in module.classes:
+                qualified_name = f"{module_name}.{class_doc.name}"
+                index[qualified_name] = class_doc
+                if class_doc.name in index:
+                    index[class_doc.name] = None
+                else:
+                    index[class_doc.name] = class_doc
+        return index
+
+    def _inherit_class_docs(
+        self,
+        class_doc: ClassDoc,
+        class_index: dict[str, ClassDoc | None],
+        resolved: set[int],
+        resolving: set[int],
+    ) -> None:
+        """Apply inherited docs to one class, resolving its bases first."""
+        class_id = id(class_doc)
+        if class_id in resolved:
+            return
+        if class_id in resolving:
+            return
+        resolving.add(class_id)
+
+        for base_doc in self._base_classes(class_doc, class_index):
+            self._inherit_class_docs(base_doc, class_index, resolved, resolving)
+            self._inherit_from_base(class_doc, base_doc)
+
+        resolving.remove(class_id)
+        resolved.add(class_id)
+
+    def _base_classes(
+        self,
+        class_doc: ClassDoc,
+        class_index: dict[str, ClassDoc | None],
+    ) -> list[ClassDoc]:
+        """Return parsed base classes for a class, ignoring unknown or ambiguous bases."""
+        bases: list[ClassDoc] = []
+        for base_name in class_doc.bases:
+            for candidate in self._base_lookup_keys(base_name):
+                base_doc = class_index.get(candidate)
+                if base_doc is not None:
+                    bases.append(base_doc)
+                    break
+        return bases
+
+    def _base_lookup_keys(self, base_name: str) -> tuple[str, ...]:
+        """Return lookup keys for a base class expression."""
+        normalized = base_name.split("[", 1)[0].strip()
+        if not normalized:
+            return ()
+        return (normalized, normalized.rsplit(".", 1)[-1])
+
+    def _inherit_from_base(self, class_doc: ClassDoc, base_doc: ClassDoc) -> None:
+        """Copy missing class and method docs from one base class."""
+        if not class_doc.docstring and base_doc.docstring:
+            class_doc.docstring = base_doc.docstring
+
+        base_methods = {method.name: method for method in base_doc.methods}
+        for method in class_doc.methods:
+            base_method = base_methods.get(method.name)
+            if base_method is not None:
+                self._inherit_method_docs(method, base_method)
+
+    def _inherit_method_docs(
+        self,
+        method: FunctionDoc,
+        base_method: FunctionDoc,
+    ) -> None:
+        """Copy missing method docs from a base method."""
+        if not method.docstring and base_method.docstring:
+            method.docstring = base_method.docstring
+        if method.returns is None and base_method.returns is not None:
+            method.returns = ReturnsInfo(
+                type_hint=base_method.returns.type_hint,
+                description=base_method.returns.description,
+            )
+        elif method.returns is not None and base_method.returns is not None:
+            if not method.returns.type_hint:
+                method.returns.type_hint = base_method.returns.type_hint
+            if not method.returns.description:
+                method.returns.description = base_method.returns.description
+        if not method.raises and base_method.raises:
+            method.raises = [
+                RaisesInfo(type_name=raise_info.type_name, description=raise_info.description)
+                for raise_info in base_method.raises
+            ]
+
+        base_params = {param.name.lstrip("*"): param for param in base_method.params}
+        for param in method.params:
+            base_param = base_params.get(param.name.lstrip("*"))
+            if base_param and base_param.description and not param.description:
+                param.description = base_param.description
 
     def _parse_file(self, path: Path) -> None:
         """Parse a single Python file."""

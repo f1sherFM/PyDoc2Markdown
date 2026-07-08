@@ -46,6 +46,7 @@ show_raises = true
 show_private_members = false
 show_dunder_members = false
 public_only = false
+inherit_docstrings = false
 member_include = []
 member_exclude = []
 readme_mode = "summary"
@@ -368,6 +369,12 @@ def create_parser() -> argparse.ArgumentParser:
         action=argparse.BooleanOptionalAction,
         default=_config_bool(defaults, "public_only", False),
         help="When __all__ is present, document only that exported top-level surface.",
+    )
+    config_group.add_argument(
+        "--inherit-docstrings",
+        action=argparse.BooleanOptionalAction,
+        default=_config_bool(defaults, "inherit_docstrings", False),
+        help="Fill missing subclass and override method docs from parsed base classes.",
     )
     config_group.add_argument(
         "--member-include",
@@ -1321,10 +1328,11 @@ def main(args: list[str] | None = None) -> int:
             exclude=_split_patterns(parsed_args.exclude),
             source_link_template=source_link_template,
             output_options=_output_options_from_args(parsed_args),
+            inherit_docstrings=parsed_args.inherit_docstrings,
         )
 
     logger.info("Parsing source: %s (recursive=%s)", parsed_args.source, parsed_args.recursive)
-    doc_parser = DocstringParser()
+    doc_parser = DocstringParser(inherit_docstrings=parsed_args.inherit_docstrings)
 
     try:
         modules = doc_parser.parse(
