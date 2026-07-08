@@ -195,6 +195,9 @@ def test_watch_and_generate_debounces_file_events(
             pass
 
     class FakeParser:
+        def __init__(self, *, inherit_docstrings: bool = False) -> None:
+            self.inherit_docstrings = inherit_docstrings
+
         def parse(
             self,
             source: Path,

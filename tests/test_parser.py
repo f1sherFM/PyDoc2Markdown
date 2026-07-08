@@ -226,6 +226,102 @@ def log(message: str) -> None:
     assert func.returns is None
 
 
+def test_parse_does_not_inherit_docstrings_by_default(tmp_path: Path) -> None:
+    module = tmp_path / "models.py"
+    module.write_text(
+        '''"""Models."""
+
+class Base:
+    """Base model."""
+
+    def save(self, force: bool) -> bool:
+        """Persist the model.
+
+        Args:
+            force: Persist even when unchanged.
+
+        Returns:
+            Whether a write happened.
+        """
+        return True
+
+class User(Base):
+    def save(self, force: bool) -> bool:
+        return False
+''',
+        encoding="utf-8",
+    )
+
+    user = DocstringParser().parse(module)[0].classes[1]
+
+    assert user.docstring is None
+    assert user.methods[0].docstring is None
+    assert user.methods[0].params[0].description is None
+
+
+def test_parse_can_inherit_class_and_method_docstrings(tmp_path: Path) -> None:
+    module = tmp_path / "models.py"
+    module.write_text(
+        '''"""Models."""
+
+class Base:
+    """Base model."""
+
+    def save(self, force: bool) -> bool:
+        """Persist the model.
+
+        Args:
+            force: Persist even when unchanged.
+
+        Returns:
+            Whether a write happened.
+        """
+        return True
+
+class User(Base):
+    def save(self, force: bool) -> bool:
+        return False
+''',
+        encoding="utf-8",
+    )
+
+    user = DocstringParser(inherit_docstrings=True).parse(module)[0].classes[1]
+    save = user.methods[0]
+
+    assert user.docstring == "Base model."
+    assert save.docstring == "Persist the model."
+    assert save.params[0].description == "Persist even when unchanged."
+    assert isinstance(save.returns, ReturnsInfo)
+    assert save.returns.description == "Whether a write happened."
+
+
+def test_parse_inherits_docstrings_across_modules(tmp_path: Path) -> None:
+    package = tmp_path / "pkg"
+    package.mkdir()
+    (package / "base.py").write_text(
+        '''"""Base module."""
+
+class Service:
+    """Reusable service."""
+''',
+        encoding="utf-8",
+    )
+    (package / "users.py").write_text(
+        '''"""Users module."""
+
+from .base import Service
+
+class UserService(Service):
+    pass
+''',
+        encoding="utf-8",
+    )
+
+    users = DocstringParser(inherit_docstrings=True).parse(package, recursive=True)[1]
+
+    assert users.classes[0].docstring == "Reusable service."
+
+
 def test_parse_property(advanced_module: Path) -> None:
     parser = DocstringParser()
     modules = parser.parse(advanced_module)

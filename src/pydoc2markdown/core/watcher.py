@@ -27,6 +27,7 @@ def watch_and_generate(
     exclude: list[str] | None = None,
     source_link_template: str | None = None,
     output_options: OutputOptions | None = None,
+    inherit_docstrings: bool = False,
 ) -> int:
     """Watch source files and regenerate docs on change.
 
@@ -45,6 +46,7 @@ def watch_and_generate(
         exclude: Optional glob patterns for files to exclude.
         source_link_template: Optional URL template for source links.
         output_options: Optional built-in Markdown rendering toggles.
+        inherit_docstrings: Fill missing docs from parsed base classes.
 
     Returns:
         Exit code (0 for success, 1 for error).
@@ -69,7 +71,7 @@ def watch_and_generate(
         readme_mode=readme_mode,
         readme_title=readme_title,
     )
-    parser = DocstringParser()
+    parser = DocstringParser(inherit_docstrings=inherit_docstrings)
 
     def _generate_docs(message: str) -> None:
         modules = parser.parse(

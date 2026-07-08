@@ -122,6 +122,11 @@ Represents extracted documentation for a module.
 ### `DocstringParser`
 Parse Python source files and extract structured docstrings.
 
+#### Constructor Parameters
+| Name | Type | Default | Description |
+|------|------|---------|-------------|
+| `inherit_docstrings` | `bool` | `False` | Fill missing class and method documentation from parsed base classes when possible. |
+
 #### Methods
 <a id="docstringparser-parse"></a>
 

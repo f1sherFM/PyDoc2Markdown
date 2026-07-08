@@ -410,6 +410,30 @@ def connect(host: str, port: int = 8080, *, timeout: float = 30.0) -> None:
     assert "| `timeout` | `float` | `30.0` | Timeout in seconds. |" in content
 
 
+def test_generate_flattens_multiline_table_descriptions(tmp_path: Path) -> None:
+    module = tmp_path / "wrapped.py"
+    module.write_text(
+        '''"""Wrapped descriptions."""
+
+def connect(host: str) -> None:
+    """Connect to a service.
+
+    Args:
+        host: Primary host name.
+            Falls back to localhost in tests.
+    """
+''',
+        encoding="utf-8",
+    )
+
+    content = MarkdownGenerator().generate_string(DocstringParser().parse(module)[0])
+
+    assert (
+        "| `host` | `str` | *required* | Primary host name. Falls back to localhost in tests. |"
+        in content
+    )
+
+
 def test_generate_source_links(sample_module: Path, tmp_path: Path) -> None:
     modules = DocstringParser().parse(sample_module)
     output_dir = tmp_path / "docs"

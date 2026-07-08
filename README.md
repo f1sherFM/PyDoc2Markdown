@@ -48,6 +48,7 @@ publish with GitHub, GitLab, MkDocs, or any static site setup.
   and compact sections
 - pdoc/mkdocstrings-style documented attributes for module constants, class
   fields, and instance attributes
+- Optional docstring inheritance for subclass and override-heavy APIs
 - CI-friendly checks with `--check`, stale file cleanup with `--prune`, and docs
   coverage reporting with `--report`
 - A read-only `--doctor` mode that summarizes docs readiness and suggests next
@@ -146,6 +147,7 @@ Total price after discount.
 - [Documentation Coverage Report](#documentation-coverage-report)
 - [Prune Stale Docs](#prune-stale-docs)
 - [Library API](#library-api)
+- [Docstring Inheritance](#docstring-inheritance)
 - [Documented Attributes](#documented-attributes)
 - [Supported Docstring Formats](#supported-docstring-formats)
 - [Example Output](#example-output)
@@ -282,6 +284,7 @@ Start with the command that matches how you want to publish docs:
 | Generate a compact docs layout | `pydoc2markdown src/my_package --recursive --compact-sections -o docs` |
 | Hide returns and raises in generated docs | `pydoc2markdown src/my_package --recursive --no-show-returns --no-show-raises -o docs` |
 | Keep docs focused on exported API | `pydoc2markdown src/my_package --recursive --public-only -o docs` |
+| Reuse base class and override docs | `pydoc2markdown src/my_package --recursive --inherit-docstrings -o docs` |
 | Include private helpers and dunder methods | `pydoc2markdown src/my_package --recursive --show-private-members --show-dunder-members -o docs` |
 | Include only selected members by name | `pydoc2markdown src/my_package --recursive --member-include "Client,Client.run,public_*" -o docs` |
 | Exclude noisy helpers by name | `pydoc2markdown src/my_package --recursive --member-exclude "_debug,Client.helper,*.backup" -o docs` |
@@ -470,6 +473,7 @@ generator.generate(modules, output_dir=Path("docs"))
 | `--show-private-members`, `--no-show-private-members` | `False` / value from `pyproject.toml` | Show or hide private names such as `_helper` and `_debug` |
 | `--show-dunder-members`, `--no-show-dunder-members` | `False` / value from `pyproject.toml` | Show or hide dunder members such as `__repr__` |
 | `--public-only`, `--no-public-only` | `False` / value from `pyproject.toml` | When `__all__` exists, keep docs focused on that exported top-level API |
+| `--inherit-docstrings`, `--no-inherit-docstrings` | `False` / value from `pyproject.toml` | Fill missing subclass and override method docs from parsed base classes |
 | `--member-include` | `None` / value from `pyproject.toml` | Comma-separated glob patterns for member names to include |
 | `--member-exclude` | `None` / value from `pyproject.toml` | Comma-separated glob patterns for member names to exclude |
 | `--single-file` | `False` | Generate a single combined Markdown file; `--output` must be a `.md` or `.markdown` file path |
@@ -529,6 +533,7 @@ show_raises = true
 show_private_members = false
 show_dunder_members = false
 public_only = false
+inherit_docstrings = false
 member_include = ["Client", "Client.run", "public_*"]
 member_exclude = ["Client.helper", "_debug"]
 readme_mode = "summary"
@@ -904,6 +909,27 @@ gen.generate_navigation(modules, output_dir=Path("docs"))
 
 # Markdown string for a single module
 md_string = gen.generate_string(modules[0])
+```
+
+## Docstring Inheritance
+
+Use `--inherit-docstrings` when subclass-heavy code would otherwise repeat the
+same class or method descriptions:
+
+```bash
+pydoc2markdown src/my_package --recursive --inherit-docstrings -o docs
+```
+
+When enabled, PyDoc2Markdown fills missing subclass docstrings and override
+method docs from parsed base classes. Explicit subclass docstrings are kept as
+written. Override methods can also inherit missing return descriptions, raises
+sections, and parameter descriptions by matching parameter names.
+
+The same behavior is available from the library API:
+
+```python
+parser = DocstringParser(inherit_docstrings=True)
+modules = parser.parse(Path("src/my_package"), recursive=True)
 ```
 
 ## Documented Attributes

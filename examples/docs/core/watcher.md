@@ -31,6 +31,7 @@ Watch source files and regenerate docs on change.
 | `exclude` | `list[str] \| None` | `None` | Optional glob patterns for files to exclude. |
 | `source_link_template` | `str \| None` | `None` | Optional URL template for source links. |
 | `output_options` | `OutputOptions \| None` | `None` | Optional built-in Markdown rendering toggles. |
+| `inherit_docstrings` | `bool` | `False` | Fill missing docs from parsed base classes. |
 
 **Returns:** `int`
 Exit code (0 for success, 1 for error).
