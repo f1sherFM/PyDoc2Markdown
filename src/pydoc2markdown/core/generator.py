@@ -21,6 +21,7 @@ README_START_MARKER = "<!-- pydoc2markdown:start -->"
 README_END_MARKER = "<!-- pydoc2markdown:end -->"
 README_RENDER_MODES = ("summary", "detailed")
 DEFAULT_README_TITLE = "API Reference"
+SummaryRow = tuple[str, str, str]
 
 
 @dataclass(frozen=True)
@@ -97,6 +98,28 @@ def _overview_text(
         parts.append(f"{attribute_count} attributes")
     parts.extend([f"{class_count} classes", f"{function_count} functions"])
     return f"**Overview:** {', '.join(parts)}."
+
+
+def _append_summary_table(lines: list[str], rows: list[SummaryRow]) -> None:
+    """Append a compact autosummary-style table to Markdown lines."""
+    if not rows:
+        return
+    if lines and lines[-1] != "":
+        lines.append("")
+    lines.extend(["| Name | Kind | Summary |", "|------|------|---------|"])
+    for name, kind, summary in rows:
+        lines.append(f"| {name} | {kind} | {_table_cell(summary) if summary else '-'} |")
+
+
+def _append_module_table(lines: list[str], rows: list[SummaryRow]) -> None:
+    """Append a compact module overview table to Markdown lines."""
+    if not rows:
+        return
+    if lines and lines[-1] != "":
+        lines.append("")
+    lines.extend(["| Module | Summary | Contents |", "|--------|---------|----------|"])
+    for name, summary, contents in rows:
+        lines.append(f"| {name} | {_table_cell(summary) if summary else '-'} | {contents or '-'} |")
 
 
 def _safe_api_output_dir(output_dir: Path, api_dir: Path) -> Path:
@@ -378,6 +401,7 @@ class MarkdownGenerator:
                 lines.append("## Modules")
                 lines.append("")
 
+            module_rows: list[SummaryRow] = []
             for module in mods:
                 if module.name == "__init__":
                     continue
@@ -386,18 +410,14 @@ class MarkdownGenerator:
                     if module.package
                     else f"{module.name}.md"
                 )
-                stats_parts: list[str] = []
-                if module.attributes:
-                    stats_parts.append(f"{len(module.attributes)} attribute(s)")
-                if module.classes:
-                    stats_parts.append(f"{len(module.classes)} class(es)")
-                if module.functions:
-                    stats_parts.append(f"{len(module.functions)} function(s)")
-                stats = f" - {', '.join(stats_parts)}" if stats_parts else ""
-                lines.append(f"- [{module.name}]({rel_path}){stats}")
-                if module.docstring:
-                    first_line = module.docstring.strip().split("\n")[0]
-                    lines.append(f"  > {first_line}")
+                module_rows.append(
+                    (
+                        f"[`{module.name}`]({rel_path})",
+                        self._first_doc_line(module),
+                        self._module_contents(module),
+                    )
+                )
+            _append_module_table(lines, module_rows)
             lines.append("")
 
         index_path = output_dir / "index.md"
@@ -440,14 +460,10 @@ class MarkdownGenerator:
         lines.append("## API Reference")
         lines.append("")
 
+        module_rows: list[SummaryRow] = []
         for module in public_modules:
-            stats = self._module_stats(module)
-            package_prefix = f"{module.package}." if module.package else ""
-            lines.append(
-                f"- [`{package_prefix}{module.name}`]({self._module_link(module, api_dir)}){stats}"
-            )
-            if module.docstring:
-                lines.append(f"  > {self._first_doc_line(module)}")
+            module_rows.append(self._module_summary_row(module, self._module_link(module, api_dir)))
+        _append_module_table(lines, module_rows)
 
         index_path = output_dir / "index.md"
         logger.debug("Generating %s", index_path)
@@ -486,15 +502,12 @@ class MarkdownGenerator:
             lines.append("## Modules")
             lines.append("")
 
+            module_rows: list[SummaryRow] = []
             for module in package_modules:
-                stats = self._module_stats(module)
-                package_prefix = f"{module.package}." if module.package else ""
-                lines.append(
-                    f"- [`{package_prefix}{module.name}`]({self._module_link(module, api_dir)})"
-                    f"{stats}"
+                module_rows.append(
+                    self._module_summary_row(module, self._module_link(module, api_dir))
                 )
-                if module.docstring:
-                    lines.append(f"  > {self._first_doc_line(module)}")
+            _append_module_table(lines, module_rows)
 
             page_path = output_dir / page_name
             logger.debug("Generating %s", page_path)
@@ -519,6 +532,11 @@ class MarkdownGenerator:
 
     def _module_stats(self, module: ModuleDoc) -> str:
         """Return compact class/function counts for navigation links."""
+        contents = self._module_contents(module)
+        return f" - {contents}" if contents else ""
+
+    def _module_contents(self, module: ModuleDoc) -> str:
+        """Return compact class/function counts for summary tables."""
         stats_parts: list[str] = []
         if module.attributes:
             stats_parts.append(f"{len(module.attributes)} attribute(s)")
@@ -526,7 +544,7 @@ class MarkdownGenerator:
             stats_parts.append(f"{len(module.classes)} class(es)")
         if module.functions:
             stats_parts.append(f"{len(module.functions)} function(s)")
-        return f" - {', '.join(stats_parts)}" if stats_parts else ""
+        return ", ".join(stats_parts)
 
     def _first_doc_line(self, module: ModuleDoc) -> str:
         """Return the first line of a module docstring."""
@@ -561,12 +579,16 @@ class MarkdownGenerator:
                         f"- [{label}](#{self._readme_package_anchor(group_name)}) "
                         f"({len(group_modules)} module(s))"
                     )
-                lines.append("")
+            lines.append("")
 
             lines.append("**Quick links:**")
+            module_rows: list[SummaryRow] = []
             for module in public_modules:
                 module_name = f"{module.package}.{module.name}" if module.package else module.name
-                lines.append(f"- [`{module_name}`]({self._readme_module_target(module_name)})")
+                module_rows.append(
+                    self._module_summary_row(module, self._readme_module_target(module_name))
+                )
+            _append_module_table(lines, module_rows)
             lines.append("")
 
         for group_name, group_summary, group_modules in summary_groups:
@@ -613,30 +635,56 @@ class MarkdownGenerator:
                 ) = self._readme_public_api_sections(module)
                 if public_entries:
                     lines.append("**Public API:**")
-                    lines.extend(public_entries)
+                    _append_summary_table(lines, public_entries)
                     lines.append("")
 
                 if undocumented_exports:
                     lines.append("**Additional exports:**")
-                    lines.extend(f"- `{name}`" for name in undocumented_exports)
+                    _append_summary_table(
+                        lines,
+                        [(f"`{name}`", "export", "-") for name in undocumented_exports],
+                    )
                     lines.append("")
 
                 if remaining_attributes:
                     lines.append("**Other attributes:**")
-                    for attr in remaining_attributes:
-                        lines.append(self._readme_object_line(attr.name, attr.description))
+                    _append_summary_table(
+                        lines,
+                        [
+                            self._object_summary_row(attr.name, "attribute", attr.description)
+                            for attr in remaining_attributes
+                        ],
+                    )
                     lines.append("")
 
                 if remaining_classes:
                     lines.append("**Other classes:**")
-                    for class_doc in remaining_classes:
-                        lines.append(self._readme_object_line(class_doc.name, class_doc.docstring))
+                    _append_summary_table(
+                        lines,
+                        [
+                            self._object_summary_row(
+                                class_doc.name,
+                                "class",
+                                class_doc.docstring,
+                            )
+                            for class_doc in remaining_classes
+                        ],
+                    )
                     lines.append("")
 
                 if remaining_functions:
                     lines.append("**Other functions:**")
-                    for func_doc in remaining_functions:
-                        lines.append(self._readme_object_line(func_doc.name, func_doc.docstring))
+                    _append_summary_table(
+                        lines,
+                        [
+                            self._object_summary_row(
+                                func_doc.name,
+                                "function",
+                                func_doc.docstring,
+                            )
+                            for func_doc in remaining_functions
+                        ],
+                    )
                     lines.append("")
 
         lines.append(README_END_MARKER)
@@ -748,11 +796,29 @@ class MarkdownGenerator:
             return f"- `{name}`: {summary}"
         return f"- `{name}`"
 
+    def _object_summary_row(
+        self,
+        name: str,
+        kind: str,
+        docstring: str | None,
+    ) -> SummaryRow:
+        """Return one autosummary-style row for a documented object."""
+        return (f"`{name}`", kind, self._short_doc_line(docstring))
+
+    def _module_summary_row(self, module: ModuleDoc, target: str) -> SummaryRow:
+        """Return one autosummary-style row for a module."""
+        module_name = f"{module.package}.{module.name}" if module.package else module.name
+        return (
+            f"[`{module_name}`]({target})",
+            self._first_doc_line(module),
+            self._module_contents(module),
+        )
+
     def _readme_public_api_sections(
         self,
         module: ModuleDoc,
     ) -> tuple[
-        list[str],
+        list[SummaryRow],
         list["Parameter"],
         list["ClassDoc"],
         list["FunctionDoc"],
@@ -762,7 +828,7 @@ class MarkdownGenerator:
         attribute_map = {attr.name: attr for attr in module.attributes}
         class_map = {class_doc.name: class_doc for class_doc in module.classes}
         function_map = {func_doc.name: func_doc for func_doc in module.functions}
-        public_entries: list[str] = []
+        public_entries: list[SummaryRow] = []
         public_attribute_names: set[str] = set()
         public_class_names: set[str] = set()
         public_function_names: set[str] = set()
@@ -771,17 +837,25 @@ class MarkdownGenerator:
         for export_name in module.public_api:
             if export_name in attribute_map:
                 public_entries.append(
-                    self._readme_object_line(export_name, attribute_map[export_name].description)
+                    self._object_summary_row(
+                        export_name,
+                        "attribute",
+                        attribute_map[export_name].description,
+                    )
                 )
                 public_attribute_names.add(export_name)
             elif export_name in class_map:
                 public_entries.append(
-                    self._readme_object_line(export_name, class_map[export_name].docstring)
+                    self._object_summary_row(export_name, "class", class_map[export_name].docstring)
                 )
                 public_class_names.add(export_name)
             elif export_name in function_map:
                 public_entries.append(
-                    self._readme_object_line(export_name, function_map[export_name].docstring)
+                    self._object_summary_row(
+                        export_name,
+                        "function",
+                        function_map[export_name].docstring,
+                    )
                 )
                 public_function_names.add(export_name)
             else:

@@ -97,7 +97,11 @@ def test_generate_index(sample_module: Path, tmp_path: Path) -> None:
     content = index_path.read_text()
     assert "# Documentation Index" in content
     assert "**Overview:**" in content
-    assert "[sample_module](sample_module.md)" in content
+    assert "| Module | Summary | Contents |" in content
+    assert (
+        "| [`sample_module`](sample_module.md) | A sample module for testing. | "
+        "1 class(es), 1 function(s) |" in content
+    )
     assert "1 class(es)" in content
     assert "1 function(s)" in content
 
@@ -270,7 +274,7 @@ def test_generate_package_grouping(tmp_path: Path) -> None:
     assert index.exists()
     content = index.read_text()
     assert "## Package `sub`" in content
-    assert "[nested](sub/nested.md)" in content
+    assert "| [`nested`](sub/nested.md) | Nested module. | - |" in content
     assert "**Overview:**" in content
 
 
@@ -309,11 +313,13 @@ def helper() -> None:
     assert "[sub](sub.md)" in index_content
     assert "[`top`](api/top.md)" in index_content
     assert "[`sub.nested`](api/sub/nested.md)" in index_content
-    assert " - 1 function(s)" in index_content
+    assert "| [`sub.nested`](api/sub/nested.md) | Nested module. | 1 function(s) |" in index_content
 
     package_content = (output_dir / "sub.md").read_text(encoding="utf-8")
     assert "# sub" in package_content
-    assert "[`sub.nested`](api/sub/nested.md)" in package_content
+    assert (
+        "| [`sub.nested`](api/sub/nested.md) | Nested module. | 1 function(s) |" in package_content
+    )
     assert " — " not in package_content
 
 
@@ -602,7 +608,7 @@ def public_helper() -> None:
     ).update_readme(modules, readme_path)
 
     content = readme_path.read_text(encoding="utf-8")
-    assert "- `Widget`: Public widget." in content
+    assert "| `Widget` | class | Public widget. |" in content
     assert "_InternalWidget" not in content
     assert "public_helper" not in content
 
@@ -1069,11 +1075,15 @@ def test_update_readme_summary_includes_stats_and_item_summaries(
     content = readme_path.read_text(encoding="utf-8")
     assert "**Overview:** 1 modules, 1 classes, 1 functions." in content
     assert "**Quick links:**" in content
-    assert "- [`sample_module`](#readme-sample_module)" in content
+    assert "| Module | Summary | Contents |" in content
+    assert (
+        "| [`sample_module`](#readme-sample_module) | A sample module for testing. | "
+        "1 class(es), 1 function(s) |" in content
+    )
     assert '<a id="readme-sample_module"></a>' in content
     assert "_Includes: 1 class(es), 1 function(s)._" in content
-    assert "- `Calculator`: A simple calculator class." in content
-    assert "- `greet`: Greet a person." in content
+    assert "| `Calculator` | class | A simple calculator class. |" in content
+    assert "| `greet` | function | Greet a person. |" in content
 
 
 def test_update_readme_summary_prioritizes_public_api_order(tmp_path: Path) -> None:
@@ -1105,17 +1115,17 @@ def internal_helper() -> None:
 
     content = readme_path.read_text(encoding="utf-8")
     public_api_index = content.index("**Public API:**")
-    helper_index = content.index("- `helper`: Helpful entrypoint.")
-    widget_index = content.index("- `Widget`: Primary widget.")
+    helper_index = content.index("| `helper` | function | Helpful entrypoint. |")
+    widget_index = content.index("| `Widget` | class | Primary widget. |")
     additional_exports_index = content.index("**Additional exports:**")
     other_classes_index = content.index("**Other classes:**")
     other_functions_index = content.index("**Other functions:**")
 
     assert public_api_index < helper_index < widget_index
     assert widget_index < additional_exports_index < other_classes_index < other_functions_index
-    assert "- `missing_export`" in content
-    assert "- `InternalThing`: Internal helper." in content
-    assert "- `internal_helper`: Internal function." in content
+    assert "| `missing_export` | export | - |" in content
+    assert "| `InternalThing` | class | Internal helper. |" in content
+    assert "| `internal_helper` | function | Internal function. |" in content
 
 
 def test_update_readme_summary_includes_public_attributes(tmp_path: Path) -> None:
@@ -1140,7 +1150,7 @@ DEFAULT_TIMEOUT: float = 30.0
     content = readme_path.read_text(encoding="utf-8")
     assert "**Overview:** 1 modules, 1 attributes, 0 classes, 0 functions." in content
     assert "_Includes: 1 attribute(s), 1 export(s)._" in content
-    assert "- `DEFAULT_TIMEOUT`: Default request timeout in seconds." in content
+    assert "| `DEFAULT_TIMEOUT` | attribute | Default request timeout in seconds. |" in content
     assert "**Additional exports:**" not in content
 
 
@@ -1171,10 +1181,10 @@ def helper() -> None:
     assert "- [`Modules`](#readme-package-modules) (1 module(s))" in content
     assert "- [`sub`](#readme-package-sub) (1 module(s))" in content
     assert "**Quick links:**" in content
-    assert "- [`top`](#readme-top)" in content
+    assert "| [`top`](#readme-top) | Top module. | - |" in content
     assert (
-        "- [`sub.nested`](sub/nested.md)" in content
-        or "- [`sub.nested`](#readme-sub-nested)" in content
+        "| [`sub.nested`](sub/nested.md) | Nested module. | 1 function(s) |" in content
+        or "| [`sub.nested`](#readme-sub-nested) | Nested module. | 1 function(s) |" in content
     )
     assert '<a id="readme-package-sub"></a>' in content
     assert "### Modules" in content

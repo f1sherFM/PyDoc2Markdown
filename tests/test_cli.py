@@ -613,8 +613,8 @@ def test_cli_readme_updates_custom_readme(sample_module: Path, tmp_path: Path) -
     assert "# API Reference" in content
     assert "### [`sample_module`](docs/sample_module.md)" in content
     assert "_Includes: 1 class(es), 1 function(s)._" in content
-    assert "- `Calculator`: A simple calculator class." in content
-    assert "- `greet`: Greet a person." in content
+    assert "| `Calculator` | class | A simple calculator class. |" in content
+    assert "| `greet` | function | Greet a person. |" in content
     assert "Calculator" in content
     assert "greet" in content
 
