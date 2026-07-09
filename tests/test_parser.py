@@ -404,6 +404,71 @@ class Product:
     ]
 
 
+def test_parse_attrs_fields_from_class_body(tmp_path: Path) -> None:
+    module = tmp_path / "models.py"
+    module.write_text(
+        '''"""Models."""
+
+import attrs
+
+@attrs.define
+class Product:
+    """A product.
+
+    Args:
+        sku: Stable product identifier.
+        price: Unit price.
+    """
+
+    sku: str
+    price: float = attrs.field(default=0.0)
+''',
+        encoding="utf-8",
+    )
+
+    product = DocstringParser().parse(module)[0].classes[0]
+
+    assert product.class_type == "attrs"
+    assert product.docstring == "A product."
+    assert [
+        (attr.name, attr.type_hint, attr.default, attr.description) for attr in product.attributes
+    ] == [
+        ("sku", "str", None, "Stable product identifier."),
+        ("price", "float", "attrs.field(default=0.0)", "Unit price."),
+    ]
+
+
+def test_parse_attrs_alias_decorators(tmp_path: Path) -> None:
+    module = tmp_path / "aliases.py"
+    module.write_text(
+        '''"""Attrs aliases."""
+
+import attr as attr_lib
+from attrs import frozen as frozen_class
+
+@attr_lib.s
+class LegacyModel:
+    """Legacy attrs model."""
+
+    name: str
+
+@frozen_class
+class FrozenModel:
+    """Frozen attrs model."""
+
+    name: str
+''',
+        encoding="utf-8",
+    )
+
+    classes = {
+        class_doc.name: class_doc for class_doc in DocstringParser().parse(module)[0].classes
+    }
+
+    assert classes["LegacyModel"].class_type == "attrs"
+    assert classes["FrozenModel"].class_type == "attrs"
+
+
 def test_parse_constructor_params_from_class_docstring(tmp_path: Path) -> None:
     module = tmp_path / "inventory.py"
     module.write_text(
@@ -586,3 +651,60 @@ def test_parse_pydantic_config(pydantic_module: Path) -> None:
 
     timeout_field = next(f for f in config.pydantic_fields if f.name == "timeout")
     assert timeout_field.description == "Request timeout in seconds"
+
+
+def test_parse_common_import_aliases_for_class_metadata(tmp_path: Path) -> None:
+    module = tmp_path / "aliases.py"
+    module.write_text(
+        '''"""Alias-heavy module."""
+
+import dataclasses as dc
+import enum as enum_mod
+from abc import ABC as BaseABC
+from pydantic import BaseModel as Model, Field as PydanticField
+from typing import Protocol as Proto, TypedDict as TD
+
+@dc.dataclass
+class Product:
+    """A product."""
+
+    sku: str
+
+class OrderStatus(enum_mod.Enum):
+    """Order status."""
+
+    PAID = "paid"
+
+class Payload(TD):
+    """Typed payload."""
+
+    value: str
+
+class Drawable(Proto):
+    """Drawable contract."""
+
+class Shape(BaseABC):
+    """Abstract shape."""
+
+class Settings(Model):
+    """Application settings."""
+
+    timeout: float = PydanticField(default=30.0, description="Request timeout.")
+''',
+        encoding="utf-8",
+    )
+
+    classes = {
+        class_doc.name: class_doc for class_doc in DocstringParser().parse(module)[0].classes
+    }
+
+    assert classes["Product"].class_type == "dataclass"
+    assert classes["OrderStatus"].class_type == "enum"
+    assert classes["Payload"].class_type == "typeddict"
+    assert classes["Drawable"].is_protocol is True
+    assert classes["Shape"].is_abstract is True
+    assert classes["Settings"].is_pydantic_model is True
+    assert classes["Settings"].bases == ["Model"]
+    timeout = classes["Settings"].pydantic_fields[0]
+    assert timeout.name == "timeout"
+    assert timeout.description == "Request timeout."

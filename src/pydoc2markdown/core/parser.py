@@ -297,6 +297,7 @@ class DocstringParser:
     def _extract_module(self, path: Path, tree: ast.AST) -> ModuleDoc:
         """Extract module-level documentation."""
         assert isinstance(tree, ast.Module)
+        aliases = self._extract_import_aliases(tree)
         package = ""
         source_path = self._source_relative_path(path)
         if self._source.is_dir():
@@ -315,9 +316,15 @@ class DocstringParser:
 
         for node in ast.iter_child_nodes(tree):
             if isinstance(node, ast.ClassDef):
-                module.classes.append(self._extract_class(node, source_path))
+                module.classes.append(self._extract_class(node, source_path, aliases))
             elif isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef):
-                module.functions.append(self._extract_function(node, source_path=source_path))
+                module.functions.append(
+                    self._extract_function(
+                        node,
+                        source_path=source_path,
+                        aliases=aliases,
+                    )
+                )
             elif isinstance(node, ast.Assign | ast.AnnAssign):
                 module.public_api.extend(self._extract_public_api(node))
 
@@ -332,19 +339,25 @@ class DocstringParser:
         except ValueError:
             return path.as_posix()
 
-    def _extract_class(self, node: ast.ClassDef, source_path: str) -> ClassDoc:
+    def _extract_class(
+        self,
+        node: ast.ClassDef,
+        source_path: str,
+        aliases: dict[str, str],
+    ) -> ClassDoc:
         """Extract documentation from a class definition."""
         raw_docstring = ast.get_docstring(node)
         parsed_docstring = self._parse_docstring(raw_docstring)
         bases = [self._format_base(base) for base in node.bases]
-        is_pydantic = self._is_pydantic_model(bases)
+        canonical_bases = [self._canonical_name(base, aliases) for base in bases]
+        is_pydantic = self._is_pydantic_model(canonical_bases)
         class_doc = ClassDoc(
             name=node.name,
             docstring=raw_docstring,
             bases=bases,
-            class_type=self._resolve_class_type(node, bases),
-            is_protocol=self._is_protocol(bases),
-            is_abstract=self._is_abstract(bases),
+            class_type=self._resolve_class_type(node, canonical_bases, aliases),
+            is_protocol=self._is_protocol(canonical_bases),
+            is_abstract=self._is_abstract(canonical_bases),
             is_pydantic_model=is_pydantic,
             source_path=source_path,
             line_number=node.lineno,
@@ -352,10 +365,11 @@ class DocstringParser:
 
         documented_class_attrs = self._extract_documented_name_attributes(
             node.body,
-            include_undocumented_annassign=class_doc.class_type in ("dataclass", "typeddict"),
+            include_undocumented_annassign=class_doc.class_type
+            in ("attrs", "dataclass", "typeddict"),
         )
         if is_pydantic:
-            class_doc.pydantic_fields = self._extract_pydantic_fields(node)
+            class_doc.pydantic_fields = self._extract_pydantic_fields(node, aliases)
             self._merge_pydantic_field_descriptions(
                 class_doc.pydantic_fields,
                 documented_class_attrs,
@@ -380,6 +394,7 @@ class DocstringParser:
                             item,
                             is_method=True,
                             source_path=source_path,
+                            aliases=aliases,
                         )
                     )
 
@@ -396,6 +411,7 @@ class DocstringParser:
         node: ast.FunctionDef | ast.AsyncFunctionDef,
         is_method: bool = False,
         source_path: str | None = None,
+        aliases: dict[str, str] | None = None,
     ) -> FunctionDoc:
         """Extract documentation from a function definition."""
         raw_docstring = ast.get_docstring(node)
@@ -420,8 +436,10 @@ class DocstringParser:
         if returns and returns.type_hint == "None" and not returns.description:
             returns = None
 
-        decorators = self._extract_decorator_names(node)
-        is_property = any(d in ("property", "cached_property") for d in decorators)
+        decorators = self._extract_decorator_names(node, aliases or {})
+        is_property = any(
+            d.rsplit(".", 1)[-1] in ("property", "cached_property") for d in decorators
+        )
         is_classmethod = "classmethod" in decorators
         is_staticmethod = "staticmethod" in decorators
 
@@ -740,9 +758,33 @@ class DocstringParser:
         """Format a base class expression as a string."""
         return ast.unparse(base)
 
+    def _extract_import_aliases(self, tree: ast.Module) -> dict[str, str]:
+        """Return import aliases that can affect semantic class detection."""
+        aliases: dict[str, str] = {}
+        for node in tree.body:
+            if isinstance(node, ast.Import):
+                for item in node.names:
+                    aliases[item.asname or item.name] = item.name
+            elif isinstance(node, ast.ImportFrom) and node.module:
+                module = "." * node.level + node.module if node.level else node.module
+                for item in node.names:
+                    if item.name == "*":
+                        continue
+                    aliases[item.asname or item.name] = f"{module}.{item.name}"
+        return aliases
+
+    def _canonical_name(self, name: str, aliases: dict[str, str]) -> str:
+        """Expand the first segment of an imported alias when known."""
+        head, separator, tail = name.partition(".")
+        target = aliases.get(head)
+        if target is None:
+            return name
+        return f"{target}{separator}{tail}" if separator else target
+
     def _extract_decorator_names(
         self,
         node: ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef,
+        aliases: dict[str, str],
     ) -> list[str]:
         """Extract decorator names from a function or class definition."""
         names: list[str] = []
@@ -756,22 +798,40 @@ class DocstringParser:
                     names.append(dec.func.id)
                 elif isinstance(dec.func, ast.Attribute):
                     names.append(f"{ast.unparse(dec.func.value)}.{dec.func.attr}")
-        return names
+        return [self._canonical_name(name, aliases) for name in names]
 
     def _resolve_class_type(
         self,
         node: ast.ClassDef,
         bases: list[str],
+        aliases: dict[str, str],
     ) -> str:
-        """Determine if a class is a dataclass, enum, typeddict, or plain class."""
-        decorators = self._extract_decorator_names(node)
+        """Determine if a class is an attrs class, dataclass, enum, typeddict, or plain class."""
+        decorators = self._extract_decorator_names(node, aliases)
         if any(d in ("dataclass", "dataclasses.dataclass") for d in decorators):
             return "dataclass"
+        if any(self._is_attrs_decorator(decorator) for decorator in decorators):
+            return "attrs"
         if any(base.rsplit(".", 1)[-1] in ("Enum", "IntEnum", "Flag", "IntFlag") for base in bases):
             return "enum"
         if any(base.rsplit(".", 1)[-1] in ("TypedDict", "typing.TypedDict") for base in bases):
             return "typeddict"
         return "class"
+
+    def _is_attrs_decorator(self, decorator: str) -> bool:
+        """Return whether a decorator marks an attrs-powered class."""
+        return decorator in {
+            "attr.s",
+            "attr.attrs",
+            "attr.define",
+            "attr.mutable",
+            "attr.frozen",
+            "attr.dataclass",
+            "attrs.define",
+            "attrs.mutable",
+            "attrs.frozen",
+            "attrs.dataclass",
+        }
 
     def _is_protocol(self, bases: list[str]) -> bool:
         """Check if the class inherits from typing.Protocol."""
@@ -785,17 +845,25 @@ class DocstringParser:
         """Check if the class inherits from pydantic.BaseModel."""
         return any(base.rsplit(".", 1)[-1] in ("BaseModel", "pydantic.BaseModel") for base in bases)
 
-    def _extract_pydantic_fields(self, node: ast.ClassDef) -> list[PydanticField]:
+    def _extract_pydantic_fields(
+        self,
+        node: ast.ClassDef,
+        aliases: dict[str, str],
+    ) -> list[PydanticField]:
         """Extract Pydantic field definitions from a class body."""
         fields: list[PydanticField] = []
         for item in node.body:
             if isinstance(item, ast.AnnAssign):
-                field = self._parse_pydantic_field(item)
+                field = self._parse_pydantic_field(item, aliases)
                 if field is not None:
                     fields.append(field)
         return fields
 
-    def _parse_pydantic_field(self, node: ast.AnnAssign) -> PydanticField | None:
+    def _parse_pydantic_field(
+        self,
+        node: ast.AnnAssign,
+        aliases: dict[str, str],
+    ) -> PydanticField | None:
         """Parse a single AnnAssign node as a Pydantic field."""
         if not isinstance(node.target, ast.Name):
             return None
@@ -810,7 +878,7 @@ class DocstringParser:
             required = False
             if isinstance(node.value, ast.Call):
                 default = ast.unparse(node.value)
-                description = self._extract_field_description(node.value)
+                description = self._extract_field_description(node.value, aliases)
             else:
                 default = ast.unparse(node.value)
 
@@ -822,12 +890,17 @@ class DocstringParser:
             required=required,
         )
 
-    def _extract_field_description(self, node: ast.Call) -> str | None:
+    def _extract_field_description(
+        self,
+        node: ast.Call,
+        aliases: dict[str, str],
+    ) -> str | None:
         """Extract description keyword from a Field() call."""
         if not isinstance(node.func, ast.Name | ast.Attribute):
             return None
-        func_name = node.func.id if isinstance(node.func, ast.Name) else node.func.attr
-        if func_name != "Field":
+        func_name = ast.unparse(node.func)
+        canonical_name = self._canonical_name(func_name, aliases)
+        if canonical_name.rsplit(".", 1)[-1] != "Field":
             return None
         for kw in node.keywords:
             if (

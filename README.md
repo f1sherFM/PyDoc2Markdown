@@ -49,6 +49,8 @@ publish with GitHub, GitLab, MkDocs, or any static site setup.
 - pdoc/mkdocstrings-style documented attributes for module constants, class
   fields, and instance attributes
 - Optional docstring inheritance for subclass and override-heavy APIs
+- Alias-aware detection for common Python patterns such as dataclasses, attrs
+  classes, enums, protocols, ABCs, TypedDicts, and Pydantic models
 - CI-friendly checks with `--check`, stale file cleanup with `--prune`, and docs
   coverage reporting with `--report`
 - A read-only `--doctor` mode that summarizes docs readiness and suggests next
@@ -957,6 +959,11 @@ class Client:
 
 Those descriptions are rendered as Markdown attribute sections and are also
 used by README summaries and `__all__` public API reporting.
+
+Class metadata detection is import-alias-aware, so common patterns like
+`import dataclasses as dc`, `import attrs`, `from enum import Enum as PyEnum`,
+and `from pydantic import BaseModel as Model` still render the expected
+dataclass, attrs, enum, protocol, abstract, TypedDict, and Pydantic labels.
 
 ## Supported Docstring Formats
 
