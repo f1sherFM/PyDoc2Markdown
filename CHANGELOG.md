@@ -1,5 +1,36 @@
 # Changelog
 
+## [0.9.1](https://github.com/f1sherFM/PyDoc2Markdown/compare/v0.9.0...v0.9.1) (2026-07-09)
+
+
+### Features
+
+0.9.1 is a public-readiness polish release focused on making generated output
+look better on real Python projects, not only on small tutorial examples. It
+improves the default Markdown structure, recognizes more common class patterns,
+and reduces repeated docstrings in subclass-heavy APIs.
+
+* add autosummary-style overview tables so generated module docs are easier to
+  scan before reading full class and function sections ([88bacd2](https://github.com/f1sherFM/PyDoc2Markdown/commit/88bacd2034fa59c56628070829f45c7f7cae3603))
+* support pdoc/mkdocstrings-style documented attributes for module constants,
+  class fields, dataclass fields, Pydantic fields, and instance attributes
+  assigned in `__init__` ([27bb0b7](https://github.com/f1sherFM/PyDoc2Markdown/commit/27bb0b7a3acfb7c3739291073fbba3e93f7e9a826))
+* add optional `--inherit-docstrings` support so subclasses and overriding
+  methods can reuse missing docs from parsed base classes without overwriting
+  explicit subclass documentation ([31e160a](https://github.com/f1sherFM/PyDoc2Markdown/commit/31e160a96257fa010d2fed4f3aae0f165edcb5f6))
+* improve class metadata detection for real-world import styles, including
+  aliased dataclasses, attrs classes, enums, protocols, ABCs, TypedDicts, and
+  Pydantic models ([1e05d24](https://github.com/f1sherFM/PyDoc2Markdown/commit/1e05d24db1afc207b1149ebaea3e3917d0b16dd5))
+* improve the default Markdown output so generated docs have clearer summaries,
+  cleaner tables, and more useful module-level navigation ([8a34896](https://github.com/f1sherFM/PyDoc2Markdown/commit/8a348965f8b72cbb702f972219c998ba86859a82))
+
+
+### Bug Fixes
+
+* resolve aliased base classes during docstring inheritance, including relative
+  imports such as `from .base import Service as BaseService`, while keeping the
+  original base spelling in rendered Markdown ([cfa5ded](https://github.com/f1sherFM/PyDoc2Markdown/commit/cfa5ded3e920e6be9a7d68d82d63c55f120f04dc))
+
 ## [0.9.0](https://github.com/f1sherFM/PyDoc2Markdown/compare/v0.8.1...v0.9.0) (2026-07-06)
 
 
