@@ -94,6 +94,7 @@ Represents extracted documentation for a class.
 | `methods` | `list[[FunctionDoc](#functiondoc)]` | - |
 | `attributes` | `list[[Parameter](#parameter)]` | - |
 | `bases` | `list[str]` | - |
+| `resolved_bases` | `list[str]` | - |
 | `class_type` | `str` | - |
 | `is_protocol` | `bool` | - |
 | `is_abstract` | `bool` | - |

@@ -322,6 +322,44 @@ class UserService(Service):
     assert users.classes[0].docstring == "Reusable service."
 
 
+def test_parse_inherits_docstrings_from_aliased_base_import(tmp_path: Path) -> None:
+    package = tmp_path / "pkg"
+    package.mkdir()
+    (package / "base.py").write_text(
+        '''"""Base module."""
+
+class Service:
+    """Reusable service."""
+''',
+        encoding="utf-8",
+    )
+    (package / "other.py").write_text(
+        '''"""Other module."""
+
+class Service:
+    """Different service."""
+''',
+        encoding="utf-8",
+    )
+    (package / "users.py").write_text(
+        '''"""Users module."""
+
+from .base import Service as BaseService
+
+class UserService(BaseService):
+    pass
+''',
+        encoding="utf-8",
+    )
+
+    modules = DocstringParser(inherit_docstrings=True).parse(package, recursive=True)
+    users = next(module for module in modules if module.name == "users")
+
+    assert users.classes[0].bases == ["BaseService"]
+    assert users.classes[0].resolved_bases == [".base.Service"]
+    assert users.classes[0].docstring == "Reusable service."
+
+
 def test_parse_property(advanced_module: Path) -> None:
     parser = DocstringParser()
     modules = parser.parse(advanced_module)
