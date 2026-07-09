@@ -180,6 +180,37 @@ class Product:
     assert "| `price` | `float` | Unit price. |" in content
 
 
+def test_generate_renders_attrs_fields(tmp_path: Path) -> None:
+    module = tmp_path / "models.py"
+    module.write_text(
+        '''"""Models."""
+
+import attrs
+
+@attrs.define
+class Product:
+    """A product.
+
+    Args:
+        sku: Stable product identifier.
+        price: Unit price.
+    """
+
+    sku: str
+    price: float = attrs.field(default=0.0)
+''',
+        encoding="utf-8",
+    )
+
+    content = MarkdownGenerator().generate_string(DocstringParser().parse(module)[0])
+
+    assert "### `Product` (attrs)" in content
+    assert "Args:" not in content
+    assert "#### Attributes" in content
+    assert "| `sku` | `str` | Stable product identifier. |" in content
+    assert "| `price` | `float` | Unit price. |" in content
+
+
 def test_generate_renders_constructor_params_from_class_docstring(tmp_path: Path) -> None:
     module = tmp_path / "inventory.py"
     module.write_text(
@@ -1068,6 +1099,43 @@ def test_generate_pydantic_model(pydantic_module: Path, tmp_path: Path) -> None:
     assert "User email address" in content
     assert "User age in years" in content
     assert "Request timeout in seconds" in content
+
+
+def test_generate_alias_detected_class_metadata(tmp_path: Path) -> None:
+    module = tmp_path / "aliases.py"
+    module.write_text(
+        '''"""Alias-heavy module."""
+
+import dataclasses as dc
+from pydantic import BaseModel as Model, Field as PydanticField
+
+@dc.dataclass
+class Product:
+    """A product."""
+
+    sku: str
+
+class Settings(Model):
+    """Application settings."""
+
+    timeout: float = PydanticField(default=30.0, description="Request timeout.")
+''',
+        encoding="utf-8",
+    )
+
+    content = MarkdownGenerator().generate_string(DocstringParser().parse(module)[0])
+
+    assert "### `Product` (dataclass)" in content
+    assert "| `sku` | `str` | - |" in content
+    assert "### `Settings` *(Pydantic)*" in content
+    assert "**Bases:** `Model`" in content
+    assert "#### Pydantic Fields" in content
+    expected_field_row = (
+        "| `timeout` | `float` | "
+        "`PydanticField(default=30.0, description='Request timeout.')` | "
+        "Request timeout. |"
+    )
+    assert expected_field_row in content
 
 
 def test_update_readme_creates_file(sample_module: Path, tmp_path: Path) -> None:
