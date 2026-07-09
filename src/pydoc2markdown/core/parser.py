@@ -78,6 +78,7 @@ class ClassDoc:
     methods: list[FunctionDoc] = field(default_factory=list)
     attributes: list[Parameter] = field(default_factory=list)
     bases: list[str] = field(default_factory=list)
+    resolved_bases: list[str] = field(default_factory=list)
     class_type: str = "class"
     is_protocol: bool = False
     is_abstract: bool = False
@@ -220,7 +221,7 @@ class DocstringParser:
     ) -> list[ClassDoc]:
         """Return parsed base classes for a class, ignoring unknown or ambiguous bases."""
         bases: list[ClassDoc] = []
-        for base_name in class_doc.bases:
+        for base_name in class_doc.resolved_bases or class_doc.bases:
             for candidate in self._base_lookup_keys(base_name):
                 base_doc = class_index.get(candidate)
                 if base_doc is not None:
@@ -233,7 +234,13 @@ class DocstringParser:
         normalized = base_name.split("[", 1)[0].strip()
         if not normalized:
             return ()
-        return (normalized, normalized.rsplit(".", 1)[-1])
+        candidates = [normalized]
+        stripped = normalized.lstrip(".")
+        if stripped and stripped != normalized:
+            candidates.append(stripped)
+        parts = stripped.split(".")
+        candidates.extend(".".join(parts[index:]) for index in range(1, len(parts)))
+        return tuple(dict.fromkeys(candidates))
 
     def _inherit_from_base(self, class_doc: ClassDoc, base_doc: ClassDoc) -> None:
         """Copy missing class and method docs from one base class."""
@@ -355,6 +362,7 @@ class DocstringParser:
             name=node.name,
             docstring=raw_docstring,
             bases=bases,
+            resolved_bases=canonical_bases,
             class_type=self._resolve_class_type(node, canonical_bases, aliases),
             is_protocol=self._is_protocol(canonical_bases),
             is_abstract=self._is_abstract(canonical_bases),
