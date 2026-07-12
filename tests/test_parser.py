@@ -356,8 +356,50 @@ class UserService(BaseService):
     users = next(module for module in modules if module.name == "users")
 
     assert users.classes[0].bases == ["BaseService"]
-    assert users.classes[0].resolved_bases == [".base.Service"]
+    assert users.classes[0].resolved_bases == ["base.Service"]
     assert users.classes[0].docstring == "Reusable service."
+
+
+def test_parse_inherits_docstrings_from_relative_import_inside_package(tmp_path: Path) -> None:
+    root = tmp_path / "src"
+    pkg1 = root / "pkg1"
+    pkg2 = root / "pkg2"
+    pkg1.mkdir(parents=True)
+    pkg2.mkdir()
+    (pkg1 / "base.py").write_text(
+        '''"""Package one base."""
+
+class Service:
+    """Package one service."""
+''',
+        encoding="utf-8",
+    )
+    (pkg1 / "users.py").write_text(
+        '''"""Package one users."""
+
+from .base import Service
+
+class UserService(Service):
+    pass
+''',
+        encoding="utf-8",
+    )
+    (pkg2 / "base.py").write_text(
+        '''"""Package two base."""
+
+class Service:
+    """Package two service."""
+''',
+        encoding="utf-8",
+    )
+
+    modules = DocstringParser(inherit_docstrings=True).parse(root, recursive=True)
+    users = next(
+        module for module in modules if module.package == "pkg1" and module.name == "users"
+    )
+
+    assert users.classes[0].resolved_bases == ["pkg1.base.Service"]
+    assert users.classes[0].docstring == "Package one service."
 
 
 def test_parse_property(advanced_module: Path) -> None:

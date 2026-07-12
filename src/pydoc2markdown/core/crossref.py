@@ -49,24 +49,32 @@ class TypeRef:
 class TypeIndex:
     """Index of project-defined types for cross-referencing."""
 
-    types: dict[str, TypeRef | str]
-    """Mapping from type name to a Markdown target."""
+    types: dict[str, list[TypeRef] | TypeRef | str]
+    """Mapping from type name to one or more Markdown targets."""
 
     @classmethod
     def from_modules(cls, modules: list[ModuleDoc]) -> "TypeIndex":
         """Build an index from a list of parsed modules."""
-        types: dict[str, TypeRef | str] = {}
+        types: dict[str, list[TypeRef] | TypeRef | str] = {}
         for module in modules:
             module_key = _module_key(module)
             for class_doc in module.classes:
-                types[class_doc.name] = TypeRef(
-                    anchor=_to_anchor(class_doc.name),
-                    module=module_key,
+                refs = types.setdefault(class_doc.name, [])
+                assert isinstance(refs, list)
+                refs.append(
+                    TypeRef(
+                        anchor=_to_anchor(class_doc.name),
+                        module=module_key,
+                    )
                 )
             for func in module.functions:
-                types[func.name] = TypeRef(
-                    anchor=_to_anchor(func.name),
-                    module=module_key,
+                refs = types.setdefault(func.name, [])
+                assert isinstance(refs, list)
+                refs.append(
+                    TypeRef(
+                        anchor=_to_anchor(func.name),
+                        module=module_key,
+                    )
                 )
         return cls(types)
 
@@ -95,12 +103,8 @@ class TypeIndex:
         # Sort by length descending to avoid partial replacements
         # e.g. replace "MyClass" before "My"
         for name, target in sorted(self.types.items(), key=lambda item: len(item[0]), reverse=True):
-            ref = target if isinstance(target, TypeRef) else TypeRef(anchor=target)
-            if (
-                current_module is not None
-                and ref.module is not None
-                and ref.module != current_module
-            ):
+            ref = self._select_ref(target, current_module=current_module)
+            if ref is None:
                 continue
             # Match the type name as a whole word, avoiding substrings inside other words
             pattern = rf"\b{re.escape(name)}\b"
@@ -110,3 +114,28 @@ class TypeIndex:
         for index, link in enumerate(existing_links):
             type_str = type_str.replace(f"@@PYDOC2MARKDOWN_LINK_{index}@@", link)
         return type_str
+
+    def _refs_for(self, target: list[TypeRef] | TypeRef | str) -> list[TypeRef]:
+        """Return normalized type references for one indexed name."""
+        if isinstance(target, list):
+            return target
+        if isinstance(target, TypeRef):
+            return [target]
+        return [TypeRef(anchor=target)]
+
+    def _select_ref(
+        self,
+        target: list[TypeRef] | TypeRef | str,
+        *,
+        current_module: str | None,
+    ) -> TypeRef | None:
+        """Choose the safest link target for a type name."""
+        refs = self._refs_for(target)
+        if current_module is not None:
+            return next(
+                (ref for ref in refs if ref.module is None or ref.module == current_module),
+                None,
+            )
+        if len(refs) == 1:
+            return refs[0]
+        return None

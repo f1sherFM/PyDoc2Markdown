@@ -1,6 +1,7 @@
 """Tests for watch mode error paths."""
 
 import builtins
+import json
 import logging
 import sys
 from pathlib import Path
@@ -10,6 +11,41 @@ from typing import Any, cast
 import pytest
 
 from pydoc2markdown.core.watcher import watch_and_generate
+
+
+def _install_idle_watchdog(monkeypatch: pytest.MonkeyPatch) -> None:
+    events_module = cast(Any, ModuleType("watchdog.events"))
+    observers_module = cast(Any, ModuleType("watchdog.observers"))
+
+    class FakeFileSystemEvent:
+        is_directory = False
+        src_path = ""
+
+    class FakeFileSystemEventHandler:
+        pass
+
+    class FakeObserver:
+        def schedule(self, *_args: object, **_kwargs: object) -> None:
+            pass
+
+        def start(self) -> None:
+            pass
+
+        def is_alive(self) -> bool:
+            return False
+
+        def join(self, _timeout: float | None = None) -> None:
+            pass
+
+        def stop(self) -> None:
+            pass
+
+    events_module.FileSystemEvent = FakeFileSystemEvent
+    events_module.FileSystemEventHandler = FakeFileSystemEventHandler
+    observers_module.Observer = FakeObserver
+
+    monkeypatch.setitem(sys.modules, "watchdog.events", events_module)
+    monkeypatch.setitem(sys.modules, "watchdog.observers", observers_module)
 
 
 def test_watch_and_generate_missing_watchdog(
@@ -151,6 +187,64 @@ def test_watch_and_generate_schedules_with_recursive_flag(
     assert result == 0
     assert scheduled["path"] == str(source)
     assert scheduled["recursive"] is False
+
+
+def test_watch_and_generate_writes_prune_manifest(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _install_idle_watchdog(monkeypatch)
+    source = tmp_path / "src"
+    source.mkdir()
+    (source / "module.py").write_text('"""Module docs."""\n', encoding="utf-8")
+    output_dir = tmp_path / "docs"
+
+    result = watch_and_generate(
+        source=source,
+        output_dir=output_dir,
+        recursive=True,
+        theme="default",
+        template_path=None,
+    )
+
+    manifest = json.loads((output_dir / ".pydoc2markdown.json").read_text(encoding="utf-8"))
+    assert result == 0
+    assert manifest["single_file"] is False
+    assert set(manifest["files"]) == {"index.md", "module.md"}
+
+
+def test_watch_and_generate_readme_links_to_navigation_docs(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _install_idle_watchdog(monkeypatch)
+    source = tmp_path / "src"
+    source.mkdir()
+    (source / "module.py").write_text(
+        '''"""Module docs."""
+
+class Widget:
+    """Example widget."""
+''',
+        encoding="utf-8",
+    )
+    output_dir = tmp_path / "docs"
+    readme_path = tmp_path / "README.md"
+
+    result = watch_and_generate(
+        source=source,
+        output_dir=output_dir,
+        recursive=True,
+        theme="default",
+        template_path=None,
+        readme_path=readme_path,
+        navigation=True,
+    )
+
+    content = readme_path.read_text(encoding="utf-8")
+    assert result == 0
+    assert "### [`module`](docs/api/module.md)" in content
+    assert "### `module`" not in content
 
 
 def test_watch_and_generate_debounces_file_events(
