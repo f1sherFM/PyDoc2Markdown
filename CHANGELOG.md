@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.9.3](https://github.com/f1sherFM/PyDoc2Markdown/compare/v0.9.2...v0.9.3) (2026-07-12)
+
+
+### Documentation
+
+* add public launch kit ([#64](https://github.com/f1sherFM/PyDoc2Markdown/issues/64)) ([65d3236](https://github.com/f1sherFM/PyDoc2Markdown/commit/65d32363593de52fa725b3201d71f6bc0cc09847))
+
 ## [0.9.2](https://github.com/f1sherFM/PyDoc2Markdown/compare/v0.9.1...v0.9.2) (2026-07-12)
 
 
