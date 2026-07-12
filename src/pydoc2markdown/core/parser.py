@@ -304,7 +304,6 @@ class DocstringParser:
     def _extract_module(self, path: Path, tree: ast.AST) -> ModuleDoc:
         """Extract module-level documentation."""
         assert isinstance(tree, ast.Module)
-        aliases = self._extract_import_aliases(tree)
         package = ""
         source_path = self._source_relative_path(path)
         if self._source.is_dir():
@@ -314,6 +313,7 @@ class DocstringParser:
                     package = str(rel).replace("\\", ".").replace("/", ".")
             except ValueError:
                 package = ""
+        aliases = self._extract_import_aliases(tree, package)
         module = ModuleDoc(
             name=path.stem,
             path=path,
@@ -766,20 +766,33 @@ class DocstringParser:
         """Format a base class expression as a string."""
         return ast.unparse(base)
 
-    def _extract_import_aliases(self, tree: ast.Module) -> dict[str, str]:
+    def _extract_import_aliases(self, tree: ast.Module, package: str) -> dict[str, str]:
         """Return import aliases that can affect semantic class detection."""
         aliases: dict[str, str] = {}
         for node in tree.body:
             if isinstance(node, ast.Import):
                 for item in node.names:
                     aliases[item.asname or item.name] = item.name
-            elif isinstance(node, ast.ImportFrom) and node.module:
-                module = "." * node.level + node.module if node.level else node.module
+            elif isinstance(node, ast.ImportFrom) and (node.level or node.module):
+                module = self._resolve_import_from_module(node, package)
                 for item in node.names:
                     if item.name == "*":
                         continue
-                    aliases[item.asname or item.name] = f"{module}.{item.name}"
+                    aliases[item.asname or item.name] = (
+                        f"{module}.{item.name}" if module else item.name
+                    )
         return aliases
+
+    def _resolve_import_from_module(self, node: ast.ImportFrom, package: str) -> str:
+        """Return an absolute-ish module key for ImportFrom aliases."""
+        if node.level == 0:
+            return node.module or ""
+
+        package_parts = package.split(".") if package else []
+        base_parts = package_parts[: max(len(package_parts) - node.level + 1, 0)]
+        if node.module:
+            base_parts.extend(node.module.split("."))
+        return ".".join(base_parts)
 
     def _canonical_name(self, name: str, aliases: dict[str, str]) -> str:
         """Expand the first segment of an imported alias when known."""

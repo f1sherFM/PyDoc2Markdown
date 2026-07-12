@@ -1,6 +1,6 @@
 # Documentation Index
 
-**Overview:** 14 modules, 14 classes, 17 functions.
+**Overview:** 15 modules, 14 classes, 20 functions.
 
 ## Modules
 
@@ -20,6 +20,7 @@ Core logic for PyDoc2Markdown.
 | [`doctor`](core/doctor.md) | Project diagnostics for PyDoc2Markdown onboarding. | 1 class(es), 1 function(s) |
 | [`filtering`](core/filtering.md) | Helpers for filtering documented module members before rendering or reporting. | 1 function(s) |
 | [`generator`](core/generator.md) | Markdown documentation generator. | 2 class(es) |
+| [`outputs`](core/outputs.md) | Shared helpers for generated documentation outputs. | 3 function(s) |
 | [`parser`](core/parser.md) | Python docstring parser with structured docstring support. | 8 class(es) |
 | [`report`](core/report.md) | Documentation coverage analysis and terminal reporting. | 1 class(es), 3 function(s) |
 | [`type_hints`](core/type_hints.md) | Type hint formatting utilities. | 1 function(s) |

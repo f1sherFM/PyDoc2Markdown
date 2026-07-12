@@ -3,7 +3,6 @@
 import argparse
 import json
 import logging
-import os
 import sys
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -18,6 +17,12 @@ from pydoc2markdown.core.generator import (
     MarkdownGenerator,
     OutputOptions,
 )
+from pydoc2markdown.core.outputs import (
+    MANIFEST_VERSION,
+    manifest_path,
+    readme_module_links,
+    write_manifest,
+)
 from pydoc2markdown.core.parser import DocstringParser, ModuleDoc
 from pydoc2markdown.core.report import (
     REPORT_CATEGORY_ORDER,
@@ -28,7 +33,6 @@ from pydoc2markdown.core.report import (
 from pydoc2markdown.core.watcher import watch_and_generate
 
 logger = logging.getLogger(__name__)
-_MANIFEST_VERSION = 1
 _REPORT_CATEGORIES = REPORT_CATEGORY_ORDER
 
 _DEFAULT_CONFIG = """[tool.pydoc2markdown]
@@ -697,37 +701,6 @@ def _write_report_output(output_path: Path | None, content: str) -> None:
     output_path.write_text(content, encoding="utf-8")
 
 
-def _readme_module_links(
-    modules: list[ModuleDoc],
-    *,
-    output: Path,
-    readme_path: Path,
-    single_file: bool,
-    navigation: bool,
-    api_dir: Path,
-) -> dict[str, str]:
-    """Build README links to generated module docs for the current run."""
-    if single_file:
-        return {}
-
-    links: dict[str, str] = {}
-    readme_dir = readme_path.resolve().parent
-    docs_root = output / api_dir if navigation else output
-    for module in modules:
-        if module.name == "__init__":
-            continue
-        module_name = f"{module.package}.{module.name}" if module.package else module.name
-        module_path = (
-            docs_root / module.package.replace(".", "/") / f"{module.name}.md"
-            if module.package
-            else docs_root / f"{module.name}.md"
-        )
-        links[module_name] = Path(
-            os.path.relpath(module_path.resolve(), start=readme_dir)
-        ).as_posix()
-    return links
-
-
 def init_config() -> int:
     """Create or update [tool.pydoc2markdown] in pyproject.toml.
 
@@ -794,7 +767,7 @@ def run_demo(output_dir: Path) -> int:
     modules = DocstringParser().parse(source, recursive=True)
     generator = MarkdownGenerator(
         readme_mode="summary",
-        readme_module_links=_readme_module_links(
+        readme_module_links=readme_module_links(
             modules,
             output=docs,
             readme_path=readme,
@@ -804,7 +777,7 @@ def run_demo(output_dir: Path) -> int:
         ),
     )
     generated = generator.generate_navigation(modules, docs)
-    _write_manifest(docs, single_file=False, generated_paths=generated)
+    write_manifest(docs, single_file=False, generated_paths=generated)
     generator.update_readme(modules, readme)
 
     print(f"Created demo project: {output_dir}")
@@ -862,22 +835,12 @@ def _check_readme(
 
 def _manifest_path(output: Path, *, single_file: bool) -> Path:
     """Return the manifest path for generated Markdown files."""
-    if single_file:
-        return output.parent / f".{output.name}.pydoc2markdown.json"
-    return output / ".pydoc2markdown.json"
+    return manifest_path(output, single_file=single_file)
 
 
 def _write_manifest(output: Path, *, single_file: bool, generated_paths: list[Path]) -> None:
     """Persist generated Markdown paths for future prune operations."""
-    manifest_path = _manifest_path(output, single_file=single_file)
-    base_dir = output.parent if single_file else output
-    payload = {
-        "version": _MANIFEST_VERSION,
-        "single_file": single_file,
-        "files": sorted(str(path.relative_to(base_dir).as_posix()) for path in generated_paths),
-    }
-    manifest_path.parent.mkdir(parents=True, exist_ok=True)
-    manifest_path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+    write_manifest(output, single_file=single_file, generated_paths=generated_paths)
 
 
 def _read_manifest(output: Path, *, single_file: bool) -> set[Path]:
@@ -893,7 +856,7 @@ def _read_manifest(output: Path, *, single_file: bool) -> set[Path]:
         return set()
 
     if (
-        payload.get("version") != _MANIFEST_VERSION
+        payload.get("version") != MANIFEST_VERSION
         or payload.get("single_file") is not single_file
         or not isinstance(payload.get("files"), list)
     ):
@@ -1367,7 +1330,7 @@ def main(args: list[str] | None = None) -> int:
             readme_mode=parsed_args.readme_mode,
             readme_title=parsed_args.readme_title,
             readme_module_links=(
-                _readme_module_links(
+                readme_module_links(
                     modules,
                     output=parsed_args.output,
                     readme_path=parsed_args.readme_path,

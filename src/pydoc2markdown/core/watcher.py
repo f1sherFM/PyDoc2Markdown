@@ -61,16 +61,9 @@ def watch_and_generate(
         return 1
 
     from pydoc2markdown.core.generator import MarkdownGenerator
+    from pydoc2markdown.core.outputs import readme_module_links, write_manifest
     from pydoc2markdown.core.parser import DocstringParser
 
-    generator = MarkdownGenerator(
-        template_path=template_path,
-        theme=theme,
-        source_link_template=source_link_template,
-        output_options=output_options,
-        readme_mode=readme_mode,
-        readme_title=readme_title,
-    )
     parser = DocstringParser(inherit_docstrings=inherit_docstrings)
 
     def _generate_docs(message: str) -> None:
@@ -80,12 +73,35 @@ def watch_and_generate(
             include=include,
             exclude=exclude,
         )
+        generator = MarkdownGenerator(
+            template_path=template_path,
+            theme=theme,
+            source_link_template=source_link_template,
+            output_options=output_options,
+            readme_mode=readme_mode,
+            readme_title=readme_title,
+            readme_module_links=(
+                readme_module_links(
+                    modules,
+                    output=output_dir,
+                    readme_path=readme_path,
+                    single_file=single_file,
+                    navigation=navigation,
+                    api_dir=api_dir,
+                )
+                if readme_path
+                else None
+            ),
+        )
         if single_file:
-            generator.generate_single_file(modules, output_dir)
+            generated = [generator.generate_single_file(modules, output_dir)]
+            write_manifest(output_dir, single_file=True, generated_paths=generated)
         elif navigation:
-            generator.generate_navigation(modules, output_dir, api_dir)
+            generated = generator.generate_navigation(modules, output_dir, api_dir)
+            write_manifest(output_dir, single_file=False, generated_paths=generated)
         else:
-            generator.generate(modules, output_dir)
+            generated = generator.generate(modules, output_dir)
+            write_manifest(output_dir, single_file=False, generated_paths=generated)
         if readme_path:
             generator.update_readme(modules, readme_path)
         logger.info(message, output_dir)
