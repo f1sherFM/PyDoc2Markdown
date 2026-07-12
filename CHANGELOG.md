@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.9.2](https://github.com/f1sherFM/PyDoc2Markdown/compare/v0.9.1...v0.9.2) (2026-07-12)
+
+
+### Bug Fixes
+
+0.9.2 is a public-readiness bugfix release for edge cases found after 0.9.1.
+It keeps the 0.9.x launch line focused on predictable behavior across normal
+generation, watch mode, README sync, docstring inheritance, and type links.
+
+* resolve package-relative base imports during docstring inheritance so
+  `from .base import Service` inside a package resolves to the package-local
+  base class instead of relying on ambiguous short names ([4fe102b](https://github.com/f1sherFM/PyDoc2Markdown/commit/4fe102beabf35a3c779ef8ea56a65049a8d178e4))
+* make watch mode write the same prune manifest as normal generation, keeping
+  later `--prune` and generated-file tracking consistent ([4fe102b](https://github.com/f1sherFM/PyDoc2Markdown/commit/4fe102beabf35a3c779ef8ea56a65049a8d178e4))
+* keep README module links in watch mode aligned with normal CLI generation so
+  `--watch --readme --nav` links modules to generated docs instead of local
+  README anchors ([4fe102b](https://github.com/f1sherFM/PyDoc2Markdown/commit/4fe102beabf35a3c779ef8ea56a65049a8d178e4))
+* preserve multiple cross-reference targets for duplicate type names across
+  modules and avoid unsafe ambiguous links when no local module context can
+  disambiguate them ([4fe102b](https://github.com/f1sherFM/PyDoc2Markdown/commit/4fe102beabf35a3c779ef8ea56a65049a8d178e4))
+
 ## [0.9.1](https://github.com/f1sherFM/PyDoc2Markdown/compare/v0.9.0...v0.9.1) (2026-07-09)
 
 
